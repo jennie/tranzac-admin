@@ -8,8 +8,9 @@ export default defineNuxtConfig({
     "nuxt-mongoose",
     "./modules/auth.module",
   ],
+
   ui: {
-    icons: ["heroicons", "simple-icons"],
+    icons: ["ph", "logos", "simple-icons", "heroicons"],
     safelistColors: ["primary", "red", "orange", "green"],
   },
   colorMode: {
