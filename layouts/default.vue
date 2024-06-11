@@ -49,11 +49,12 @@ const groups = [{
         <template #left>
           Tranzac Admin
         </template>
+        <template #right>
+          <UColorModeToggle color="gray" />
+        </template>
       </UDashboardNavbar>
 
       <UDashboardSidebar>
-
-
         <UDashboardSidebarLinks :links="links" />
 
         <UDivider />

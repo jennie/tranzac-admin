@@ -7,14 +7,21 @@ export default (options) => {
     method: "POST",
     headers: {
       Authorization: `Bearer ${runtimeConfig.public.datoCmsToken}`,
-      ...(includeDrafts && { "X-Include-Drafts": "true" }),
+      ...(includeDrafts && {
+        "X-Include-Drafts": "true",
+        "X-Base-Editing-Url": "https://tranzac-club.admin.datocms.com",
+      }),
     },
     body: {
       query,
       variables,
     },
     transform: ({ data, errors }) => {
-      if (errors) throw new errors();
+      if (errors) {
+        // Assuming errors is an array of error messages or objects
+        const errorMessage = errors.map((error) => error.message).join(", ");
+        throw new Error(errorMessage);
+      }
 
       return data;
     },

@@ -111,6 +111,12 @@ const onSortChange = (column) => {
 
 
       <UTable :rows="paginatedMembers" :columns="columns" :sort="sort" @sort-change="onSortChange">
+        <template #name-data="{ row }">
+          <span class="flex flex-row items-center">
+            <UAvatar :src="`https://unavatar.io/gravatar/${row.email}`" class="bg-gray-200 dark:bg-neutral-800 mr-2" />
+            {{ row.name }}
+          </span>
+        </template>
         <template #membershipStartDate-data="{ row }">
           {{ row.membershipStartDate ? format(row.membershipStartDate, "MMMM d, y") : "–" }}
         </template>
