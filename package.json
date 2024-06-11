@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@antfu/eslint-config": "2.15.0",
+    "@datocms/cma-client-node": "^3.3.2",
     "@iconify-json/heroicons": "^1.1.21",
     "@iconify-json/logos": "^1.1.40",
     "@iconify-json/ph": "^1.1.8",

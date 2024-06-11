@@ -8,7 +8,11 @@ export default defineNuxtConfig({
     "nuxt-mongoose",
     "./modules/auth.module",
   ],
-
+  runtimeConfig: {
+    public: {
+      datoCmsToken: process.env.DATO_API_TOKEN,
+    },
+  },
   ui: {
     icons: ["ph", "logos", "simple-icons", "heroicons"],
     safelistColors: ["primary", "red", "orange", "green"],
