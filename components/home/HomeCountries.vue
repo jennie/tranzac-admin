@@ -1,57 +1,59 @@
 <script setup lang="ts">
-const countries = [{
-  label: 'United States',
-  value: 31,
-  color: 'red'
-}, {
-  label: 'Germany',
-  value: 21,
-  color: 'orange'
-}, {
-  label: 'Indonesia',
-  value: 15,
-  color: 'yellow'
-}, {
-  label: 'France',
-  value: 10,
-  color: 'green'
-}, {
-  label: 'Japan',
-  value: 6,
-  color: 'teal'
-}, {
-  label: 'India',
-  value: 1,
-  color: 'blue'
-}, {
-  label: 'Brazil',
-  value: 1,
-  color: 'indigo'
-}, {
-  label: 'China',
-  value: 1,
-  color: 'pink'
-}]
+const bookings = ref([]);
+const isLoading = ref(false);
+const error = ref(null);
+
+const QUERY = `query {
+  allRentals {
+    _status
+    title
+    startDate
+    organization
+    endDate
+    id
+  }
+}
+`;
+
+const fetchBookings = async () => {
+  isLoading.value = true;
+
+  try {
+    const { data, error: fetchError } = await useGraphqlQuery({ query: QUERY, includeDrafts: true });
+    console.log(data)
+
+    if (fetchError.value) {
+      throw new Error(fetchError.value);
+    }
+
+    if (data.value && data.value.allRentals) {
+      bookings.value = data.value.allRentals.map(rental => ({
+        ...rental,
+        start: new Date(rental.startDate),
+        end: new Date(rental.endDate),
+      }));
+    }
+  } catch (e) {
+    error.value = e.message;
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+onMounted(() => {
+  fetchBookings();
+});
 </script>
 
 <template>
-  <UDashboardCard
-    title="Top countries"
-    description="You made sales in 20 countries this month."
-    icon="i-heroicons-globe-alt-20-solid"
-  >
-    <div class="space-y-2">
-      <UMeter
-        v-for="(country, index) in countries"
-        :key="index"
-        :value="country.value"
-        :label="country.label"
-        :color="country.color"
-        size="lg"
-        class="flex-row-reverse items-center"
-        :ui="{ label: { base: 'flex-shrink-0 w-24' }, indicator: { container: '!w-auto' }, meter: { base: 'flex-1' } }"
-        indicator
-      />
-    </div>
-  </UDashboardCard>
+  <div v-if="error">
+    <p>Error: {{ error }}</p>
+  </div>
+  <div v-else-if="isLoading">
+    <p>Loading...</p>
+  </div>
+  <div v-else>
+    {{ bookings }}
+  </div>
+  <!-- Rest of your template -->
 </template>

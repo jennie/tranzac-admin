@@ -11,8 +11,20 @@ const { data: members } = await useFetch<Member[]>('/api/members', {
       name: `${member.firstName} ${member.lastName}`
     }))
   }
-}
-);
+});
+
+const defaultColumns = [
+  { key: "name", label: "Name" },
+  { key: "email", label: "Email" },
+  { key: "membershipStatus", label: "Membership Status" },
+  { key: "membershipStartDate", label: "Start Date", sortable: true },
+  { key: "membershipEndDate", label: "End Date", sortable: true },
+];
+
+const defaultMembershipStatuses = ["active", "inactive", "pending"]; // Adjust these based on your actual membership statuses
+const selectedColumns = ref(defaultColumns);
+const selectedMembershipStatuses = ref([]);
+const columns = computed(() => defaultColumns.filter(column => selectedColumns.value.includes(column)));
 
 const q = ref('');
 const page = ref(1);
@@ -23,18 +35,6 @@ const sort = ref({
   direction: 'desc' as 'asc' | 'desc'
 });
 
-const columns = [
-  { key: "name", label: "Name" },
-  { key: "email", label: "Email" },
-  { key: "membershipType", label: "Membership Type" },
-  {
-    key: "membershipStartDate", label: "Membership Start Date", sortable: true
-  },
-  {
-    key: "membershipEndDate", label: "Membership End Date", sortable: true
-  },
-];
-
 const formatDate = (date) => {
   return new Date(date).toLocaleDateString();
 };
@@ -43,10 +43,9 @@ const formatDate = (date) => {
 const flattenedMembers = computed(() =>
   members.value.map(member => ({
     ...member,
-    membershipType: member.membership.type,
+    membershipStatus: member.membership.status,
     membershipStartDate: member.membership.startDate ? new Date(member.membership.startDate) : null,
     membershipEndDate: member.membership.endDate ? new Date(member.membership.endDate) : null,
-
   }))
 );
 
@@ -60,6 +59,11 @@ const filteredMembers = computed(() => {
         return String(value).toLowerCase().includes(q.value.toLowerCase());
       });
     });
+  }
+
+  // Membership status filter
+  if (selectedMembershipStatuses.value.length > 0) {
+    result = result.filter(member => selectedMembershipStatuses.value.includes(member.membershipStatus));
   }
 
   return result;
@@ -91,6 +95,21 @@ const onSortChange = (column) => {
   }
   page.value = 1; // Reset to the first page after sorting
 };
+
+const getStatusColor = (status) => {
+  switch (status) {
+    case 'active':
+      return 'green';
+    case 'inactive':
+      return 'gray';
+    case 'pending':
+      return 'gray';
+    case 'expired':
+      return 'red';
+    default:
+      return 'blue';
+  }
+};
 </script>
 
 <template>
@@ -108,14 +127,40 @@ const onSortChange = (column) => {
       </template>
     </UDashboardNavbar>
     <UCard :ui="{ header: { padding: 'p-4 sm:px-6' }, body: { padding: '' } }" class="min-w-0">
+      <UDashboardToolbar>
+        <template #left>
+          <USelectMenu v-model="selectedMembershipStatuses" icon="i-heroicons-user-group"
+            placeholder="Membership Status" multiple :options="defaultMembershipStatuses"
+            :ui-menu="{ option: { base: 'capitalize' } }" />
+        </template>
 
+        <template #right>
+          <USelectMenu v-model="selectedColumns" icon="i-heroicons-adjustments-horizontal-solid" :options="columns"
+            multiple class="hidden lg:block">
+            <template #label>
+              Display
+            </template>
+          </USelectMenu>
+        </template>
+      </UDashboardToolbar>
 
       <UTable :rows="paginatedMembers" :columns="columns" :sort="sort" @sort-change="onSortChange">
         <template #name-data="{ row }">
-          <span class="flex flex-row items-center">
-            <UAvatar :src="`https://unavatar.io/gravatar/${row.email}`" class="bg-gray-200 dark:bg-neutral-800 mr-2" />
-            {{ row.name }}
-          </span>
+          <NuxtLink :to="`/members/${row._id}`" class="underline">
+            <span class="flex flex-row items-center">
+              <UAvatar :src="`https://unavatar.io/gravatar/${row.email}`"
+                class="bg-gray-200 dark:bg-neutral-800 mr-2" />
+              {{ row.name }}
+            </span>
+          </NuxtLink>
+        </template>
+        <template #email-data="{ row }">
+          <a :href="`mailto:${row.email}`" class="underline">
+            {{ row.email }}
+          </a>
+        </template>
+        <template #membershipStatus-data="{ row }">
+          <UBadge :label="row.membershipStatus" :color="getStatusColor(row.membershipStatus)" class="capitalize" />
         </template>
         <template #membershipStartDate-data="{ row }">
           {{ row.membershipStartDate ? format(row.membershipStartDate, "MMMM d, y") : "–" }}

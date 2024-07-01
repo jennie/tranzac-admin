@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { format } from "date-fns";
-import { useSorted } from '@vueuse/core';
 
 const defaultColumns = [
   { key: "_status", label: "Status" },
@@ -11,9 +9,9 @@ const defaultColumns = [
 ];
 
 const defaultStatuses = ["draft", "published"];
-const selectedColumns = ref(defaultColumns)
-const selectedStatuses = ref([])
-const columns = computed(() => defaultColumns.filter(column => selectedColumns.value.includes(column)))
+const selectedColumns = ref(defaultColumns);
+const selectedStatuses = ref([]);
+const columns = computed(() => defaultColumns.filter(column => selectedColumns.value.includes(column)));
 
 const q = ref('');
 const page = ref(1);
@@ -24,7 +22,53 @@ const sort = ref({
   direction: 'desc' as 'asc' | 'desc'
 });
 
+const bookings = ref([]);
+const isLoading = ref(false);
 
+const QUERY = `query {
+  allRentals {
+    _status
+    title
+    startDate
+    organization
+    endDate
+    id
+  }
+}
+`;
+
+const fetchBookings = async () => {
+  console.log('fetching bookings');
+  isLoading.value = true; // Set loading to true at the start
+
+  try {
+    const { data, error } = await useGraphqlQuery({ query: QUERY, includeDrafts: true });
+
+    if (error.value) {
+      console.error('Failed to fetch events', error.value);
+    } else if (data.value) {
+      console.log('data', data.value);
+      bookings.value = data.value.allRentals.map(rental => ({
+        ...rental,
+        start: new Date(rental.startDate),
+        end: new Date(rental.endDate),
+      }));
+      console.log(bookings.value);
+    }
+  } catch (e) {
+    console.error('Failed to fetch events', e);
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+onMounted(() => {
+  fetchBookings();
+});
+
+watch(selectedStatuses, () => {
+  fetchBookings();
+});
 
 const filteredBookings = computed(() => {
   let result = bookings.value;
@@ -45,43 +89,6 @@ const filteredBookings = computed(() => {
 
   return result;
 });
-
-const QUERY = `query {
-  allRentals {
-    _status
-    title
-    startDate
-    organization
-    endDate
-    id
-  }
-}
-`;
-
-const { data, error } = useGraphqlQuery({ query: QUERY, includeDrafts: true });
-
-let bookings = ref([]);
-const isLoading = ref(false);
-
-const fetchBookings = async () => {
-  isLoading.value = true; // Set loading to true at the start
-
-  const { data, error } = useGraphqlQuery({ query: QUERY, includeDrafts: true });
-  console.log(data.value)
-  if (error.value) {
-    console.error('Failed to fetch events', error.value);
-  } else if (data.value) {
-    isLoading.value = false;
-    bookings.value = data.value.allRentals.map(rental => ({
-      ...rental,
-      start: new Date(rental.startDate),
-      end: new Date(rental.endDate),
-    }));
-  }
-};
-onMounted(fetchBookings);
-
-
 </script>
 
 <template>
@@ -101,7 +108,6 @@ onMounted(fetchBookings);
         <template #left>
           <USelectMenu v-model="selectedStatuses" icon="i-heroicons-check-circle" placeholder="Status" multiple
             :options="defaultStatuses" :ui-menu="{ option: { base: 'capitalize' } }" />
-
         </template>
 
         <template #right>
@@ -113,8 +119,9 @@ onMounted(fetchBookings);
           </USelectMenu>
         </template>
       </UDashboardToolbar>
+      <div v-if="isLoading">Loading...</div>
 
-      <UTable :rows="filteredBookings" :columns="columns" :sort="sort">
+      <UTable :rows="filteredBookings" :columns="columns" :sort="sort" v-if="!isLoading">
         <template #title-data="{ row }">
           <NuxtLink :to="`/bookings/${row.id}`" class="underline">{{ row.title }}</NuxtLink>
         </template>

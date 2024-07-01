@@ -21,29 +21,8 @@ export function useAuth() {
     console.log("Clearing user session...");
     const teamStore = useTeamStore();
     const userStore = useUserStore();
-    const preferences = {
-      currentTeam: teamStore.currentTeam,
-      lastDiagram: null,
-    };
 
-    const savePreferences = async () => {
-      try {
-        const response = await $fetch(
-          `/api/users/${userStore.getUserInfo._id}/preferences/save`,
-          {
-            method: "POST",
-            body: JSON.stringify(preferences),
-            headers: {
-              "Content-Type": "application/json",
-            },
-          }
-        );
-        console.log("Preferences saved successfully:", response);
-      } catch (error) {
-        console.error("Error saving preferences:", error);
-      }
-    };
-    await savePreferences();
+    // await savePreferences();
     await $fetch("/api/auth/logout", { method: "DELETE" });
     sessionState.value = {};
     loggedIn.value = false;
@@ -68,44 +47,8 @@ export function useAuth() {
         icon: "i-ph-sign-in",
         description: `${userData.name} logged in successfully.`,
       });
-
-      await initializePreferences(userData);
     } catch (error) {
       onError(error);
-    }
-  }
-
-  async function initializePreferences(userData) {
-    const teamStore = useTeamStore();
-
-    // Make sure userData and its preferences are defined
-    if (!userData || !userData.preferences) {
-      console.error("User data or preferences are undefined");
-      return;
-    }
-
-    try {
-      if (userData.preferences.currentTeam) {
-        teamStore.selectTeam(userData.preferences.currentTeam);
-      } else {
-        await teamStore.fetchUserTeams();
-        if (teamStore.userTeams.length > 0) {
-          console.log(
-            "Setting current team to the first team in the list:",
-            teamStore.userTeams[0].name
-          );
-          // the following line is not working
-          console.log(
-            "about to select team because nothing is in the database",
-            teamStore.userTeams[0]
-          );
-          teamStore.selectTeam(teamStore.userTeams[0]._id);
-        } else {
-          console.log("No teams found for the user.");
-        }
-      }
-    } catch (error) {
-      console.error("Error initializing user and team preferences:", error);
     }
   }
 
@@ -123,8 +66,6 @@ export function useAuth() {
       //actually the data i need is on the user object in the database
       //so i need to fetch that data
 
-      await initializePreferences(registeredUser);
-
       navigateTo("/");
       toast.add({
         title: "Registered",
@@ -138,8 +79,8 @@ export function useAuth() {
     }
   }
 
-  function onSignOut() {
-    clear();
+  async function onSignOut() {
+    await clear();
     toast.add({
       title: "Signed out",
       icon: "i-ph-sign-in",
@@ -195,6 +136,5 @@ export function useAuth() {
     onError,
     clear,
     fetchUserProfile,
-    initializePreferences,
   };
 }

@@ -1,51 +1,97 @@
 import { defineMongooseModel } from "#nuxt/mongoose";
+import { Schema } from "mongoose";
 
-export const MemberSchema = defineMongooseModel({
+export const MemberSchema = defineMongooseModel<Member>({
   name: "Member",
   schema: {
     firstName: {
-      type: "string",
+      type: String,
+      required: true,
     },
     lastName: {
-      type: "string",
+      type: String,
+      required: true,
     },
     email: {
-      type: "string",
+      type: String,
+      required: true,
       unique: true,
     },
     phone: {
-      type: "string",
+      type: String,
+    },
+    loginToken: {
+      type: String,
+    },
+    loginTokenExpires: {
+      type: Date,
     },
     membership: {
-      type: {
-        type: "string",
-      },
       status: {
-        type: "string",
+        type: String,
+        enum: ["active", "inactive", "pending"],
+        default: "pending",
+      },
+      type: {
+        type: String,
       },
       startDate: {
-        type: "Date",
+        type: Date,
       },
       endDate: {
-        type: "Date",
+        type: Date,
+      },
+      paymentMethod: {
+        type: String,
+        enum: ["stripe", "paypal", "other"],
+      },
+      stripeCustomerId: {
+        type: String,
+      },
+      paypalCustomerId: {
+        type: String,
+      },
+      paypalSubscriptionId: {
+        type: String,
       },
     },
     address: {
-      street: {
-        type: "string",
-      },
-      city: {
-        type: "string",
-      },
-      province: {
-        type: "string",
-      },
-      postalCode: {
-        type: "string",
-      },
+      street: String,
+      city: String,
+      province: String,
+      postalCode: String,
     },
     notes: {
-      type: "string",
+      type: String,
     },
   },
+  options: {
+    timestamps: true,
+  },
 });
+
+interface Member {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+  membership: {
+    status: "active" | "inactive" | "pending";
+    type?: string;
+    startDate?: Date;
+    endDate?: Date;
+    paymentMethod?: "stripe" | "paypal";
+    stripeCustomerId?: string;
+    paypalCustomerId?: string;
+    paypalSubscriptionId?: string;
+  };
+  address?: {
+    street?: string;
+    city?: string;
+    province?: string;
+    postalCode?: string;
+  };
+  notes?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
+}

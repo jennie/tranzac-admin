@@ -3,7 +3,7 @@
   <UDashboardPanel grow>
 
     <UDashboardPanelContent class="pb-24" v-if="booking && booking._createdAt">
-      <UPageHeader v-if="justApproved || booking._status == 'published'" headline="Rental" :title="booking.title"
+      <UPageHeader v-if="booking._status == 'published'" headline="Rental" :title="booking.title"
         icon="i-heroicons-clipboard" :description="formattedDate">
 
       </UPageHeader>
@@ -20,7 +20,7 @@
           class="grid grid-cols-2 gap-2 border-b items-center">
           <p class="flex self-start font-bold">{{ property.label }}</p>
 
-          <p v-if="property.key === '_status' && ((booking[property.key] === 'published') || justApproved)"
+          <p v-if="property.key === '_status' && ((booking[property.key] === 'published'))"
             class="flex flex-row items-center uppercase text-green-500 text-2xl font-bold">
             <UIcon name="i-heroicons-clipboard-document-check" class="mr-2" /> <span>Approved</span>
           </p>
@@ -32,13 +32,11 @@
           <p v-else-if="property.key !== '_status'">{{ property.format ? property.format(booking[property.key]) :
             booking[property.key] }}</p>
         </div>
+        <div class="grid grid-cols-2 col-start-2 gap-2 border-b items-center">
+          <div class="self-start font-bold">Notes & History</div>
+          <pre v-text="booking.internalNotes" class="w-full text-sm font-display" />
+        </div>
       </UDashboardSection>
-      <UDivider class="mb-4" />
-
-
-      <UDashboardSection title="History" description="
-        A history of actions taken on this booking: Approved, Rejected, Invoice Sent, etc."> </UDashboardSection>
-
     </UDashboardPanelContent>
   </UDashboardPanel>
 
@@ -49,7 +47,6 @@ import { format, formatDistance, isValid } from "date-fns";
 
 const router = useRouter();
 const id = router.currentRoute.value.params.id;
-const justApproved = ref(false);
 const QUERY = `query Rental($id: ItemId!) {
   rental(filter: {id: {eq: $id}}) {
     id
@@ -152,7 +149,6 @@ const bookingProperties = [
   { key: 'loadOutTime', label: 'Load Out Time', format: (timeObj) => timeObj ? timeObj.time : 'N/A' },
   { key: 'eventType', label: 'Event Type' },
   { key: 'expectedAttendance', label: 'Expected Attendance' },
-  { key: 'internalNotes', label: 'Internal Notes' },
 ];
 
 // Create a toast instance
@@ -162,19 +158,19 @@ const toast = useToast();
 const approveBooking = async () => {
   try {
     // Execute the fetch request
-    const { data, error, status, execute } = useFetch(`/api/bookings?id=${booking.value.id}`);
+    const { data, error, status, execute } = useFetch(`/api/bookings/${booking.value.id}`);
     await execute({ method: 'POST' });
 
     // Check if the request was successful
-    if (status.value === 'success') {
-      // Show a success message
+    if (data.value) {
+      console.log(data.value)
       toast.add({
         title: "Success",
         color: "green",
         icon: "i-ph-check-circle",
         description: "Booking approved successfully"
       });
-      justApproved.value = true;
+      fetchBooking();
     } else {
       // Show an error message
       toast.add({

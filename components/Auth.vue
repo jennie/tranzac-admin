@@ -33,6 +33,8 @@ async function login(loginData) {
       throw new Error(error.value.message || "An unexpected error occurred");
     }
 
+    me();
+
     // handle successful login
   } catch (error) {
     if (error) {
@@ -87,6 +89,7 @@ const validate = (state: any) => {
       <UAuthForm :fields="fields" :validate="validate" title="Hello, Tranzac admin!" align="top"
         icon="i-heroicons-lock-closed" :ui="{ base: 'text-center', footer: 'text-center' }" @submit="onSubmit">
         <template #description>
+          {{ loggedIn }}
           Log in to access rental requests & member details.
         </template>
 
