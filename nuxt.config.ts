@@ -19,6 +19,7 @@ export default defineNuxtConfig({
       SENDGRID_API_KEY: process.env.SENDGRID_API_KEY,
     },
   },
+
   ui: {
     icons: ["ph", "logos", "simple-icons", "heroicons"],
     safelistColors: ["primary", "red", "orange", "green"],

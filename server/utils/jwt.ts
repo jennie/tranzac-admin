@@ -10,6 +10,7 @@ export async function createJWT(email: string) {
     .setProtectedHeader({ alg: "HS256" })
     .setIssuer("mongoose-auth.nuxt.space")
     .setIssuedAt()
+    .setExpirationTime("72h")
     .sign(JWT_SECRET);
 }
 

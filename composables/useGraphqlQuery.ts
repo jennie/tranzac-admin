@@ -9,7 +9,7 @@ export default (options) => {
       Authorization: `Bearer ${runtimeConfig.public.datoCmsToken}`,
       ...(includeDrafts && {
         "X-Include-Drafts": "true",
-        "X-Base-Editing-Url": "https://tranzac-club.admin.datocms.com",
+        "X-Base-Editing-Url": "https://tranzac.admin.datocms.com",
       }),
     },
     body: {

@@ -1,11 +1,12 @@
 <script setup lang="ts">
+import { format } from 'date-fns';
 
 const defaultColumns = [
-  { key: "_status", label: "Status" },
-  { key: "title", label: "Title" },
+  { key: "inquiryStatus", label: "Status" },
   { key: "organization", label: "Organization" },
-  { key: "startDate", label: "Start Date", sortable: true },
-  { key: "endDate", label: "End Date", sortable: true },
+  { key: "primaryContactName", label: "Contact" },
+  { key: "dates", label: "Dates" },
+  { key: "_createdAt", label: "Created" },
 ];
 
 const defaultStatuses = ["draft", "published"];
@@ -26,17 +27,33 @@ const bookings = ref([]);
 const isLoading = ref(false);
 
 const QUERY = `query {
-  allRentals {
+  allRentals(first: 100, orderBy: _createdAt_ASC) {
     _status
-    title
-    startDate
+    inquiryStatus
     organization
-    endDate
     id
+    primaryContactName
+    dates {
+      date
+    }
+    _createdAt
   }
 }
-`;
 
+`;
+const formatDates = (dates: { date: string }[]) => {
+  if (!dates || dates.length === 0) return 'No dates';
+
+  const sortedDates = dates.map(d => new Date(d.date)).sort((a, b) => a.getTime() - b.getTime());
+  const startDate = format(sortedDates[0], 'MMM d, yyyy');
+  const endDate = format(sortedDates[sortedDates.length - 1], 'MMM d, yyyy');
+
+  return `${startDate} - ${endDate}`;
+};
+
+const formatCreatedAt = (createdAt: string) => {
+  return format(new Date(createdAt), 'MMM d, yyyy');
+};
 const fetchBookings = async () => {
   console.log('fetching bookings');
   isLoading.value = true; // Set loading to true at the start
@@ -66,9 +83,9 @@ onMounted(() => {
   fetchBookings();
 });
 
-watch(selectedStatuses, () => {
+watch([selectedStatuses, selectedColumns, q], () => {
   fetchBookings();
-});
+}, { immediate: true });
 
 const filteredBookings = computed(() => {
   let result = bookings.value;
@@ -122,13 +139,19 @@ const filteredBookings = computed(() => {
       <div v-if="isLoading">Loading...</div>
 
       <UTable :rows="filteredBookings" :columns="columns" :sort="sort" v-if="!isLoading">
-        <template #title-data="{ row }">
-          <NuxtLink :to="`/bookings/${row.id}`" class="underline">{{ row.title }}</NuxtLink>
+        <template #organization-data="{ row }">
+          <NuxtLink :to="`/bookings/${row.id}`" class="underline">{{ row.organization }}</NuxtLink>
         </template>
-        <template #_status-data="{ row }">
-          <UBadge :label="row._status"
-            :color="row._status === 'published' ? 'green' : row._status === 'draft' ? 'orange' : 'red'" variant="subtle"
+        <template #inquiryStatus-data="{ row }">
+          <UBadge :label="row.inquiryStatus"
+            :color="row.inquiryStatus === 'new' ? 'green' : row._status === 'draft' ? 'orange' : 'red'" variant="subtle"
             class="capitalize" />
+        </template>
+        <template #dates-data="{ row }">
+          {{ formatDates(row.dates) }}
+        </template>
+        <template #_createdAt-data="{ row }">
+          {{ formatCreatedAt(row._createdAt) }}
         </template>
       </UTable>
 
@@ -138,3 +161,8 @@ const filteredBookings = computed(() => {
     </UCard>
   </UDashboardPanelContent>
 </template>
+<style scoped>
+.contents {
+  display: contents;
+}
+</style>
