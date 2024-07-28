@@ -11,45 +11,63 @@
       <UDivider class="mb-4" />
 
       <UDashboardSection title="Submission" description="">
-        <div v-for="property in rentalProperties" :key="property.key"
-          class="grid grid-cols-2 gap-2 border-b items-center">
+        <div v-for="property in rentalProperties" :key="property.key" class="grid grid-cols-2 gap-4 items-center">
           <p class="flex self-start font-bold">{{ property.label }}</p>
-          <p v-if="property.key === '_status' && rental[property.key] === 'published'"
-            class="flex flex-row items-center uppercase text-green-500 text-2xl font-bold">
-            <UIcon name="i-heroicons-clipboard-document-check" class="mr-2" /> <span>Approved</span>
-          </p>
-          <p v-else-if="property.key === '_status' && rental[property.key] === 'draft'"
-            class="flex flex-row items-center uppercase text-2xl font-bold">
-            <UIcon name="i-heroicons-pencil" class="mr-2" /> <span>Draft</span>
-          </p>
-          <p v-else-if="property.isHTML" class="prose dark:prose-invert" v-html="rental[property.key]"></p>
-          <p v-else-if="property.key !== '_status'">{{ property.format ? property.format(rental[property.key]) :
-            rental[property.key] }}</p>
+          <div>
+            <template v-if="property.isHTML">
+              <UTextarea v-model="rental[property.key]" />
+            </template>
+            <template v-else>
+              <UInput v-model="rental[property.key]" />
+            </template>
+          </div>
         </div>
-        <div class="grid grid-cols-2 col-start-2 gap-2 border-b items-center">
-          <div class="self-start font-bold">Notes & History</div>
-          <pre v-text="rental.internalNotes" class="w-full text-sm font-display" />
+        <div class="grid grid-cols-2 gap-4 items-center">
+          <p class="self-start font-bold">Notes & History</p>
+          <UTextarea v-model="rental.internalNotes" class="w-full text-sm font-display" />
         </div>
       </UDashboardSection>
 
       <UDashboardSection title="Rental Dates and Slots" description="">
         <div v-for="date in rental.dates || []" :key="date.id" class="mb-6">
-          <h3 class="text-lg font-semibold mb-2">{{ formatDate(date.date) }}</h3>
-          <div v-for="slot in date.slots || []" :key="slot.id" class="ml-4 mb-4 p-4 border rounded">
-            <UInput v-model="slot.title" label="Title" class="mb-2" />
-            <UInput v-model="slot.startTime.time" label="Start Time" class="mb-2" />
-            <UInput v-model="slot.endTime.time" label="End Time" class="mb-2" />
-            <UToggle v-model="slot.allAges" label="All Ages" class="mb-2" />
-            <UTextarea v-model="slot.description" label="Description" class="mb-2" />
-            <UInput v-model="slot.doorsTime.time" label="Doors Time" class="mb-2" />
-            <UInput v-model="slot.eventType" label="Event Type" class="mb-2" />
-            <UInput v-model="slot.expectedAttendance" label="Expected Attendance" type="number" class="mb-2" />
-            <UInput v-model="slot.loadInTime.time" label="Load In Time" class="mb-2" />
-            <UInput v-model="slot.loadOutTime.time" label="Load Out Time" class="mb-2" />
-            <UToggle v-model="slot.private" label="Private Event" class="mb-2" />
-            <UInput v-model="slot.resources" label="Resources" class="mb-2" />
-            <USelect v-model="slot.rooms" :options="availableRooms" label="Rooms" multiple class="mb-2" />
-            <UInput v-model="slot.soundCheckTime.time" label="Sound Check Time" class="mb-2" />
+          <h3 class="text-lg font-semibold mb-2">
+            {{ formatDate(date.date) }}
+            <span v-if="date.slots && date.slots.length > 0" class="text-sm font-normal">
+              ({{ formatTimeRange(date.slots[0]?.startTime?.time, date.slots[date.slots.length - 1]?.endTime?.time) }})
+            </span>
+          </h3>
+          <div v-for="slot in date.slots || []" :key="slot.id" class="ml-4 mb-4 border border-gray-200 rounded-lg p-4">
+            <div class="grid grid-cols-2 gap-4">
+              <UFormGroup label="Load In">
+                <TimeSelect v-model="slot.loadInTime.time" :start-time="formatTime(slot.startTime.time)"
+                  :end-time="formatTime(slot.endTime.time)" placeholder="Select load-in time" />
+              </UFormGroup>
+              <UFormGroup label="Sound Check">
+                <TimeSelect v-model="slot.soundCheckTime.time" :start-time="formatTime(slot.startTime.time)"
+                  :end-time="formatTime(slot.endTime.time)" placeholder="Select sound check time" />
+              </UFormGroup>
+              <UFormGroup label="Doors">
+                <TimeSelect v-model="slot.doorsTime.time" :start-time="formatTime(slot.startTime.time)"
+                  :end-time="formatTime(slot.endTime.time)" placeholder="Select doors time" />
+              </UFormGroup>
+              <UFormGroup label="Load Out">
+                <TimeSelect v-model="slot.loadOutTime.time" :start-time="formatTime(slot.startTime.time)"
+                  :end-time="formatTime(slot.endTime.time)" placeholder="Select load-out time" :is-load-out="true" />
+              </UFormGroup>
+            </div>
+
+            <div class="flex flex-row w-full items-center space-x-8 mt-4">
+              <UFormGroup label="Private">
+                <UToggle on-icon="i-heroicons-check-20-solid" name="private" off-icon="i-heroicons-x-mark-20-solid"
+                  v-model="slot.private" size="2xl" />
+              </UFormGroup>
+              <UFormGroup label="All Ages">
+                <UToggle on-icon="i-heroicons-check-20-solid" name="allAges" off-icon="i-heroicons-x-mark-20-solid"
+                  v-model="slot.allAges" size="2xl" />
+              </UFormGroup>
+            </div>
+
+            <!-- Add other slot properties here -->
           </div>
         </div>
       </UDashboardSection>
@@ -78,12 +96,13 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, reactive, computed, watch, onMounted, nextTick } from 'vue';
+import { ref, reactive, computed, watch, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { format, formatDistance, isValid } from "date-fns";
+import { format, formatDistance, isValid, parse, parseISO } from "date-fns";
 import { useRoomMapping } from '@/composables/useRoomMapping';
 import { useResources } from '@/composables/useResources';
 import { calculateCostEstimates, formatCurrency } from '@/utils/costCalculations';
+
 
 const router = useRouter();
 const route = useRoute();
@@ -148,30 +167,35 @@ const QUERY = `
   }
 `;
 
-const fetchRental = () => {
-  const { data, error: fetchError } = useGraphqlQuery({
-    query: QUERY,
-    variables: { id: id.value },
-    includeDrafts: true,
-    transform: (data) => ({
-      ...data,
-      submissionDate: new Date(data.rental._createdAt),
-    })
-  });
+const fetchRental = async () => {
+  try {
+    const { data, error: fetchError } = await useGraphqlQuery({
+      query: QUERY,
+      variables: { id: id.value },
+      includeDrafts: true,
+    });
 
-  watchEffect(() => {
     if (fetchError.value) {
       console.error('Failed to fetch rental', fetchError.value);
     } else if (data.value) {
       Object.assign(rental, data.value.rental);
     }
-  });
+  } catch (err) {
+    console.error('An error occurred while fetching rental', err);
+  }
 };
 
 onMounted(fetchRental);
-watchEffect(() => {
-  fetchRental();
+watch(() => route.params.id, (newId) => {
+  if (newId !== id.value) {
+    id.value = newId;
+    fetchRental();
+  }
 });
+
+const getNestedProperty = (obj, path) => {
+  return path.split('.').reduce((acc, part) => acc && acc[part], obj) || '';
+};
 
 const rentalProperties = [
   { key: '_status', label: 'Status' },
@@ -180,19 +204,50 @@ const rentalProperties = [
   { key: 'primaryContactEmail', label: 'Primary Contact Email' },
   { key: 'primaryContactPhone', label: 'Primary Contact Phone' },
   { key: 'primaryContactPronouns', label: 'Primary Contact Pronouns' },
-  { key: 'resources', label: 'Resources' },
-  { key: 'rooms', label: 'Rooms', format: (rooms) => rooms ? rooms.map(room => room.name).join(', ') : '' },
-  { key: 'allAges', label: 'All Ages', format: (allAges) => allAges ? 'Yes' : 'No' },
-  { key: 'private', label: 'Private', format: (privateEvent) => privateEvent ? 'Yes' : 'No' },
   { key: 'organization', label: 'Organization' },
-  { key: 'description', label: 'Description', isHTML: true },
-  { key: 'loadInTime', label: 'Load In Time', format: (timeObj) => timeObj ? timeObj.time : 'N/A' },
-  { key: 'soundCheckTime', label: 'Sound Check Time', format: (timeObj) => timeObj ? timeObj.time : 'N/A' },
-  { key: 'doorsTime', label: 'Doors Time', format: (timeObj) => timeObj ? timeObj.time : 'N/A' },
-  { key: 'loadOutTime', label: 'Load Out Time', format: (timeObj) => timeObj ? timeObj.time : 'N/A' },
-  { key: 'eventType', label: 'Event Type' },
-  { key: 'expectedAttendance', label: 'Expected Attendance' },
 ];
+
+
+const slotProperties = [
+  { key: 'title', label: 'Title', type: 'text' },
+  { key: 'startTime.time', label: 'Start Time', type: 'time' },
+  { key: 'endTime.time', label: 'End Time', type: 'time' },
+  { key: 'allAges', label: 'All Ages', type: 'checkbox' },
+  { key: 'description', label: 'Description', type: 'textarea' },
+  { key: 'doorsTime.time', label: 'Doors Time', type: 'time' },
+  { key: 'eventType', label: 'Event Type', type: 'text' },
+  { key: 'expectedAttendance', label: 'Expected Attendance', type: 'number' },
+  { key: 'loadInTime.time', label: 'Load In Time', type: 'time' },
+  { key: 'loadOutTime.time', label: 'Load Out Time', type: 'time' },
+  { key: 'private', label: 'Private Event', type: 'checkbox' },
+  { key: 'resources', label: 'Resources', type: 'select' },
+  { key: 'rooms', label: 'Rooms', type: 'select' },
+  { key: 'soundCheckTime.time', label: 'Sound Check Time', type: 'time' },
+];
+
+
+const formatTime = (time) => {
+  if (!time) return '';
+  try {
+    let parsedTime;
+    if (time.includes('T')) {
+      // For ISO 8601 format (e.g., "2024-07-31T18:00:00.000Z")
+      parsedTime = parseISO(time);
+    } else {
+      // For "HH:mm" format (e.g., "17:00")
+      parsedTime = parse(time, 'HH:mm', new Date());
+    }
+
+    if (!isValid(parsedTime)) {
+      console.warn(`Invalid time value: ${time}`);
+      return '';
+    }
+    return format(parsedTime, 'HH:mm');
+  } catch (error) {
+    console.error(`Error formatting time: ${time}`, error);
+    return '';
+  }
+};
 
 const formattedDate = computed(() => {
   if (rental._createdAt && isValid(new Date(rental._createdAt))) {
@@ -229,4 +284,81 @@ const calculateGrandTotal = () => {
 const availableRooms = computed(() => {
   return roomMapping.value.map(room => ({ label: room.name, value: room.id }));
 });
+
+const updateNestedProperty = (obj, path, value) => {
+  const parts = path.split('.');
+  const last = parts.pop();
+  const parent = parts.reduce((acc, part) => acc && acc[part], obj);
+  if (parent && last) {
+    parent[last] = value;
+  }
+};
+
+const approveRental = async () => {
+  try {
+    isLoading.value = true;
+    const response = await fetch(`/api/rentals/${id.value}/approve`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to approve rental');
+    }
+
+    // Refresh the rental data after approval
+    await fetchRental();
+
+    // Show a success message (you can replace this with your preferred notification method)
+    alert('Rental approved successfully');
+  } catch (err) {
+    console.error('Error approving rental:', err);
+    // Show an error message
+    alert('Failed to approve rental. Please try again.');
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+const formatTimeForDisplay = (time) => {
+  if (!time) return '';
+  try {
+    let parsedTime;
+    if (time.includes('T')) {
+      // For ISO 8601 format (e.g., "2024-07-31T18:00:00.000Z")
+      parsedTime = parseISO(time);
+    } else {
+      // For "HH:mm" format (e.g., "17:00")
+      parsedTime = parse(time, 'HH:mm', new Date());
+    }
+
+    if (!isValid(parsedTime)) {
+      console.warn(`Invalid time value: ${time}`);
+      return 'Invalid time';
+    }
+    return format(parsedTime, 'h:mm a');
+  } catch (error) {
+    console.error(`Error formatting time: ${time}`, error);
+    return 'Error';
+  }
+};
+
+const formatTimeRange = (startTime, endTime) => {
+  const formattedStart = formatTimeForDisplay(startTime);
+  const formattedEnd = formatTimeForDisplay(endTime);
+  return `${formattedStart} - ${formattedEnd}`;
+};
+
+const formatDate = (dateString) => {
+  if (!dateString) return '';
+  try {
+    const date = parse(dateString, 'yyyy-MM-dd', new Date());
+    return format(date, 'MMMM d, yyyy');
+  } catch (error) {
+    console.error(`Error formatting date: ${dateString}`, error);
+    return 'Invalid date';
+  }
+};
 </script>
