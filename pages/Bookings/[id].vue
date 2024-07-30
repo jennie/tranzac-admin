@@ -9,125 +9,136 @@
         icon="i-heroicons-clipboard" />
 
       <UDivider class="mb-4" />
-
-      <UDashboardSection title="Submission" description="">
-        <div v-for="property in rentalProperties" :key="property.key" class="grid grid-cols-2 gap-4 items-center">
-          <p class="flex self-start font-bold">{{ property.label }}</p>
-          <div>
-            <template v-if="property.isHTML">
-              <UTextarea v-model="rental[property.key]" />
-            </template>
-            <template v-else>
-              <UInput v-model="rental[property.key]" />
-            </template>
-          </div>
-        </div>
-        <div class="grid grid-cols-2 gap-4 items-center">
-          <p class="self-start font-bold">Notes & History</p>
-          <UTextarea v-model="rental.internalNotes" class="w-full text-sm font-display" />
-        </div>
-      </UDashboardSection>
-
-      <UDashboardSection title="Rental Dates and Slots" description="">
-        <div v-for="date in rental.dates || []" :key="date.id" class="mb-6">
-          <h3 class="text-lg font-semibold mb-2">
-            {{ formatDate(date.date) }}
-            <span v-if="date.slots && date.slots.length > 0" class="text-sm font-normal">
-              ({{ formatTimeRangeReadable(date.slots[0]?.startTime?.time, date.slots[date.slots.length -
-                1]?.endTime?.time) }})
-            </span>
-          </h3>
-          <div v-for="slot in date.slots || []" :key="slot.id" class="ml-4 mb-4 border border-gray-200 rounded-lg p-4">
-            <!-- <pre>{{ slot }}</pre> -->
-            <div class="grid grid-cols-2 gap-4">
-              <div class="">
-
-                <div class="space-y-4">
-                  <UFormGroup label="Title">
-                    <UInput v-model="slot.title" placeholder="Enter title" />
-                  </UFormGroup>
-                  <UFormGroup label="Event Type">
-                    <EventTypeSelect v-model="slot.eventType" />
-                  </UFormGroup>
-                  <UFormGroup label="Expected Attendance">
-                    <UInput v-model="slot.expectedAttendance" type="number" placeholder="Enter expected attendance" />
-                  </UFormGroup>
-                  <UFormGroup label="Description">
-                    <UTextarea v-model="slot.description" placeholder="Enter description" />
-                  </UFormGroup>
-                </div>
+      <UTabs :items="tabs" class="w-full mt-8" @change="tabChange">
+        <template #renter="{ item }">
+          <UDashboardSection title="Submission" description="">
+            <div v-for="property in rentalProperties" :key="property.key" class="grid grid-cols-2 gap-4 items-center">
+              <p class="flex self-start font-bold">{{ property.label }}</p>
+              <div>
+                <template v-if="property.isHTML">
+                  <UTextarea v-model="rental[property.key]" />
+                </template>
+                <template v-else>
+                  <UInput v-model="rental[property.key]" />
+                </template>
               </div>
-              <div class="bg-stone-100 dark:bg-stone-950 p-3 rounded-md my-6 prose prose-cream dark:prose-invert">
-                <div class="flex flex-row justify-between items-center">
-                  <h4 class="m-0 p-0">Important Times</h4>
-                  <!-- {{ slot.endTime }} -->
-                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4 items-center">
+              <p class="self-start font-bold">Notes & History</p>
+              <UTextarea v-model="rental.internalNotes" class="w-full text-sm font-display" />
+            </div>
+          </UDashboardSection>
+        </template>
+        <template #dates="{ item }">
+
+
+          <UDashboardSection title="Rental Dates and Slots" description="">
+            <div v-for="date in rental.dates || []" :key="date.id" class="mb-6">
+              <h3 class="text-lg font-semibold mb-2">
+                {{ formatDate(date.date) }}
+                <span v-if="date.slots && date.slots.length > 0" class="text-sm font-normal">
+                  ({{ formatTimeRangeReadable(date.slots[0]?.startTime?.time, date.slots[date.slots.length -
+                    1]?.endTime?.time) }})
+                </span>
+              </h3>
+              <div v-for="slot in date.slots || []" :key="slot.id"
+                class="ml-4 mb-4 border border-gray-200 rounded-lg p-4">
+                <!-- <pre>{{ slot }}</pre> -->
                 <div class="grid grid-cols-2 gap-4">
-                  <UFormGroup label="Start Time">
-                    <TimeSelect v-model="slot.startTime.time" :options="timeOptions" placeholder="Select start time" />
+                  <div class="">
+
+                    <div class="space-y-4">
+                      <UFormGroup label="Title">
+                        <UInput v-model="slot.title" placeholder="Enter title" />
+                      </UFormGroup>
+                      <UFormGroup label="Event Type">
+                        <EventTypeSelect v-model="slot.eventType" />
+                      </UFormGroup>
+                      <UFormGroup label="Expected Attendance">
+                        <UInput v-model="slot.expectedAttendance" type="number"
+                          placeholder="Enter expected attendance" />
+                      </UFormGroup>
+                      <UFormGroup label="Description">
+                        <UTextarea v-model="slot.description" placeholder="Enter description" />
+                      </UFormGroup>
+                    </div>
+                  </div>
+                  <div class="bg-stone-100 dark:bg-stone-950 p-3 rounded-md my-6 prose prose-cream dark:prose-invert">
+                    <div class="flex flex-row justify-between items-center">
+                      <h4 class="m-0 p-0">Important Times</h4>
+                      <!-- {{ slot.endTime }} -->
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                      <UFormGroup label="Start Time">
+                        <TimeSelect v-model="slot.startTime.time" :options="timeOptions"
+                          placeholder="Select start time" />
+                      </UFormGroup>
+                      <UFormGroup label="End Time">
+                        <TimeSelect v-model="slot.endTime.time" :options="timeOptions" placeholder="Select end time" />
+                      </UFormGroup>
+                      <UFormGroup label="Load In">
+                        <TimeSelect v-model="slot.loadInTime.time" :options="timeOptions"
+                          placeholder="Select load-in time" />
+                      </UFormGroup>
+                      <UFormGroup label="Sound Check">
+                        <TimeSelect v-model="slot.soundCheckTime.time" :options="timeOptions"
+                          placeholder="Select sound check time" />
+                      </UFormGroup>
+                      <UFormGroup label="Doors">
+                        <TimeSelect v-model="slot.doorsTime.time" :options="timeOptions"
+                          placeholder="Select doors time" />
+                      </UFormGroup>
+                      <UFormGroup label="Load Out">
+                        <TimeSelect v-model="slot.loadOutTime.time" :options="timeOptions"
+                          placeholder="Select load-out time" />
+                      </UFormGroup>
+                    </div>
+                  </div>
+
+                  <UFormGroup label="Rooms">
+                    <RoomSelectMenu v-model="slot.rooms" :debug-mode="false" />
                   </UFormGroup>
-                  <UFormGroup label="End Time">
-                    <TimeSelect v-model="slot.endTime.time" :options="timeOptions" placeholder="Select end time" />
+                  <UFormGroup label="Resources">
+                    <ResourceSelectMenu v-model="slot.resources" :resource-options="resourceOptions" />
                   </UFormGroup>
-                  <UFormGroup label="Load In">
-                    <TimeSelect v-model="slot.loadInTime.time" :options="timeOptions"
-                      placeholder="Select load-in time" />
+                </div>
+
+                <div class="flex flex-row w-full items-center space-x-8 mt-4">
+                  <UFormGroup label="Private">
+                    <UToggle on-icon="i-heroicons-check-20-solid" name="private" off-icon="i-heroicons-x-mark-20-solid"
+                      v-model="slot.private" size="2xl" />
                   </UFormGroup>
-                  <UFormGroup label="Sound Check">
-                    <TimeSelect v-model="slot.soundCheckTime.time" :options="timeOptions"
-                      placeholder="Select sound check time" />
-                  </UFormGroup>
-                  <UFormGroup label="Doors">
-                    <TimeSelect v-model="slot.doorsTime.time" :options="timeOptions" placeholder="Select doors time" />
-                  </UFormGroup>
-                  <UFormGroup label="Load Out">
-                    <TimeSelect v-model="slot.loadOutTime.time" :options="timeOptions"
-                      placeholder="Select load-out time" />
+                  <UFormGroup label="All Ages">
+                    <UToggle on-icon="i-heroicons-check-20-solid" name="allAges" off-icon="i-heroicons-x-mark-20-solid"
+                      v-model="slot.allAges" size="2xl" />
                   </UFormGroup>
                 </div>
               </div>
-
-              <UFormGroup label="Rooms">
-                <RoomSelectMenu v-model="slot.rooms" :debug-mode="false" />
-              </UFormGroup>
-              <UFormGroup label="Resources">
-                <ResourceSelectMenu v-model="slot.resources" :resource-options="resourceOptions" />
-              </UFormGroup>
             </div>
-
-            <div class="flex flex-row w-full items-center space-x-8 mt-4">
-              <UFormGroup label="Private">
-                <UToggle on-icon="i-heroicons-check-20-solid" name="private" off-icon="i-heroicons-x-mark-20-solid"
-                  v-model="slot.private" size="2xl" />
-              </UFormGroup>
-              <UFormGroup label="All Ages">
-                <UToggle on-icon="i-heroicons-check-20-solid" name="allAges" off-icon="i-heroicons-x-mark-20-solid"
-                  v-model="slot.allAges" size="2xl" />
-              </UFormGroup>
+          </UDashboardSection>
+        </template>
+        <template #invoice="{ item }">
+          <UDashboardSection title="Cost Estimate" description="">
+            <div class="flex justify-between items-center mb-4">
+              <h3 class="text-2xl">Cost Estimate</h3>
+              <div class="text-right">
+                <p class="text-lg font-semibold text-stone-500 dark:text-stone-300">
+                  Total: {{ formatCurrency(calculateGrandTotal()) }}
+                </p>
+                <button @click="openModal" type="button" class="text-red-400 hover:text-red-300 underline">
+                  View Full Breakdown
+                </button>
+              </div>
             </div>
-          </div>
-        </div>
-      </UDashboardSection>
-
-      <UDashboardSection title="Cost Estimate" description="">
-        <div class="flex justify-between items-center mb-4">
-          <h3 class="text-2xl">Cost Estimate</h3>
-          <div class="text-right">
-            <p class="text-lg font-semibold text-stone-500 dark:text-stone-300">
-              Total: {{ formatCurrency(calculateGrandTotal()) }}
+            <p class="text-stone-500 dark:text-stone-300 text-sm">
+              <em>This is an estimate. Your final cost may be different based on final options. Our staff will be in
+                touch
+                to confirm.</em>
             </p>
-            <button @click="openModal" type="button" class="text-red-400 hover:text-red-300 underline">
-              View Full Breakdown
-            </button>
-          </div>
-        </div>
-        <p class="text-stone-500 dark:text-stone-300 text-sm">
-          <em>This is an estimate. Your final cost may be different based on final options. Our staff will be in touch
-            to confirm.</em>
-        </p>
-        <CostBreakdownModal v-if="isModalOpen" :costEstimates="costEstimates" @close="closeModal" />
-      </UDashboardSection>
-
+            <CostBreakdownModal v-if="isModalOpen" :costEstimates="costEstimates" @close="closeModal" />
+          </UDashboardSection>
+        </template>
+      </UTabs>
     </UDashboardPanelContent>
   </UDashboardPanel>
 </template>
@@ -148,6 +159,12 @@ const error = ref(null);
 const isLoading = ref(true);
 const isModalOpen = ref(false);
 const componentKey = ref(0);
+
+const tabs = [
+  { slot: 'renter', label: 'Renter Info' },
+  { slot: 'dates', label: 'Dates & Times' },
+  { slot: 'invoice', label: 'Invoice' }
+];
 
 const QUERY = `
   query Rental($id: ItemId!) {
@@ -398,7 +415,10 @@ const updateNestedProperty = (obj, path, value) => {
     parent[last] = value;
   }
 };
+function tabChange(index) {
+  const selectedTab = tabs[index];
 
+}
 const approveRental = async () => {
   try {
     isLoading.value = true;
