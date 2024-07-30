@@ -33,26 +33,65 @@
           <h3 class="text-lg font-semibold mb-2">
             {{ formatDate(date.date) }}
             <span v-if="date.slots && date.slots.length > 0" class="text-sm font-normal">
-              ({{ formatTimeRange(date.slots[0]?.startTime?.time, date.slots[date.slots.length - 1]?.endTime?.time) }})
+              ({{ formatTimeRangeReadable(date.slots[0]?.startTime?.time, date.slots[date.slots.length -
+                1]?.endTime?.time) }})
             </span>
           </h3>
           <div v-for="slot in date.slots || []" :key="slot.id" class="ml-4 mb-4 border border-gray-200 rounded-lg p-4">
+            <!-- <pre>{{ slot }}</pre> -->
             <div class="grid grid-cols-2 gap-4">
-              <UFormGroup label="Load In">
-                <TimeSelect v-model="slot.loadInTime.time" :start-time="formatTime(slot.startTime.time)"
-                  :end-time="formatTime(slot.endTime.time)" placeholder="Select load-in time" />
+              <div class="">
+
+                <div class="space-y-4">
+                  <UFormGroup label="Title">
+                    <UInput v-model="slot.title" placeholder="Enter title" />
+                  </UFormGroup>
+                  <UFormGroup label="Event Type">
+                    <EventTypeSelect v-model="slot.eventType" />
+                  </UFormGroup>
+                  <UFormGroup label="Expected Attendance">
+                    <UInput v-model="slot.expectedAttendance" type="number" placeholder="Enter expected attendance" />
+                  </UFormGroup>
+                  <UFormGroup label="Description">
+                    <UTextarea v-model="slot.description" placeholder="Enter description" />
+                  </UFormGroup>
+                </div>
+              </div>
+              <div class="bg-stone-100 dark:bg-stone-950 p-3 rounded-md my-6 prose prose-cream dark:prose-invert">
+                <div class="flex flex-row justify-between items-center">
+                  <h4 class="m-0 p-0">Important Times</h4>
+                  <!-- {{ slot.endTime }} -->
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                  <UFormGroup label="Start Time">
+                    <TimeSelect v-model="slot.startTime.time" :options="timeOptions" placeholder="Select start time" />
+                  </UFormGroup>
+                  <UFormGroup label="End Time">
+                    <TimeSelect v-model="slot.endTime.time" :options="timeOptions" placeholder="Select end time" />
+                  </UFormGroup>
+                  <UFormGroup label="Load In">
+                    <TimeSelect v-model="slot.loadInTime.time" :options="timeOptions"
+                      placeholder="Select load-in time" />
+                  </UFormGroup>
+                  <UFormGroup label="Sound Check">
+                    <TimeSelect v-model="slot.soundCheckTime.time" :options="timeOptions"
+                      placeholder="Select sound check time" />
+                  </UFormGroup>
+                  <UFormGroup label="Doors">
+                    <TimeSelect v-model="slot.doorsTime.time" :options="timeOptions" placeholder="Select doors time" />
+                  </UFormGroup>
+                  <UFormGroup label="Load Out">
+                    <TimeSelect v-model="slot.loadOutTime.time" :options="timeOptions"
+                      placeholder="Select load-out time" />
+                  </UFormGroup>
+                </div>
+              </div>
+
+              <UFormGroup label="Rooms">
+                <RoomSelectMenu v-model="slot.rooms" :debug-mode="false" />
               </UFormGroup>
-              <UFormGroup label="Sound Check">
-                <TimeSelect v-model="slot.soundCheckTime.time" :start-time="formatTime(slot.startTime.time)"
-                  :end-time="formatTime(slot.endTime.time)" placeholder="Select sound check time" />
-              </UFormGroup>
-              <UFormGroup label="Doors">
-                <TimeSelect v-model="slot.doorsTime.time" :start-time="formatTime(slot.startTime.time)"
-                  :end-time="formatTime(slot.endTime.time)" placeholder="Select doors time" />
-              </UFormGroup>
-              <UFormGroup label="Load Out">
-                <TimeSelect v-model="slot.loadOutTime.time" :start-time="formatTime(slot.startTime.time)"
-                  :end-time="formatTime(slot.endTime.time)" placeholder="Select load-out time" :is-load-out="true" />
+              <UFormGroup label="Resources">
+                <ResourceSelectMenu v-model="slot.resources" :resource-options="resourceOptions" />
               </UFormGroup>
             </div>
 
@@ -66,8 +105,6 @@
                   v-model="slot.allAges" size="2xl" />
               </UFormGroup>
             </div>
-
-            <!-- Add other slot properties here -->
           </div>
         </div>
       </UDashboardSection>
@@ -98,14 +135,13 @@
 <script lang="ts" setup>
 import { ref, reactive, computed, watch, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { format, formatDistance, isValid, parse, parseISO } from "date-fns";
-import { useRoomMapping } from '@/composables/useRoomMapping';
-import { useResources } from '@/composables/useResources';
-import { calculateCostEstimates, formatCurrency } from '@/utils/costCalculations';
+import { format, formatDistance, isValid, parse, parseISO, addMinutes, setHours, setMinutes } from "date-fns";
 
+import { calculateCostEstimates, formatCurrency } from '@/utils/costCalculations';
 
 const router = useRouter();
 const route = useRoute();
+const bookingID = ref(router.currentRoute.value.params.id);
 const id = ref(route.params.id);
 const rental = reactive({});
 const error = ref(null);
@@ -157,6 +193,7 @@ const QUERY = `
           resources
           rooms {
             name
+            id
           }
           soundCheckTime {
             time
@@ -166,6 +203,65 @@ const QUERY = `
     }
   }
 `;
+
+const timeOptions = computed(() => {
+  const options = [];
+  for (let i = 0; i < 48; i++) {
+    const date = setMinutes(setHours(new Date(), Math.floor(i / 2)), (i % 2) * 30);
+    options.push({
+      label: format(date, 'h:mm a'),
+      value: format(date, 'HH:mm')
+    });
+  }
+  return options;
+});
+
+const format12Hour = (time) => {
+  if (!time) return '';
+  try {
+    let parsedTime;
+    if (time.includes('T')) {
+      parsedTime = parseISO(time);
+    } else {
+      parsedTime = parse(time, 'HH:mm', new Date());
+    }
+    if (isValid(parsedTime)) {
+      return format(parsedTime, 'h:mm a');
+    }
+  } catch (error) {
+    console.error(`Error formatting time: ${time}`, error);
+  }
+  return '';
+};
+
+const formatTimeForDisplay = (time) => {
+  if (!time) return '';
+  try {
+    let parsedTime;
+    if (time.includes('T')) {
+      parsedTime = parseISO(time);
+    } else {
+      parsedTime = parse(time, 'HH:mm', new Date());
+    }
+    if (isValid(parsedTime)) {
+      return format(parsedTime, 'HH:mm'); // Keep 24-hour format for data storage
+    }
+    console.warn(`Invalid time format: ${time}`);
+    return '';
+  } catch (error) {
+    console.error(`Error formatting time: ${time}`, error);
+    return '';
+  }
+};
+
+const formatSlotTimes = (slot) => {
+  ['startTime', 'endTime', 'loadInTime', 'soundCheckTime', 'doorsTime', 'loadOutTime'].forEach(timeField => {
+    if (slot[timeField] && slot[timeField].time) {
+      slot[timeField].time = formatTimeForDisplay(slot[timeField].time);
+    }
+  });
+};
+
 
 const fetchRental = async () => {
   try {
@@ -177,19 +273,28 @@ const fetchRental = async () => {
 
     if (fetchError.value) {
       console.error('Failed to fetch rental', fetchError.value);
+      throw fetchError.value;
     } else if (data.value) {
       Object.assign(rental, data.value.rental);
+
+      // Format times for all slots
+      rental.dates.forEach(date => {
+        date.slots.forEach(formatSlotTimes);
+      });
     }
   } catch (err) {
     console.error('An error occurred while fetching rental', err);
+    error.value = err;
+    throw err;
   }
 };
 
-onMounted(fetchRental);
-watch(() => route.params.id, (newId) => {
+await fetchRental();
+
+watch(() => route.params.id, async (newId) => {
   if (newId !== id.value) {
     id.value = newId;
-    fetchRental();
+    await fetchRental();
   }
 });
 
@@ -322,28 +427,28 @@ const approveRental = async () => {
   }
 };
 
-const formatTimeForDisplay = (time) => {
-  if (!time) return '';
-  try {
-    let parsedTime;
-    if (time.includes('T')) {
-      // For ISO 8601 format (e.g., "2024-07-31T18:00:00.000Z")
-      parsedTime = parseISO(time);
-    } else {
-      // For "HH:mm" format (e.g., "17:00")
-      parsedTime = parse(time, 'HH:mm', new Date());
-    }
+// const formatTimeForDisplay = (time) => {
+//   if (!time) return '';
+//   try {
+//     let parsedTime;
+//     if (time.includes('T')) {
+//       // For ISO 8601 format (e.g., "2024-07-31T18:00:00.000Z")
+//       parsedTime = parseISO(time);
+//     } else {
+//       // For "HH:mm" format (e.g., "17:00")
+//       parsedTime = parse(time, 'HH:mm', new Date());
+//     }
 
-    if (!isValid(parsedTime)) {
-      console.warn(`Invalid time value: ${time}`);
-      return 'Invalid time';
-    }
-    return format(parsedTime, 'h:mm a');
-  } catch (error) {
-    console.error(`Error formatting time: ${time}`, error);
-    return 'Error';
-  }
-};
+//     if (!isValid(parsedTime)) {
+//       console.warn(`Invalid time value: ${time}`);
+//       return 'Invalid time';
+//     }
+//     return format(parsedTime, 'h:mm a');
+//   } catch (error) {
+//     console.error(`Error formatting time: ${time}`, error);
+//     return 'Error';
+//   }
+// };
 
 const formatTimeRange = (startTime, endTime) => {
   const formattedStart = formatTimeForDisplay(startTime);
@@ -351,11 +456,16 @@ const formatTimeRange = (startTime, endTime) => {
   return `${formattedStart} - ${formattedEnd}`;
 };
 
+const formatTimeRangeReadable = (startTime, endTime) => {
+  const formattedStart = format12Hour(startTime);
+  const formattedEnd = format12Hour(endTime);
+  return `${formattedStart} - ${formattedEnd}`;
+};
 const formatDate = (dateString) => {
   if (!dateString) return '';
   try {
     const date = parse(dateString, 'yyyy-MM-dd', new Date());
-    return format(date, 'MMMM d, yyyy');
+    return format(date, 'EEEE, MMMM d, yyyy');
   } catch (error) {
     console.error(`Error formatting date: ${dateString}`, error);
     return 'Invalid date';

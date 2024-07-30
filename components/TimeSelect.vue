@@ -1,45 +1,79 @@
 <template>
-  <USelect v-model="selectedTime" :options="timeOptions" :placeholder="placeholder"
-    @update:model-value="$emit('update:modelValue', $event)" />
+  <USelectMenu searchable searchable-placeholder="Start typing..." :model-value="displayValue"
+    @update:model-value="updateValue" :options="formattedOptions" :placeholder="placeholder" />
 </template>
 
-<script setup>
-import { ref, computed, watch } from 'vue';
-import { parse, format, addMinutes, isBefore, subMinutes } from 'date-fns';
+<script lang="ts" setup>
+import { computed, ref, watch } from 'vue';
+import { format, parse, isValid } from 'date-fns';
 
 const props = defineProps({
-  modelValue: String,
-  startTime: String,
-  endTime: String,
-  placeholder: String
+  modelValue: {
+    type: String,
+    default: ''
+  },
+  options: {
+    type: Array,
+    default: () => []
+  },
+  placeholder: {
+    type: String,
+    default: 'Select time'
+  }
 });
 
 const emit = defineEmits(['update:modelValue']);
 
-const selectedTime = ref(props.modelValue);
-
-watch(() => props.modelValue, (newValue) => {
-  selectedTime.value = newValue;
+const displayValue = computed(() => {
+  return format12Hour(props.modelValue);
 });
 
-const timeOptions = computed(() => {
-  const options = [];
-  const start = parse(props.startTime, 'HH:mm', new Date());
-  const end = parse(props.endTime, 'HH:mm', new Date());
+const formattedOptions = computed(() => {
+  return props.options.map(option => ({
+    label: format12Hour(option.value),
+    value: option.value
+  }));
+});
 
-  // Ensure the last available time is at least 30 minutes before the end time
-  const lastAvailableTime = subMinutes(end, 30);
-
-  let current = start;
-
-  while (isBefore(current, lastAvailableTime) || current.getTime() === lastAvailableTime.getTime()) {
-    options.push({
-      label: format(current, 'h:mm a'),
-      value: format(current, 'HH:mm')
-    });
-    current = addMinutes(current, 30); // 30-minute intervals
+const format12Hour = (time) => {
+  if (!time) return '';
+  try {
+    const parsedTime = parse(time, 'HH:mm', new Date());
+    if (isValid(parsedTime)) {
+      return format(parsedTime, 'h:mm a');
+    }
+  } catch (error) {
+    console.error(`Error formatting time: ${time}`, error);
   }
+  return '';
+};
 
-  return options;
+const format24Hour = (time) => {
+  if (!time) return '';
+  try {
+    const parsedTime = parse(time, 'h:mm a', new Date());
+    if (isValid(parsedTime)) {
+      return format(parsedTime, 'HH:mm');
+    }
+  } catch (error) {
+    console.error(`Error formatting time: ${time}`, error);
+  }
+  return '';
+};
+
+const updateValue = (newValue) => {
+  // Convert the 12-hour format back to 24-hour format
+  const time24 = format24Hour(newValue);
+  emit('update:modelValue', time24);
+};
+
+// Watch for changes in modelValue and update displayValue
+watch(() => props.modelValue, (newValue) => {
+  if (newValue) {
+    const formatted = format12Hour(newValue);
+    if (formatted !== displayValue.value) {
+      displayValue.value = formatted;
+    }
+  }
 });
 </script>
