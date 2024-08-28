@@ -2,10 +2,9 @@
   <UDashboardPanel grow>
     <UDashboardPanelContent class="pb-24">
       <UPageHeader v-if="rental._status === 'published'" headline="Rental" :title="rental.organization"
-        icon="i-heroicons-clipboard" :description="formattedDate">
-      </UPageHeader>
+        icon="i-heroicons-clipboard" :description="formattedDate" />
       <UPageHeader v-else headline="Rental Request" :title="rental.organization" :description="formattedDate"
-        :links="rental._status !== 'published' ? [{ label: 'Edit', color: 'black', to: rental._editingUrl }, { label: 'Approve', color: 'green', click: approveRental }] : []"
+        :links="rental._status !== 'published' ? [editButtonConfig, cancelButtonConfig, approveRentalConfig].filter(link => link !== null) : []"
         icon="i-heroicons-clipboard" />
 
       <UDivider class="mb-4" />
@@ -15,11 +14,14 @@
             <div v-for="property in rentalProperties" :key="property.key" class="grid grid-cols-2 gap-4 items-center">
               <p class="flex self-start font-bold">{{ property.label }}</p>
               <div>
-                <template v-if="property.isHTML">
-                  <UTextarea v-model="rental[property.key]" />
+                <template v-if="editMode && !property.readOnly">
+                  <UInput v-if="property.type === 'text'" v-model="rental[property.key]" />
+                  <UTextarea v-else-if="property.type === 'textarea'" v-model="rental[property.key]" />
+                  <UToggle v-else-if="property.type === 'boolean'" v-model="rental[property.key]" />
+                  <UInput v-else-if="property.type === 'number'" v-model.number="rental[property.key]" type="number" />
                 </template>
                 <template v-else>
-                  <UInput v-model="rental[property.key]" />
+                  {{ getFormattedValue(rental[property.key], property) }}
                 </template>
               </div>
             </div>
@@ -27,6 +29,7 @@
               <p class="self-start font-bold">Notes & History</p>
               <UTextarea v-model="rental.internalNotes" class="w-full text-sm font-display" />
             </div>
+
           </UDashboardSection>
         </template>
         <template #dates="{ item }">
@@ -70,27 +73,29 @@
                     </div>
                     <div class="grid grid-cols-2 gap-4">
                       <UFormGroup label="Start Time">
-                        <TimeSelect v-model="slot.startTime.time" :options="timeOptions"
+                        <TimeSelect :model-value="slot.startTime?.time"
+                          @update:model-value="updateTime(slot, 'startTime', $event)" :options="timeOptions"
                           placeholder="Select start time" />
                       </UFormGroup>
                       <UFormGroup label="End Time">
-                        <TimeSelect v-model="slot.endTime.time" :options="timeOptions" placeholder="Select end time" />
+                        <TimeSelect :model-value="slot.endTime?.time"
+                          @update:model-value="updateTime(slot, 'endTime', $event)" :options="timeOptions"
+                          placeholder="Select end time" />
                       </UFormGroup>
                       <UFormGroup label="Load In">
-                        <TimeSelect v-model="slot.loadInTime.time" :options="timeOptions"
+                        <TimeSelect :model-value="slot.loadInTime?.time"
+                          @update:model-value="updateTime(slot, 'loadInTime', $event)" :options="timeOptions"
                           placeholder="Select load-in time" />
                       </UFormGroup>
                       <UFormGroup label="Sound Check">
-                        <TimeSelect v-model="slot.soundCheckTime.time" :options="timeOptions"
+                        <TimeSelect :model-value="slot.soundCheckTime?.time"
+                          @update:model-value="updateTime(slot, 'soundCheckTime', $event)" :options="timeOptions"
                           placeholder="Select sound check time" />
                       </UFormGroup>
                       <UFormGroup label="Doors">
-                        <TimeSelect v-model="slot.doorsTime.time" :options="timeOptions"
+                        <TimeSelect :model-value="slot.doorsTime?.time"
+                          @update:model-value="updateTime(slot, 'doorsTime', $event)" :options="timeOptions"
                           placeholder="Select doors time" />
-                      </UFormGroup>
-                      <UFormGroup label="Load Out">
-                        <TimeSelect v-model="slot.loadOutTime.time" :options="timeOptions"
-                          placeholder="Select load-out time" />
                       </UFormGroup>
                     </div>
                   </div>
@@ -118,24 +123,17 @@
           </UDashboardSection>
         </template>
         <template #invoice="{ item }">
-          <UDashboardSection title="Cost Estimate" description="">
+          <UDashboardSection>
             <div class="flex justify-between items-center mb-4">
               <h3 class="text-2xl">Cost Estimate</h3>
               <div class="text-right">
                 <p class="text-lg font-semibold text-stone-500 dark:text-stone-300">
-                  Total: {{ formatCurrency(calculateGrandTotal()) }}
+                  Original Estimate: {{ formatCurrency(rental.originalCostEstimate) }}
                 </p>
-                <button @click="openModal" type="button" class="text-red-400 hover:text-red-300 underline">
-                  View Full Breakdown
-                </button>
               </div>
             </div>
-            <p class="text-stone-500 dark:text-stone-300 text-sm">
-              <em>This is an estimate. Your final cost may be different based on final options. Our staff will be in
-                touch
-                to confirm.</em>
-            </p>
-            <CostBreakdownModal v-if="isModalOpen" :costEstimates="costEstimates" @close="closeModal" />
+            <!-- <CostBreakdownModal v-if="isModalOpen" :costEstimates="costEstimates" @close="closeModal" /> -->
+            <InvoiceEditor v-if="invoiceData" :rental="invoiceData" @close="closeModal" @save="handleSave" />
           </UDashboardSection>
         </template>
       </UTabs>
@@ -147,18 +145,20 @@
 import { ref, reactive, computed, watch, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { format, formatDistance, isValid, parse, parseISO, addMinutes, setHours, setMinutes } from "date-fns";
+import { formatCurrency, formatDate, formatTimeRange } from '@/utils/formatters';
 
-import { calculateCostEstimates, formatCurrency } from '@/utils/costCalculations';
+
 
 const router = useRouter();
 const route = useRoute();
 const bookingID = ref(router.currentRoute.value.params.id);
 const id = ref(route.params.id);
-const rental = reactive({});
+const rental = ref(null);
 const error = ref(null);
 const isLoading = ref(true);
 const isModalOpen = ref(false);
 const componentKey = ref(0);
+const { resourceOptions } = useResources();
 
 const tabs = [
   { slot: 'renter', label: 'Renter Info' },
@@ -177,6 +177,7 @@ const QUERY = `
       inquiryStatus
       internalNotes
       organization
+      originalCostEstimate
       primaryContactEmail
       primaryContactName
       primaryContactPhone
@@ -232,7 +233,21 @@ const timeOptions = computed(() => {
   }
   return options;
 });
-
+const getFormattedValue = (value, property) => {
+  if (value === undefined || value === null) {
+    return 'N/A';
+  }
+  if (property.format) {
+    return property.format(value);
+  }
+  return value;
+};
+const updateTime = (slot, timeType, newValue) => {
+  if (!slot[timeType]) {
+    slot[timeType] = {};
+  }
+  slot[timeType].time = newValue;
+};
 const format12Hour = (time) => {
   if (!time) return '';
   try {
@@ -271,14 +286,53 @@ const formatTimeForDisplay = (time) => {
   }
 };
 
-const formatSlotTimes = (slot) => {
-  ['startTime', 'endTime', 'loadInTime', 'soundCheckTime', 'doorsTime', 'loadOutTime'].forEach(timeField => {
-    if (slot[timeField] && slot[timeField].time) {
-      slot[timeField].time = formatTimeForDisplay(slot[timeField].time);
-    }
+const formatSlotTime = (start, end) => {
+  const startDate = new Date(start);
+  const endDate = new Date(end);
+
+  const startFormatted = startDate.toLocaleString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "numeric",
   });
+
+  let endFormatted = endDate.toLocaleString("en-US", {
+    hour: "numeric",
+    minute: "numeric",
+  });
+
+  if (startDate.toDateString() !== endDate.toDateString()) {
+    endFormatted = endDate.toLocaleString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "numeric",
+    });
+  }
+
+  return `${startFormatted} - ${endFormatted}`;
 };
 
+
+
+
+const formatSlotTimes = (slot) => {
+  const formatTimeIfExists = (timeObj) => {
+    if (timeObj && timeObj.time) {
+      timeObj.time = formatTimeForDisplay(timeObj.time);
+    }
+  };
+
+  formatTimeIfExists(slot.startTime);
+  formatTimeIfExists(slot.endTime);
+  formatTimeIfExists(slot.loadInTime);
+  formatTimeIfExists(slot.soundCheckTime);
+  formatTimeIfExists(slot.doorsTime);
+  formatTimeIfExists(slot.loadOutTime);
+};
 
 const fetchRental = async () => {
   try {
@@ -291,18 +345,26 @@ const fetchRental = async () => {
     if (fetchError.value) {
       console.error('Failed to fetch rental', fetchError.value);
       throw fetchError.value;
-    } else if (data.value) {
-      Object.assign(rental, data.value.rental);
+    } else if (data.value && data.value.rental) {
+      rental.value = data.value.rental;
+      console.log('Fetched rental data:', rental.value);
 
       // Format times for all slots
-      rental.dates.forEach(date => {
-        date.slots.forEach(formatSlotTimes);
-      });
+      if (rental.value.dates && Array.isArray(rental.value.dates)) {
+        rental.value.dates.forEach(date => {
+          if (date.slots && Array.isArray(date.slots)) {
+            date.slots.forEach(formatSlotTimes);
+          }
+        });
+      }
+    } else {
+      console.error('No rental data received');
+      rental.value = null;
     }
   } catch (err) {
     console.error('An error occurred while fetching rental', err);
     error.value = err;
-    throw err;
+    rental.value = null;
   }
 };
 
@@ -314,19 +376,41 @@ watch(() => route.params.id, async (newId) => {
     await fetchRental();
   }
 });
+const invoiceData = computed(() => {
+  if (!rental.dates) return null;
 
+  return {
+    dates: rental.dates.map(date => ({
+      id: date.id,
+      date: date.date,
+      slots: date.slots.map(slot => ({
+        id: slot.id,
+        title: slot.title,
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+        rooms: slot.rooms,
+        resources: slot.resources,
+        private: slot.private
+      }))
+    }))
+  };
+});
 const getNestedProperty = (obj, path) => {
   return path.split('.').reduce((acc, part) => acc && acc[part], obj) || '';
 };
 
+
 const rentalProperties = [
-  { key: '_status', label: 'Status' },
-  { key: '_updatedAt', label: 'Last Updated', format: (date) => isValid(new Date(date)) ? format(new Date(date), 'MMM d, y') : 'Invalid date' },
-  { key: 'primaryContactName', label: 'Primary Contact Name' },
-  { key: 'primaryContactEmail', label: 'Primary Contact Email' },
-  { key: 'primaryContactPhone', label: 'Primary Contact Phone' },
-  { key: 'primaryContactPronouns', label: 'Primary Contact Pronouns' },
-  { key: 'organization', label: 'Organization' },
+  // { key: '_status', label: 'Status', type: 'text', readOnly: true },
+  // { key: '_updatedAt', label: 'Last Updated', type: 'text', readOnly: true, format: (date) => isValid(new Date(date)) ? format(new Date(date), 'MMM d, y') : 'Invalid date' },
+  { key: 'primaryContactName', label: 'Primary Contact Name', type: 'text' },
+  { key: 'primaryContactEmail', label: 'Primary Contact Email', type: 'text' },
+  { key: 'primaryContactPhone', label: 'Primary Contact Phone', type: 'text' },
+  { key: 'primaryContactPronouns', label: 'Primary Contact Pronouns', type: 'text' },
+  { key: 'organization', label: 'Organization', type: 'text' },
+  { key: 'internalNotes', label: 'Internal Notes', type: 'textarea' },
+  { key: 'inquiryStatus', label: 'Inquiry Status', type: 'text' },
+  { key: 'originalCostEstimate', label: 'Original Cost Estimate', type: 'number', format: (value) => formatCurrency(value) },
 ];
 
 
@@ -372,15 +456,14 @@ const formatTime = (time) => {
 };
 
 const formattedDate = computed(() => {
-  if (rental._createdAt && isValid(new Date(rental._createdAt))) {
-    return `Submitted on ${format(new Date(rental._createdAt), 'MMM d, y')} (${formatDistance(new Date(rental._createdAt), new Date(), { addSuffix: true })})`;
+  if (rental.value._createdAt && isValid(new Date(rental.value._createdAt))) {
+    return `Submitted on ${format(new Date(rental.value._createdAt), 'MMM d, y')} (${formatDistance(new Date(rental.value._createdAt), new Date(), { addSuffix: true })})`;
   } else {
     return 'Loading…';
   }
 });
 
 const { roomMapping } = useRoomMapping();
-const { resourceOptions } = useResources();
 
 const openModal = () => {
   isModalOpen.value = true;
@@ -390,18 +473,8 @@ const closeModal = () => {
   isModalOpen.value = false;
 };
 
-const costEstimates = computed(() => {
-  if (!rental.dates) {
-    return [];
-  }
 
-  return calculateCostEstimates(rental.dates, roomMapping.value, resourceOptions.value);
-});
 
-const calculateGrandTotal = () => {
-  return costEstimates.value.reduce((total, estimate) =>
-    total + estimate.roomCosts.reduce((slotTotal, roomCost) => slotTotal + roomCost.totalCost, 0), 0);
-};
 
 const availableRooms = computed(() => {
   return roomMapping.value.map(room => ({ label: room.name, value: room.id }));
@@ -447,48 +520,137 @@ const approveRental = async () => {
   }
 };
 
-// const formatTimeForDisplay = (time) => {
-//   if (!time) return '';
-//   try {
-//     let parsedTime;
-//     if (time.includes('T')) {
-//       // For ISO 8601 format (e.g., "2024-07-31T18:00:00.000Z")
-//       parsedTime = parseISO(time);
-//     } else {
-//       // For "HH:mm" format (e.g., "17:00")
-//       parsedTime = parse(time, 'HH:mm', new Date());
-//     }
+const editableFields = [
+  'organization',
+  'primaryContactName',
+  'primaryContactEmail',
+  'primaryContactPhone',
+  'primaryContactPronouns',
+  'internalNotes',
+  'inquiryStatus',
+];
+watch(rental, (newValue) => {
+  console.log('Rental data changed:', newValue);
+}, { deep: true });
 
-//     if (!isValid(parsedTime)) {
-//       console.warn(`Invalid time value: ${time}`);
-//       return 'Invalid time';
-//     }
-//     return format(parsedTime, 'h:mm a');
-//   } catch (error) {
-//     console.error(`Error formatting time: ${time}`, error);
-//     return 'Error';
-//   }
-// };
+const saveRentalChanges = async () => {
+  if (!rental.value) {
+    console.error('No rental data to save');
+    return;
+  }
+  try {
+    isSaving.value = true;
 
-const formatTimeRange = (startTime, endTime) => {
-  const formattedStart = formatTimeForDisplay(startTime);
-  const formattedEnd = formatTimeForDisplay(endTime);
-  return `${formattedStart} - ${formattedEnd}`;
+    const editableData = {};
+    editableFields.forEach(field => {
+      if (rental.value[field] !== undefined) {
+        // Convert camelCase to snake_case
+        const snakeCaseField = field.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+        editableData[snakeCaseField] = rental.value[field];
+      }
+    });
+
+    console.log("Current rental data:", rental.value);
+    console.log("Editable fields:", editableFields);
+    console.log("Sending update data:", editableData);
+
+    const { data: result } = await useFetch(`/api/bookings/${id.value}/update`, {
+      method: 'PUT',
+      body: editableData,
+    });
+
+    console.log("Received result:", result.value);
+
+    if (result.value && result.value.body) {
+      Object.assign(rental.value, result.value.body);
+      editMode.value = false;
+      alert(result.value.message || 'Rental updated successfully');
+    }
+    editMode.value = false;
+
+  } catch (error) {
+    console.error('Error saving rental changes:', error);
+    alert('Error updating rental. Please try again.');
+  } finally {
+    isSaving.value = false;
+  }
 };
+
 
 const formatTimeRangeReadable = (startTime, endTime) => {
   const formattedStart = format12Hour(startTime);
   const formattedEnd = format12Hour(endTime);
   return `${formattedStart} - ${formattedEnd}`;
 };
-const formatDate = (dateString) => {
-  if (!dateString) return '';
-  try {
-    const date = parse(dateString, 'yyyy-MM-dd', new Date());
-    return format(date, 'EEEE, MMMM d, yyyy');
-  } catch (error) {
-    console.error(`Error formatting date: ${dateString}`, error);
-    return 'Invalid date';
+
+const handleSave = ({ rental: updatedRental, roomCosts }) => {
+  // Update your rental object with the new data
+  // You might need to merge this data carefully depending on your needs
+  rental.dates = updatedRental.dates;
+
+  // Process roomCosts as needed
+  console.log('Room costs:', roomCosts);
+
+  // Close the modal
+  closeModal();
+};
+const editMode = ref(false);
+const isSaving = ref(false);
+const originalRental = ref(null);
+
+// Ensure editMode is handled properly
+const editButtonConfig = computed(() => {
+  return {
+    label: isSaving.value ? 'Saving...' : editMode.value ? 'Save Changes' : 'Edit',
+    color: isSaving.value ? 'primary' : editMode.value ? 'primary' : 'black',
+    click: handleEditOrSave,
+    loading: isSaving.value,
+    disabled: isSaving.value
+  };
+});
+
+const cancelButtonConfig = computed(() => {
+  return editMode.value
+    ? {
+      label: 'Cancel',
+      color: 'red',
+      click: cancelEditMode,
+    }
+    : null;
+});
+
+const handleEditOrSave = async () => {
+  if (editMode.value) {
+    // Handle save logic
+    await saveRentalChanges();
+  } else {
+    // Enter edit mode
+    enterEditMode();
   }
 };
+
+const enterEditMode = () => {
+  // Store a deep copy of the current rental data
+  originalRental.value = JSON.parse(JSON.stringify(rental.value));
+  editMode.value = true;
+};
+
+const cancelEditMode = () => {
+  // Revert to the original rental data
+  if (originalRental.value) {
+    rental.value = JSON.parse(JSON.stringify(originalRental.value));
+  }
+  editMode.value = false;
+};
+
+
+
+
+const approveRentalConfig = {
+  label: 'Approve',
+  color: 'green',
+  click: approveRental,
+};
+
+
 </script>

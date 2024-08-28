@@ -101,7 +101,7 @@ const filteredBookings = computed(() => {
 
   // Status filter
   if (selectedStatuses.value.length > 0) {
-    result = result.filter(booking => selectedStatuses.value.includes(booking._status));
+    result = result.filter(booking => selectedStatuses.value.includes(booking.inquiryStatus));
   }
 
   return result;

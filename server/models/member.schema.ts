@@ -1,4 +1,5 @@
 import { defineMongooseModel } from "#nuxt/mongoose";
+
 import { Schema } from "mongoose";
 
 export const MemberSchema = defineMongooseModel<Member>({

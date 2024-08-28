@@ -5,7 +5,7 @@
 
       <div class="text-right">
         <p class="text-lg font-semibold text-stone-500 dark:text-stone-300">
-          Total: {{ formatCurrency(calculateGrandTotal()) }}
+          Total: {{ originalCostEstimate }}
         </p>
         <button @click.stop.prevent="openModal" type="button" class=" text-red-400 hover:text-red-300 underline">
           View Full Breakdown
@@ -27,7 +27,6 @@ import { ref, computed } from 'vue';
 import { useBookingStore } from '@/stores/bookingStore';
 import { useRoomMapping } from '@/composables/useRoomMapping';
 import { useResources } from '@/composables/useResources';
-import { calculateCostEstimates, formatCurrency } from '@/utils/costCalculations';
 
 const bookingStore = useBookingStore();
 const { roomMapping } = useRoomMapping();

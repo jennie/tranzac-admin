@@ -49,7 +49,6 @@
 </template>
 
 <script setup>
-import { formatDate, formatCurrency } from '@/utils/costCalculations';
 
 const props = defineProps({
   costEstimates: {
