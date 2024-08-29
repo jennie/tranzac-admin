@@ -122,7 +122,7 @@
             </div>
           </UDashboardSection>
         </template>
-        <template #invoice="{ item }">
+        <template #costEstimates="{ item }">
           <UDashboardSection>
             <div class="flex justify-between items-center mb-4">
               <h3 class="text-2xl">Cost Estimate</h3>
@@ -132,8 +132,8 @@
                 </p>
               </div>
             </div>
-            <!-- <CostBreakdownModal v-if="isModalOpen" :costEstimates="costEstimates" @close="closeModal" /> -->
-            <InvoiceEditor v-if="invoiceData" :rental="invoiceData" @close="closeModal" @save="handleSave" />
+            <CostEstimateEditor v-if="costEstimateData" :rental-request="costEstimateData" :rental-request-id="id"
+              @close="closeModal" @save="handleSave" />
           </UDashboardSection>
         </template>
       </UTabs>
@@ -163,7 +163,7 @@ const { resourceOptions } = useResources();
 const tabs = [
   { slot: 'renter', label: 'Renter Info' },
   { slot: 'dates', label: 'Dates & Times' },
-  { slot: 'invoice', label: 'Invoice' }
+  { slot: 'costEstimates', label: 'Estimate' }
 ];
 
 const QUERY = `
@@ -347,7 +347,7 @@ const fetchRental = async () => {
       throw fetchError.value;
     } else if (data.value && data.value.rental) {
       rental.value = data.value.rental;
-      console.log('Fetched rental data:', rental.value);
+      // console.log('Fetched rental data:', rental.value);
 
       // Format times for all slots
       if (rental.value.dates && Array.isArray(rental.value.dates)) {
@@ -376,25 +376,8 @@ watch(() => route.params.id, async (newId) => {
     await fetchRental();
   }
 });
-const invoiceData = computed(() => {
-  if (!rental.dates) return null;
 
-  return {
-    dates: rental.dates.map(date => ({
-      id: date.id,
-      date: date.date,
-      slots: date.slots.map(slot => ({
-        id: slot.id,
-        title: slot.title,
-        startTime: slot.startTime,
-        endTime: slot.endTime,
-        rooms: slot.rooms,
-        resources: slot.resources,
-        private: slot.private
-      }))
-    }))
-  };
-});
+
 const getNestedProperty = (obj, path) => {
   return path.split('.').reduce((acc, part) => acc && acc[part], obj) || '';
 };
@@ -550,16 +533,16 @@ const saveRentalChanges = async () => {
       }
     });
 
-    console.log("Current rental data:", rental.value);
-    console.log("Editable fields:", editableFields);
-    console.log("Sending update data:", editableData);
+    // console.log("Current rental data:", rental.value);
+    // console.log("Editable fields:", editableFields);
+    // console.log("Sending update data:", editableData);
 
-    const { data: result } = await useFetch(`/api/bookings/${id.value}/update`, {
+    const { data: result } = await useFetch(`/api/rentalRequests/${id.value}/update`, {
       method: 'PUT',
       body: editableData,
     });
 
-    console.log("Received result:", result.value);
+    // console.log("Received result:", result.value);
 
     if (result.value && result.value.body) {
       Object.assign(rental.value, result.value.body);
@@ -589,7 +572,7 @@ const handleSave = ({ rental: updatedRental, roomCosts }) => {
   rental.dates = updatedRental.dates;
 
   // Process roomCosts as needed
-  console.log('Room costs:', roomCosts);
+  // console.log('Room costs:', roomCosts);
 
   // Close the modal
   closeModal();
@@ -644,6 +627,27 @@ const cancelEditMode = () => {
 };
 
 
+const costEstimateData = computed(() => {
+  if (!rental.value || !rental.value.dates) return null;
+
+  return {
+    rentalRequestId: id.value,
+    dates: rental.value.dates.map(date => ({
+      id: date.id,
+      date: date.date,
+      slots: date.slots.map(slot => ({
+        id: slot.id,
+        title: slot.title,
+        start: slot.startTime.time,
+        end: slot.endTime.time,
+        rooms: slot.rooms.map(room => room.id),
+        resources: slot.resources,
+        private: slot.private,
+        expectedAttendance: slot.expectedAttendance
+      }))
+    }))
+  };
+});
 
 
 const approveRentalConfig = {

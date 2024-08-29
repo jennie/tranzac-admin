@@ -19,10 +19,10 @@ const links = [{
   to: '/members',
 
 }, {
-  id: 'bookings',
-  label: 'Bookings',
+  id: 'rental-requests',
+  label: 'Rental Requests',
   icon: 'i-heroicons-calendar',
-  to: '/bookings',
+  to: '/rental-requests',
 
 }
 ]

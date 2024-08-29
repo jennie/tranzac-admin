@@ -53,8 +53,8 @@ watch(selectedRoomIds, (newIds) => {
   emit('update:modelValue', newRooms);
 }, { deep: true });
 
-// Log initial values
-console.log('Initial Current Rooms:', props.modelValue);
-console.log('Initial Room Options:', roomOptions.value);
-console.log('Initial Selected Room IDs:', selectedRoomIds.value);
+// // Log initial values
+// console.log('Initial Current Rooms:', props.modelValue);
+// console.log('Initial Room Options:', roomOptions.value);
+// console.log('Initial Selected Room IDs:', selectedRoomIds.value);
 </script>

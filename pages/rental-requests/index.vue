@@ -23,7 +23,7 @@ const sort = ref({
   direction: 'desc' as 'asc' | 'desc'
 });
 
-const bookings = ref([]);
+const rentalRequests = ref([]);
 const isLoading = ref(false);
 
 const QUERY = `query {
@@ -54,8 +54,8 @@ const formatDates = (dates: { date: string }[]) => {
 const formatCreatedAt = (createdAt: string) => {
   return format(new Date(createdAt), 'MMM d, yyyy');
 };
-const fetchBookings = async () => {
-  console.log('fetching bookings');
+const fetchRentalRequests = async () => {
+  console.log('fetching rentalRequests');
   isLoading.value = true; // Set loading to true at the start
 
   try {
@@ -65,12 +65,12 @@ const fetchBookings = async () => {
       console.error('Failed to fetch events', error.value);
     } else if (data.value) {
       console.log('data', data.value);
-      bookings.value = data.value.allRentals.map(rental => ({
+      rentalRequests.value = data.value.allRentals.map(rental => ({
         ...rental,
         start: new Date(rental.startDate),
         end: new Date(rental.endDate),
       }));
-      console.log(bookings.value);
+      console.log(rentalRequests.value);
     }
   } catch (e) {
     console.error('Failed to fetch events', e);
@@ -80,15 +80,15 @@ const fetchBookings = async () => {
 };
 
 onMounted(() => {
-  fetchBookings();
+  fetchRentalRequests();
 });
 
 watch([selectedStatuses, selectedColumns, q], () => {
-  fetchBookings();
+  fetchRentalRequests();
 }, { immediate: true });
 
-const filteredBookings = computed(() => {
-  let result = bookings.value;
+const filteredRentalRequests = computed(() => {
+  let result = rentalRequests.value;
 
   // Text filter
   if (q.value) {
@@ -110,7 +110,7 @@ const filteredBookings = computed(() => {
 
 <template>
   <UDashboardPanelContent class="pb-24">
-    <UDashboardNavbar title="Rental Requests" :badge="bookings.length">
+    <UDashboardNavbar title="Rental Requests" :badge="rentalRequests.length">
       <template #right>
         <UInput ref="input" v-model="q" icon="i-heroicons-funnel" autocomplete="off"
           placeholder="Filter rental requests..." class="hidden lg:block" @keydown.esc="$event.target.blur()">
@@ -138,9 +138,9 @@ const filteredBookings = computed(() => {
       </UDashboardToolbar>
       <div v-if="isLoading">Loading...</div>
 
-      <UTable :rows="filteredBookings" :columns="columns" :sort="sort" v-if="!isLoading">
+      <UTable :rows="filteredRentalRequests" :columns="columns" :sort="sort" v-if="!isLoading">
         <template #organization-data="{ row }">
-          <NuxtLink :to="`/bookings/${row.id}`" class="underline">{{ row.organization }}</NuxtLink>
+          <NuxtLink :to="`/rental-requests/${row.id}`" class="underline">{{ row.organization }}</NuxtLink>
         </template>
         <template #inquiryStatus-data="{ row }">
           <UBadge :label="row.inquiryStatus"
@@ -156,7 +156,7 @@ const filteredBookings = computed(() => {
       </UTable>
 
       <div class="flex justify-end px-3 py-3.5 border-t border-gray-200 dark:border-gray-700">
-        <UPagination v-model="page" :page-count="pageCount" :total="filteredBookings.length" />
+        <UPagination v-model="page" :page-count="pageCount" :total="filteredRentalRequests.length" />
       </div>
     </UCard>
   </UDashboardPanelContent>

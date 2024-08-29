@@ -2,8 +2,14 @@
 
 import { format, parse, isValid, parseISO } from "date-fns";
 
-export const formatCurrency = (amount) => {
-  return `$${amount.toFixed(0)}`;
+export const formatCurrency = (value: number | undefined | null): string => {
+  if (typeof value !== "number") {
+    return "N/A";
+  }
+  return new Intl.NumberFormat("en-CA", {
+    style: "currency",
+    currency: "CAD",
+  }).format(value);
 };
 
 export const formatDate = (dateString) => {
