@@ -1,40 +1,37 @@
-import { defineMongooseModel } from '#nuxt/mongoose'
-import { Types } from 'mongoose'
-import type { Post } from '~/types'
+import { defineMongooseModel } from "#nuxt/mongoose";
+import { Types } from "mongoose";
+import type { Post } from "~/types";
 
 export const PostSchema = defineMongooseModel<Post>({
-  name: 'Post',
+  name: "Post",
   schema: {
     user: {
       type: Types.ObjectId,
       required: true,
-      ref: 'User',
+      ref: "User",
     },
     name: {
-      type: 'string',
+      type: "string",
       required: true,
     },
     slug: {
-      type: 'string',
+      type: "string",
       required: true,
       unique: true,
     },
     description: {
-      type: 'string',
+      type: "string",
     },
-    color: {
-      type: 'string',
-      default: 'green',
-    },
+
     body: {
-      type: 'string',
+      type: "string",
     },
     hit: {
-      type: 'Number',
+      type: "Number",
       default: 0,
     },
   },
   options: {
     timestamps: true,
   },
-})
+});

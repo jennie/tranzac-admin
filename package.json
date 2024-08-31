@@ -1,6 +1,7 @@
 {
   "name": "nuxt-ui-pro-template-dashboard",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "build": "nuxt build",
@@ -27,7 +28,7 @@
     "@rschedule/core": "^1.5.0",
     "@rschedule/standard-date-adapter": "^1.5.0",
     "@sendgrid/mail": "^8.1.1",
-    "@tranzac/pricing-lib": "file:../pricing-lib",
+    "@tranzac/pricing-lib": "^1.0.1",
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.5",
     "@unovis/ts": "^1.4.0",
@@ -36,8 +37,8 @@
     "bcryptjs": "^2.4.3",
     "d3": "^7.8.5",
     "date-fns": "^3.6.0",
+    "date-fns-tz": "^3.1.3",
     "defu": "^6.1.3",
-    "eslint": "9.0.0",
     "jose": "^5.1.3",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.5.4",
@@ -53,7 +54,12 @@
   "devDependencies": {
     "@nuxt/eslint": "^0.3.10",
     "@pinia-plugin-persistedstate/nuxt": "^1.2.0",
+    "@popperjs/core": "^2.11.8",
+    "@vue/compiler-sfc": "^3.4.38",
     "eslint": "^9.2.0",
+    "postcss": "^8.4.41",
+    "typescript": "^5.5.4",
+    "vite": "^5.4.2",
     "vue-tsc": "^2.0.16"
   }
 }

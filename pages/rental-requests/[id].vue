@@ -134,6 +134,7 @@
             </div>
             <CostEstimateEditor v-if="costEstimateData" :rental-request="costEstimateData" :rental-request-id="id"
               @close="closeModal" @save="handleSave" />
+
           </UDashboardSection>
         </template>
       </UTabs>
@@ -146,6 +147,7 @@ import { ref, reactive, computed, watch, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { format, formatDistance, isValid, parse, parseISO, addMinutes, setHours, setMinutes } from "date-fns";
 import { formatCurrency, formatDate, formatTimeRange } from '@/utils/formatters';
+import { useResources } from '@/composables/useResources';
 
 
 

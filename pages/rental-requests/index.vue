@@ -2,11 +2,15 @@
 import { format } from 'date-fns';
 
 const defaultColumns = [
-  { key: "inquiryStatus", label: "Status" },
-  { key: "organization", label: "Organization" },
-  { key: "primaryContactName", label: "Contact" },
-  { key: "dates", label: "Dates" },
-  { key: "_createdAt", label: "Created" },
+  {
+    key: "inquiryStatus", label: "Status", sortable: true
+  },
+  { key: "organization", label: "Organization", sortable: true },
+  {
+    key: "primaryContactName", label: "Contact", sortable: true, direction: 'desc' as const
+  },
+  { key: "dates", label: "Dates", sortable: true },
+  { key: "_createdAt", label: "Created", sortable: true },
 ];
 
 const defaultStatuses = ["draft", "published"];
@@ -19,8 +23,8 @@ const page = ref(1);
 const pageCount = 50;
 
 const sort = ref({
-  column: 'title',
-  direction: 'desc' as 'asc' | 'desc'
+  column: 'created',
+  direction: 'asc' as const,
 });
 
 const rentalRequests = ref([]);

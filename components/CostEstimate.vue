@@ -25,7 +25,7 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { useBookingStore } from '@/stores/bookingStore';
-import { useRoomMapping } from '@/composables/useRoomMapping';
+import { useRoomMapping } from 'pricing-lib/src/composables/useRoomMapping';
 import { useResources } from '@/composables/useResources';
 
 const bookingStore = useBookingStore();

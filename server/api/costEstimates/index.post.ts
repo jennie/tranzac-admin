@@ -1,5 +1,5 @@
 // api/costEstimates.js
-import { CostEstimate } from "@/server/models/costEstimate.schema";
+import { PricingRules, getCostEstimateModel } from "pricing-lib";
 import { ensureConnection } from "@/server/utils/mongoose";
 
 export default defineEventHandler(async (event) => {
@@ -7,6 +7,7 @@ export default defineEventHandler(async (event) => {
 
   if (event.req.method === "POST") {
     const body = await readBody(event);
+    console.log("Body costEstimates:", body.costEstimates);
 
     try {
       let costEstimate = await CostEstimate.findOne({
@@ -23,7 +24,6 @@ export default defineEventHandler(async (event) => {
         version: body.version,
         costEstimates: body.costEstimates,
         totalCost: body.totalCost,
-        createdBy: event.context.user?._id, // Assuming you have user info in the context
       });
 
       costEstimate.currentVersion = body.version;
