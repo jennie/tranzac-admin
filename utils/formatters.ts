@@ -12,7 +12,12 @@ export const formatCurrency = (value: number | undefined | null): string => {
     currency: "CAD",
   }).format(value);
 };
-
+export function formatDescription(hours, price, rateType, period) {
+  if (rateType === "flat") {
+    return `${period} (flat rate)`;
+  }
+  return `${hours}h ${period} @ $${price}/hour`;
+}
 export function formatDate(dateString: string): string {
   try {
     const date = parseISO(dateString);

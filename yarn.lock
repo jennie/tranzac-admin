@@ -2201,9 +2201,9 @@
     "@tanstack/virtual-core" "3.10.6"
 
 "@tranzac/pricing-lib@^1.0.1":
-  version "1.0.5"
-  resolved "https://registry.yarnpkg.com/@tranzac/pricing-lib/-/pricing-lib-1.0.5.tgz#577ddf5a0afa656151f1a33a348e031f58754057"
-  integrity sha512-8Z8T7W6/J6FipBIu8Z3HUo8i+cAPjmCvHwwyBJxLXTf3naXsAue/iKDMaFnhAOi790KzYDbZd9ETSH1X8KBedg==
+  version "1.0.11"
+  resolved "https://registry.yarnpkg.com/@tranzac/pricing-lib/-/pricing-lib-1.0.11.tgz#bc658a04e3f00ff9e6008f201455d92006f035b5"
+  integrity sha512-MQ5zW6SKNG7IkmGpembGGKQ2dOTFA7DlaaXKULOt/eq5uood2pzO/J/oBxWVQzO7Sdd+fR6QyKppmZhHBwvgYA==
 
 "@trysound/sax@0.2.0":
   version "0.2.0"
