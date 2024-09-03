@@ -13,7 +13,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue';
-import { useRoomMapping } from 'pricing-lib/src/composables/useRoomMapping';
+import { useRoomMapping } from 'pricing-lib';
 
 const props = defineProps({
   modelValue: {
