@@ -20,6 +20,8 @@ export default defineNuxtConfig({
     public: {
       datoCmsToken: process.env.DATO_API_TOKEN,
       SENDGRID_API_KEY: process.env.SENDGRID_API_KEY,
+      adminApiUrl: process.env.ADMIN_API_URL,
+      publicApiUrl: process.env.PUBLIC_API_URL,
     },
   },
 

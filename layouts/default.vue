@@ -50,7 +50,7 @@ const groups = [{
           Tranzac Admin
         </template>
         <template #right>
-          <UColorModeToggle color="gray" />
+          <UColorModeToggle />
         </template>
       </UDashboardNavbar>
 

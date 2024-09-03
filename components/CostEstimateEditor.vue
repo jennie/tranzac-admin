@@ -257,6 +257,11 @@ const sendEstimate = async () => {
     const result = await response.json();
 
     if (result.success) {
+      console.log('Updating status for:', {
+        rentalRequestId: props.rentalRequestId,
+        versionNumber: currentVersionNumber.value,
+      });
+
       // Add new status entry to statusHistory
       await fetch(`/api/costEstimates/${props.rentalRequestId}/versions/${currentVersionNumber.value}/status`, {
         method: 'PUT',
@@ -265,14 +270,15 @@ const sendEstimate = async () => {
         },
         body: JSON.stringify({
           status: 'sent',
-          changedBy: 'currentUserId',
-          timestamp: new Date()
-        })
+          changedBy: userId.value,
+          timestamp: new Date(),
+        }),
       });
-      //       console.log('Estimate sent successfully');
+      // console.log('Estimate sent successfully');
     } else {
       console.error('Failed to send estimate:', result.message);
     }
+
   } catch (err) {
     console.error('Error sending estimate:', err);
   }
