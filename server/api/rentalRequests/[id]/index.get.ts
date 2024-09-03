@@ -9,7 +9,7 @@ export default defineEventHandler(async (event) => {
 
       // Fetch the current record
       const currentRecord = await client.items.find(itemId);
-      console.log(currentRecord);
+      //       console.log(currentRecord);
       // Append the new string to the existing internalNotes
       const newInternalNotes = currentRecord.internal_notes
         ? `${

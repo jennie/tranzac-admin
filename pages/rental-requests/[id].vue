@@ -349,7 +349,7 @@ const fetchRental = async () => {
       throw fetchError.value;
     } else if (data.value && data.value.rental) {
       rental.value = data.value.rental;
-      // console.log('Fetched rental data:', rental.value);
+      //       // console.log('Fetched rental data:', rental.value);
 
       // Format times for all slots
       if (rental.value.dates && Array.isArray(rental.value.dates)) {
@@ -515,7 +515,7 @@ const editableFields = [
   'inquiryStatus',
 ];
 watch(rental, (newValue) => {
-  console.log('Rental data changed:', newValue);
+  //   console.log('Rental data changed:', newValue);
 }, { deep: true });
 
 const saveRentalChanges = async () => {
@@ -535,16 +535,16 @@ const saveRentalChanges = async () => {
       }
     });
 
-    // console.log("Current rental data:", rental.value);
-    // console.log("Editable fields:", editableFields);
-    // console.log("Sending update data:", editableData);
+    //     // console.log("Current rental data:", rental.value);
+    //     // console.log("Editable fields:", editableFields);
+    //     // console.log("Sending update data:", editableData);
 
     const { data: result } = await useFetch(`/api/rentalRequests/${id.value}/update`, {
       method: 'PUT',
       body: editableData,
     });
 
-    // console.log("Received result:", result.value);
+    //     // console.log("Received result:", result.value);
 
     if (result.value && result.value.body) {
       Object.assign(rental.value, result.value.body);
@@ -574,7 +574,7 @@ const handleSave = ({ rental: updatedRental, roomCosts }) => {
   rental.dates = updatedRental.dates;
 
   // Process roomCosts as needed
-  // console.log('Room costs:', roomCosts);
+  //   // console.log('Room costs:', roomCosts);
 
   // Close the modal
   closeModal();
@@ -631,9 +631,17 @@ const cancelEditMode = () => {
 
 const costEstimateData = computed(() => {
   if (!rental.value || !rental.value.dates) return null;
-
   return {
     rentalRequestId: id.value,
+    inquiryStatus: rental.value.inquiryStatus,
+    internalNotes: rental.value.internalNotes,
+    organization: rental.value.organization,
+    originalCostEstimate: rental.value.originalCostEstimate,
+    primaryContactEmail: rental.value.primaryContactEmail,
+    primaryContactName: rental.value.primaryContactName,
+    primaryContactPhone: rental.value.primaryContactPhone,
+    primaryContactPronouns: rental.value.primaryContactPronouns,
+
     dates: rental.value.dates.map(date => ({
       id: date.id,
       date: date.date,

@@ -16,10 +16,10 @@ export function useAuth() {
   const loggedIn = ref(false);
   const user = ref(null);
   const authModal = ref(false); // Define authModal
+  // console.log("Initializing useAuth. Session State:", sessionState);
 
   async function clear() {
     console.log("Clearing user session...");
-    const teamStore = useTeamStore();
     const userStore = useUserStore();
 
     // await savePreferences();
@@ -32,15 +32,31 @@ export function useAuth() {
 
   async function onLogin(userData) {
     try {
-      authModal.value = false;
+      console.log("onLogin triggered with user data:", userData);
+
+      const token = userData.token;
+
+      if (!token) {
+        console.warn("No token found in userData:", userData);
+      }
+
+      authStore.showAuthModal = false;
+
       loggedIn.value = true;
       user.value = userData;
 
       const userStore = useUserStore();
       userStore.setUser(userData);
 
-      const teamStore = useTeamStore();
-      await teamStore.fetchUserTeams();
+      sessionState.value = {
+        ...sessionState.value,
+        token,
+        _id: userData._id.toString(), // Ensure _id is included
+        email: userData.email,
+      };
+
+      // Ensure _id is preserved if me() is called after this
+      await me(); // You may call me() here to merge additional data if necessary
 
       toast.add({
         title: "Logged In",
@@ -48,23 +64,25 @@ export function useAuth() {
         description: `${userData.name} logged in successfully.`,
       });
     } catch (error) {
+      console.error("Error during onLogin:", error);
       onError(error);
     }
   }
 
   async function onRegister(registeredUser) {
     try {
-      authModal.value = false;
+      authStore.showAuthModal = false;
       authStore.showAuthModal = false;
       loggedIn.value = true;
       user.value = registeredUser;
+
       const userStore = useUserStore();
       userStore.setUser(registeredUser);
-      console.log("registeredUser", registeredUser);
-      // Fetch user profile to ensure preferences are available
 
-      //actually the data i need is on the user object in the database
-      //so i need to fetch that data
+      // Include the user ID in the session state
+      sessionState.value = { ...sessionState.value, _id: registeredUser._id };
+
+      //       console.log("registeredUser", registeredUser);
 
       navigateTo("/");
       toast.add({
@@ -99,23 +117,38 @@ export function useAuth() {
   }
   async function me() {
     try {
-      const userSessionState = useUserSessionState();
+      const sessionState = useUserSessionState();
       const requestFetch = useRequestFetch();
-      userSessionState.value = await requestFetch("/api/auth/me", {
+      const fetchedData = await requestFetch("/api/auth/me", {
         headers: {
           Accept: "text/json",
         },
       });
+
+      // Merge the fetched data with the existing session state, ensuring _id is not overwritten
+      sessionState.value = {
+        ...sessionState.value,
+        ...fetchedData,
+        _id: sessionState.value._id || fetchedData._id, // Ensure _id is preserved
+      };
+
+      console.log("sessionState.value after me():", sessionState.value);
     } catch (error) {
+      console.error("Error fetching user profile:", error);
       onError(error);
     }
   }
+
   async function fetchUserProfile() {
-    console.log("Fetching user profile...");
+    //     console.log("Fetching user profile...");
     try {
       const profile = await $fetch("/api/users/profile");
       sessionState.value = { ...sessionState.value, ...profile };
-      console.log("sessionState.value", sessionState.value);
+
+      // Ensure the user ID is included in the session state
+      sessionState.value = { ...sessionState.value, _id: profile._id };
+
+      //       console.log("sessionState.value", sessionState.value);
     } catch (error) {
       console.error("Fetch profile error:", error);
       toast.add({
@@ -125,6 +158,7 @@ export function useAuth() {
       });
     }
   }
+
   return {
     loggedIn: computed(() => Boolean(sessionState.value?.email)),
     user: computed(() => sessionState.value || null),

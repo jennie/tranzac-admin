@@ -9,13 +9,13 @@ export default defineEventHandler(async (event) => {
   const versionNumber = parseInt(event.context.params.versionNumber as string);
   const body = await readBody(event);
 
-  console.log(`Updating version ${versionNumber} for cost estimate id: ${id}`);
+  //   console.log(`Updating version ${versionNumber} for cost estimate id: ${id}`);
 
   try {
     const costEstimate = await CostEstimate.findOne({ rentalRequestId: id });
 
     if (!costEstimate) {
-      console.log("Cost estimate not found for id:", id);
+      //       console.log("Cost estimate not found for id:", id);
       throw createError({
         statusCode: 404,
         statusMessage: "Cost estimate not found",
@@ -44,7 +44,7 @@ export default defineEventHandler(async (event) => {
 
     await costEstimate.save();
 
-    console.log("Updated version:", costEstimate.versions[versionIndex]);
+    //     console.log("Updated version:", costEstimate.versions[versionIndex]);
     return costEstimate.versions[versionIndex];
   } catch (error) {
     console.error("Error updating cost estimate version:", error);

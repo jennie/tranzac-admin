@@ -1,6 +1,7 @@
 import { defineStore, createPinia, setActivePinia } from "pinia";
 import piniaPluginPersistedstate from "pinia-plugin-persistedstate";
-
+import { useUserStore } from "@/stores/userStore";
+const userStore = useUserStore();
 const pinia = createPinia();
 pinia.use(piniaPluginPersistedstate);
 
@@ -52,31 +53,6 @@ export const useTeamStore = defineStore("teamStore", {
         this.userTeams = await Promise.all(teamMembersPromises);
       } catch (error) {
         console.error("Failed to fetch teams with members:", error);
-      }
-    },
-
-    async fetchUserTeams() {
-      const userStore = useUserStore();
-      const userId = userStore.getUserId;
-
-      if (!userId) {
-        console.error("User ID is not available");
-        return;
-      }
-
-      try {
-        // Adjust the endpoint if needed to include the userId in the request
-        const teams = await $fetch("/api/teams/");
-        teams.value = teams;
-
-        if (teams.length > 0) {
-          this.userTeams = teams;
-          this.selectTeam(teams[0]);
-        } else {
-          console.log("No teams found for the user:", userId);
-        }
-      } catch (error) {
-        console.error("Error fetching user teams for userId:", userId, error);
       }
     },
 

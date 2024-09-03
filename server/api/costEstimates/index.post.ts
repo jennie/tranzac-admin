@@ -7,7 +7,7 @@ export default defineEventHandler(async (event) => {
 
   if (event.req.method === "POST") {
     const body = await readBody(event);
-    console.log("Body costEstimates:", body.costEstimates);
+    //     console.log("Body costEstimates:", body.costEstimates);
 
     try {
       let costEstimate = await CostEstimate.findOne({

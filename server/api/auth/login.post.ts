@@ -11,16 +11,14 @@ export default defineEventHandler(async (event) => {
     });
   }
   const { email, password } = body;
-  console.log("email", email, "password", password);
+  //   console.log("email", email, "password", password);
   if (!email || !password) {
     throw createError({
       statusMessage: "Please fill out all fields.",
     });
   }
 
-  const user = await mongoose.connection.db
-    .collection("users")
-    .findOne({ email });
+  const user = await UserSchema.findOne({ email });
 
   if (!user) {
     throw createError({
@@ -37,9 +35,13 @@ export default defineEventHandler(async (event) => {
   }
 
   await setAuth(event, user.email);
+  console.log("→ User ID:", user._id); // Log the ObjectId in the backend
 
   return {
     loggedIn: true,
-    user: user.email as string,
+    user: {
+      _id: user._id.toString(),
+      email: user.email,
+    },
   };
 });

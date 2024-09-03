@@ -6,20 +6,22 @@ export default defineEventHandler(async (event) => {
   const CostEstimate = getCostEstimateModel(mongooseInstance);
 
   const id = event.context.params.id;
-  console.log("Fetching cost estimate for id:", id);
+  //   console.log("Fetching cost estimate for id:", id);
 
   try {
     const costEstimate = await CostEstimate.findOne({ rentalRequestId: id });
 
     if (!costEstimate) {
-      console.log("Cost estimate not found for id:", id);
+      //       console.log("Cost estimate not found for id:", id);
       return createError({
         statusCode: 404,
         statusMessage: "Cost estimate not found",
       });
     }
+    //     // console.log("Cost Estimate Object:", JSON.stringify(costEstimate, null, 2)); // Log the full costEstimate object
 
     const result = {
+      _id: costEstimate._id, // Add the _id to the result
       versions: costEstimate.versions.map((version) => ({
         version: version.version,
         label: `Version ${version.version}`,
@@ -57,10 +59,10 @@ export default defineEventHandler(async (event) => {
       currentVersion: costEstimate.currentVersion,
     };
 
-    console.log(
-      "Returning cost estimate data:",
-      JSON.stringify(result, null, 2)
-    );
+    // console.log(
+    //   "Returning cost estimate data:",
+    //   JSON.stringify(result, null, 2)
+    // );
     return result;
   } catch (error) {
     console.error("Error fetching cost estimate versions:", error);

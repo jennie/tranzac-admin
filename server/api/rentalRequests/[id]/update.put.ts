@@ -4,8 +4,8 @@ export default defineEventHandler(async (event) => {
   const itemId = event.context.params.id;
   const body = await readBody(event);
 
-  console.log("Received update request for item:", itemId);
-  console.log("Received body:", body);
+  //   console.log("Received update request for item:", itemId);
+  //   console.log("Received body:", body);
 
   function toSnakeCase(str: string): string {
     return str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
@@ -19,7 +19,7 @@ export default defineEventHandler(async (event) => {
 
       // Fetch the current record
       const currentRecord = await client.items.find(itemId);
-      console.log("Current record:", currentRecord);
+      //       console.log("Current record:", currentRecord);
 
       // Prepare the update data
       const updateData = {};
@@ -36,16 +36,16 @@ export default defineEventHandler(async (event) => {
         ) {
           updateData[snakeCaseKey] = value;
           hasChanges = true;
-          console.log(`Change detected in ${snakeCaseKey}`);
+          //           console.log(`Change detected in ${snakeCaseKey}`);
         }
       }
 
-      console.log("Changes detected:", hasChanges);
-      console.log("Update data:", updateData);
+      //       console.log("Changes detected:", hasChanges);
+      //       console.log("Update data:", updateData);
 
       // Check if there are any changes to update
       if (!hasChanges) {
-        console.log("No changes detected. Returning current record.");
+        //         console.log("No changes detected. Returning current record.");
         return {
           statusCode: 200,
           body: currentRecord,
@@ -58,12 +58,12 @@ export default defineEventHandler(async (event) => {
         currentRecord.internal_notes || ""
       }\n- Record updated on ${new Date().toLocaleString()}`;
 
-      console.log("Final update data:", updateData);
+      //       console.log("Final update data:", updateData);
 
       // Update the record with the new data
       const updatedRecord = await client.items.update(itemId, updateData);
 
-      console.log("Updated record:", updatedRecord);
+      //       console.log("Updated record:", updatedRecord);
 
       return {
         statusCode: 200,

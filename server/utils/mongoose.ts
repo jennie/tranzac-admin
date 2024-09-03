@@ -12,7 +12,7 @@ export async function ensureConnection() {
   try {
     await mongoose.connect(uri);
     isConnected = true;
-    console.log("Database connected");
+    //     console.log("Database connected");
     return mongoose.connection;
   } catch (error) {
     console.error("Error connecting to database:", error);

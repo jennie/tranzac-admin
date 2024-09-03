@@ -14,7 +14,7 @@ export function formatCostEstimates(estimates, pricingRules) {
     const dayOfWeek = new Date(estimate.date).toLocaleDateString("en-CA", {
       weekday: "long",
     });
-    console.log(`Processing ${dayOfWeek} for room: ${estimate.roomSlug}`);
+    //     console.log(`Processing ${dayOfWeek} for room: ${estimate.roomSlug}`);
 
     // Ensure that day-specific or "all" rules exist
     const dayRules = roomRules[dayOfWeek] || roomRules["all"];
@@ -26,7 +26,7 @@ export function formatCostEstimates(estimates, pricingRules) {
     }
 
     // Log the rules being used
-    console.log("Day rules found:", dayRules);
+    //     console.log("Day rules found:", dayRules);
 
     // Check for daytime pricing
     if (estimate.daytimeHours > 0 && dayRules.daytime) {

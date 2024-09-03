@@ -5,7 +5,7 @@
         <h4 class="text-lg font-semibold">Versions</h4>
         <div class="flex space-x-4">
           <USelect v-model="currentVersionNumber" :options="versionOptions" @update:modelValue="handleVersionChange" />
-          <UButton @click="createNewVersion" color="primary">Create New Version</UButton>
+          <UButton v-if="hasChanges" @click="createNewVersion" color="primary">Save New Version</UButton>
         </div>
       </div>
     </div>
@@ -117,7 +117,7 @@
           </div>
         </div>
       </div>
-      <div v-else class="text-center py-8">
+      <div v-else class=" py-8">
         <p class="text-lg text-gray-500">No cost estimates available for this version.</p>
       </div>
 
@@ -127,14 +127,14 @@
           <span class="text-lg font-semibold dark:text-stone-100">{{ formatCurrency(totalCost) }}</span>
         </div>
         <div class="flex justify-end space-x-4 mt-4">
-          <UButton @click="recalculateCosts" color="secondary">Recalculate Costs</UButton>
-          <UButton @click="saveCostEstimate" color="primary">Save Cost Estimate</UButton>
-          <UButton @click="generateStripeEstimate" color="info">Generate Stripe Estimate</UButton>
+
+          <UButton @click="sendEstimate" color="primary">Send Estimate</UButton>
         </div>
+
       </template>
     </UCard>
 
-    <div v-else class="text-center py-8">
+    <div v-else class=" py-8">
       <p class="text-lg">Loading cost estimates...</p>
     </div>
   </div>
@@ -147,7 +147,11 @@ import { useRoomMapping } from '@/composables/useRoomMapping';
 import { useResources } from '@/composables/useResources';
 import { formatDescription } from '@/utils/formatters';
 import { formatCurrency, formatDate, formatTimeRange } from '@/utils/formatters';
-
+import cloneDeep from 'lodash/cloneDeep';
+const originalData = ref(null);
+const editedData = ref(null);
+import { v4 as uuidv4 } from 'uuid';
+const estimateIdRef = ref(null);
 const props = defineProps({
   rentalRequest: {
     type: Object,
@@ -158,8 +162,121 @@ const props = defineProps({
     required: true
   }
 });
+// console.log('Component setup: rentalRequestId =', props.rentalRequestId);
 
+const fetchVersions = async () => {
+  //   console.log('fetchVersions: Starting fetch for rentalRequestId:', props.rentalRequestId);
+  try {
+    const { data, error } = await useFetch(`/api/costEstimates/${props.rentalRequestId}`);
+    //     console.log('fetchVersions: API response:', data.value, 'Error:', error.value);
+
+    if (error.value) {
+      throw new Error(error.value.message || 'Unknown error occurred');
+    }
+
+    if (data.value) {
+      //       console.log('fetchVersions: Returning data');
+      return data.value;
+    } else {
+      console.warn('fetchVersions: No data returned from API');
+      throw new Error('No data returned from API');
+    }
+  } catch (err) {
+    console.error('fetchVersions: Error:', err);
+    throw err;
+  }
+};
+const { data: costEstimateData, pending, error: asyncError, refresh } = useAsyncData(
+  'costEstimate',
+  async () => {
+    //     console.log('useAsyncData: Fetching data for rentalRequestId:', props.rentalRequestId);
+    try {
+      const result = await fetchVersions();
+      //       console.log('useAsyncData: Fetched data:', result);
+      return result;
+    } catch (err) {
+      console.error('useAsyncData: Error fetching data:', err);
+      throw err;
+    }
+  },
+  {
+    watch: [() => props.rentalRequestId],
+    immediate: true
+  }
+);
+
+// Add a watcher to log when the async data changes
+watch(costEstimateData, (newData) => {
+  //   console.log('costEstimateData changed:', newData);
+}, { immediate: true });
 const emit = defineEmits(['save', 'close']);
+const originalGroupedCostEstimatesData = ref(null);
+
+const { user } = useAuth();
+const userId = computed(() => user.value?._id || null);
+console.log('Current user ID:', user.value);
+// Now you can use userId.value wherever you need the user ID
+
+const hasChanges = computed(() => {
+  return JSON.stringify(groupedCostEstimatesData.value) !== JSON.stringify(originalGroupedCostEstimatesData.value);
+});
+
+
+const sendEstimate = async () => {
+  const estimateId = estimateIdRef.value; // Use the stored estimateId
+
+  if (!estimateId) {
+    console.error('Estimate ID is undefined');
+    return;
+  }
+
+  try {
+    console.log('Sending estimate:', {
+      rentalRequestId: props.rentalRequestId,
+      estimateId: estimateId,
+      currentVersion: currentVersionNumber.value,
+      totalCost: totalCost.value,
+
+    });
+    const response = await fetch('/api/costEstimates/sendEstimate', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        rentalRequestId: props.rentalRequestId,  // Rental Request ID
+        estimateId: estimateId,  // The correct MongoDB document _id
+        currentVersion: currentVersionNumber.value, // The current version number
+        totalCost: totalCost.value,
+        primaryContactEmail: props.rentalRequest.primaryContactEmail,
+        primaryContactName: props.rentalRequest.primaryContactName,
+        organization: props.rentalRequest.organization
+      }),
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      // Add new status entry to statusHistory
+      await fetch(`/api/costEstimates/${props.rentalRequestId}/versions/${currentVersionNumber.value}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: 'sent',
+          changedBy: 'currentUserId',
+          timestamp: new Date()
+        })
+      });
+      //       console.log('Estimate sent successfully');
+    } else {
+      console.error('Failed to send estimate:', result.message);
+    }
+  } catch (err) {
+    console.error('Error sending estimate:', err);
+  }
+};
 
 
 const daytimeDescription = computed(() => {
@@ -176,8 +293,33 @@ const costEstimateVersions = ref([]);
 const currentVersionNumber = ref(0);
 const groupedCostEstimatesData = ref({});
 const error = ref(null);
-
+watch(groupedCostEstimatesData, (newVal) => {
+  //   console.log('groupedCostEstimatesData updated:', newVal);
+  // You can add any additional logic here if needed
+}, { deep: true });
 const versionOptions = computed(() => costEstimateVersions.value);
+const groupCostEstimates = (costEstimates) => {
+  return costEstimates.reduce((acc, estimate) => {
+    const slotId = estimate.id;
+    acc[slotId] = {
+      id: slotId,
+      date: estimate.date,
+      start: estimate.start,
+      end: estimate.end,
+      perSlotCosts: estimate.perSlotCosts,
+      rooms: estimate.rooms,
+      totalCost: estimate.slotTotal,
+      newLineItem: {
+        type: 'custom',
+        description: '',
+        resourceId: null,
+        cost: 0
+      },
+      customLineItems: []
+    };
+    return acc;
+  }, {});
+};
 
 const currentVersionLabel = computed(() => {
   const version = versionOptions.value.find(v => v.value === currentVersionNumber.value);
@@ -211,30 +353,30 @@ const updateStoredTotal = () => {
   }
 };
 
-const fetchVersions = async () => {
-  try {
-    const { data } = await useFetch(`/api/costEstimates/${props.rentalRequestId}`);
-    if (data.value && Array.isArray(data.value.versions)) {
-      costEstimateVersions.value = [
-        { label: 'Original Request', value: 0, totalCost: data.value.versions[0]?.totalCost ?? 0 },
-        ...data.value.versions.map((version) => ({
-          label: `Version ${version.version}`,
-          value: version.version,
-          totalCost: version.totalCost,
-          createdAt: version.createdAt
-        }))
-      ];
-      currentVersionNumber.value = data.value.currentVersion || 0;
-    } else {
-      console.warn('Invalid or missing versions data returned from API');
-      costEstimateVersions.value = [{ label: 'Original Request', value: 0, totalCost: 0 }];
+const isDataReady = computed(() => {
+  //   console.log('isLoading computed: pending =', pending.value, 'costEstimateData =', !!costEstimateData.value);
+  return pending.value || !costEstimateData.value;
+});
+
+
+watch([costEstimateData, error], ([newData, newError]) => {
+  //   console.log('Watch triggered: newData =', newData, 'newError =', newError);
+  if (newData) {
+    estimateIdRef.value = newData._id;
+    currentVersionNumber.value = newData.currentVersion;
+    costEstimateVersions.value = newData.versions.map(v => ({
+      value: v.version,
+      label: v.label,
+      totalCost: v.totalCost
+    }));
+    const currentVersion = newData.versions.find(v => v.version === newData.currentVersion);
+    if (currentVersion) {
+      groupedCostEstimatesData.value = groupCostEstimates(currentVersion.costEstimates);
     }
-  } catch (err) {
-    console.error('Error fetching versions:', err);
-    error.value = 'Failed to fetch versions';
-    costEstimateVersions.value = [{ label: 'Original Request', value: 0, totalCost: 0 }];
+
   }
-};
+}, { immediate: true });
+
 
 const handleVersionChange = async (newVersion) => {
   currentVersionNumber.value = newVersion;
@@ -242,54 +384,21 @@ const handleVersionChange = async (newVersion) => {
 };
 
 const fetchVersionDetails = async (versionNumber) => {
-  try {
-    const { data } = await useFetch(`/api/costEstimates/${props.rentalRequestId}`);
-    if (data.value && data.value.versions) {
-      const version = data.value.versions.find(v => v.version === versionNumber);
-      if (version) {
-        groupedCostEstimatesData.value = groupCostEstimates(version.costEstimates);
-        const versionIndex = costEstimateVersions.value.findIndex(v => v.value === versionNumber);
-        if (versionIndex !== -1) {
-          costEstimateVersions.value[versionIndex].totalCost = version.totalCost;
-        }
-      } else {
-        console.error('Version not found:', versionNumber);
-        groupedCostEstimatesData.value = {};
-      }
-    } else {
-      console.error('No versions found in the response');
-      groupedCostEstimatesData.value = {};
-    }
-  } catch (err) {
-    console.error('Error fetching version details:', err);
-    error.value = 'Failed to fetch version details';
-    groupedCostEstimatesData.value = {};
+  if (!costEstimateData.value) return;
+
+  const version = costEstimateData.value.versions.find(v => v.version === versionNumber);
+  if (version) {
+    groupedCostEstimatesData.value = groupCostEstimates(version.costEstimates);
+    //     console.log('Updated groupedCostEstimatesData:', groupedCostEstimatesData.value);
+  } else {
+    console.error('Version not found:', versionNumber);
+    error.value = 'Version not found';
   }
 };
 
 
-const groupCostEstimates = (costEstimates) => {
-  return costEstimates.reduce((acc, estimate) => {
-    const slotId = estimate.id;
-    acc[slotId] = {
-      id: slotId,
-      date: estimate.date,
-      start: estimate.start,
-      end: estimate.end,
-      perSlotCosts: estimate.perSlotCosts,
-      rooms: estimate.rooms,
-      totalCost: estimate.slotTotal,
-      newLineItem: {
-        type: 'custom',
-        description: '',
-        resourceId: null,
-        cost: 0
-      },
-      customLineItems: []
-    };
-    return acc;
-  }, {});
-};
+
+
 
 
 const handleNewLineItemTypeChange = (slot, value) => {
@@ -356,10 +465,12 @@ const addLineItem = (slot) => {
   if (!isValidNewLineItem(slot.newLineItem)) return;
 
   const newItem = {
-    id: `custom-${Date.now()}`,
+    id: uuidv4(),
+    slotId: slot.id,
     description: slot.newLineItem.description,
     amount: Number(slot.newLineItem.cost),
-    type: slot.newLineItem.type
+    type: slot.newLineItem.type,
+    roomSlug: slot.newLineItem.roomSlug
   };
 
   if (!slot.customLineItems) {
@@ -400,7 +511,8 @@ const getInvoiceItem = (slot, description, amount, type, roomSlug) => {
   }
 
   return {
-    id: `${slot.id}_${type}_${roomSlug}`,
+    id: uuidv4(),
+    slotId: slot.id,
     description: description,
     amount: amount,
     type: type,
@@ -417,53 +529,113 @@ const updateInvoiceItem = async (item) => {
     return;
   }
 
+  const requestBody = {
+    slotId,
+    itemType,
+    itemDescription: item.description,
+    newAmount: item.amount,
+    ...(itemType !== 'perSlot' && { roomSlug })
+  };
+
+  //   console.log('Updating item with data:', requestBody);
+
   try {
     const { data } = await useFetch(`/api/costEstimates/${props.rentalRequestId}/versions/${currentVersionNumber.value}/items`, {
       method: 'PUT',
-      body: {
-        slotId,
-        itemType,
-        itemDescription: item.description,
-        newAmount: item.amount,
-        roomSlug
-      }
+      body: requestBody
     });
 
-    if (data.value && data.value.success) {
-      Object.assign(slot, data.value.updatedSlot);
-      recalculateSlotTotal(slot);
+    if (data && data._value) {
+      const updatedSlot = data._value;
+
+      // Merge the updated slot data with the existing slot data
+      groupedCostEstimatesData.value[slotId] = {
+        ...slot,
+        ...updatedSlot,
+        perSlotCosts: updatedSlot.perSlotCosts || slot.perSlotCosts,
+        rooms: updatedSlot.rooms?.map(updatedRoom => {
+          const existingRoom = slot.rooms.find(room => room.roomSlug === updatedRoom.roomSlug);
+          return existingRoom ? { ...existingRoom, ...updatedRoom } : updatedRoom;
+        }) || slot.rooms,
+      };
+
+      recalculateSlotTotal(groupedCostEstimatesData.value[slotId]);
       updateStoredTotal();
+    } else if (data.error) {
+      console.error('Failed to update item:', data.error);
     } else {
-      console.error('Failed to update item:', data.value?.error);
+      console.error('Failed to update item: unexpected response structure', data);
     }
   } catch (error) {
     console.error('Error updating invoice item:', error);
   }
 };
 
-const removeInvoiceItem = async (item) => {
-  const [slotId, itemType, roomSlug] = item.id.split('_');
-  const slot = groupedCostEstimatesData.value[slotId];
 
-  if (!slot) {
-    console.error('Slot not found for', { slotId, itemType, roomSlug });
+const removeInvoiceItem = async (item) => {
+  //   console.log('Removing item:', item);  // For debugging
+
+  if (!item || !item.id) {
+    console.error('Invalid item object:', item);
+    return;
+  }
+
+  let itemRemoved = false;
+
+  // Search and remove the item from all possible locations
+  for (const slot of Object.values(groupedCostEstimatesData.value)) {
+    // Check perSlotCosts
+    const perSlotIndex = slot.perSlotCosts.findIndex(cost => cost.id === item.id);
+    if (perSlotIndex !== -1) {
+      slot.perSlotCosts.splice(perSlotIndex, 1);
+      itemRemoved = true;
+      break;
+    }
+
+    // Check rooms
+    for (const room of slot.rooms) {
+      // Check fullDay, daytime, evening prices
+      for (const priceType of ['fullDayPrice', 'daytimePrice', 'eveningPrice']) {
+        if (room[priceType] && room[priceType].id === item.id) {
+          delete room[priceType];
+          itemRemoved = true;
+          break;
+        }
+      }
+      if (itemRemoved) break;
+
+      // Check additionalCosts
+      const additionalIndex = room.additionalCosts.findIndex(cost => cost.id === item.id);
+      if (additionalIndex !== -1) {
+        room.additionalCosts.splice(additionalIndex, 1);
+        itemRemoved = true;
+        break;
+      }
+    }
+    if (itemRemoved) break;
+
+    // Check customLineItems
+    const customIndex = slot.customLineItems.findIndex(customItem => customItem.id === item.id);
+    if (customIndex !== -1) {
+      slot.customLineItems.splice(customIndex, 1);
+      itemRemoved = true;
+      break;
+    }
+  }
+
+  if (!itemRemoved) {
+    console.error('Item not found for deletion', item);
     return;
   }
 
   try {
     const { data } = await useFetch(`/api/costEstimates/${props.rentalRequestId}/versions/${currentVersionNumber.value}/items`, {
       method: 'DELETE',
-      body: {
-        slotId,
-        itemType,
-        itemDescription: item.description,
-        roomSlug
-      }
+      body: { itemId: item.id }
     });
 
     if (data.value && data.value.success) {
-      Object.assign(slot, data.value.updatedSlot);
-      recalculateSlotTotal(slot);
+      recalculateAllSlotTotals();
       updateStoredTotal();
     } else {
       console.error('Failed to remove item:', data.value?.error);
@@ -472,6 +644,17 @@ const removeInvoiceItem = async (item) => {
     console.error('Error removing invoice item:', error);
   }
 };
+
+const recalculateAllSlotTotals = () => {
+  for (const slot of Object.values(groupedCostEstimatesData.value)) {
+    recalculateSlotTotal(slot);
+  }
+};
+
+
+
+
+
 
 const updateCustomLineItem = (slot, updatedItem) => {
   const index = slot.customLineItems.findIndex(item => item.id === updatedItem.id);
@@ -512,7 +695,6 @@ const calculateSlotTotal = (slot) => {
 
   return total;
 };
-
 const saveCostEstimate = async () => {
   try {
     await useFetch(`/api/costEstimates/${props.rentalRequestId}/versions/${currentVersionNumber.value}`, {
@@ -522,7 +704,7 @@ const saveCostEstimate = async () => {
         totalCost: totalCost.value
       }
     });
-    await fetchVersionDetails(currentVersionNumber.value);
+    await refresh();
   } catch (err) {
     console.error('Error saving cost estimate:', err);
     error.value = 'Failed to save cost estimate';
@@ -538,9 +720,8 @@ const createNewVersion = async () => {
         totalCost: totalCost.value
       }
     });
-    costEstimateVersions.value.push(data.value);
+    await refresh();
     currentVersionNumber.value = data.value.version;
-    await fetchVersionDetails(data.value.version);
   } catch (err) {
     console.error('Error creating new version:', err);
     error.value = 'Failed to create new version';
@@ -575,7 +756,7 @@ const generateStripeEstimate = async () => {
       }
     });
     if (data.value && data.value.success) {
-      console.log('Stripe estimate generated:', data.value.estimateId);
+      //       console.log('Stripe estimate generated:', data.value.estimateId);
       // You might want to update the UI or show a success message here
     } else {
       console.error('Failed to generate Stripe estimate:', data.value?.error);
@@ -594,11 +775,34 @@ watch(() => props.rentalRequestId, async (newId, oldId) => {
     }
   }
 });
-
-onMounted(async () => {
-  await fetchVersions();
-  if (currentVersionNumber.value !== null) {
-    await fetchVersionDetails(currentVersionNumber.value);
+watch(groupedCostEstimatesData, (newVal) => {
+  if (!originalGroupedCostEstimatesData.value) {
+    originalGroupedCostEstimatesData.value = cloneDeep(newVal);
   }
 });
+
+
+watch(groupedCostEstimatesData, (newVal) => {
+  //   console.log('groupedCostEstimatesData updated:', newVal);
+}, { deep: true });
+
+
+
+watch(costEstimateData, (newData) => {
+  if (newData) {
+    estimateIdRef.value = newData._id;
+    currentVersionNumber.value = newData.currentVersion;
+    costEstimateVersions.value = newData.versions.map(v => ({
+      value: v.version,
+      label: v.label,
+      totalCost: v.totalCost
+    }));
+    const currentVersion = newData.versions.find(v => v.version === newData.currentVersion);
+    if (currentVersion) {
+      groupedCostEstimatesData.value = groupCostEstimates(currentVersion.costEstimates);
+    }
+    //     console.log('Data loaded:', newData);
+  }
+}, { immediate: true });
+
 </script>

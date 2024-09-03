@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Direction } from '@unovis/ts';
 import { format } from 'date-fns';
 
 const defaultColumns = [
@@ -24,7 +25,7 @@ const pageCount = 50;
 
 const sort = ref({
   column: 'created',
-  direction: 'asc' as const,
+  direction: 'desc' as const,
 });
 
 const rentalRequests = ref([]);
@@ -59,7 +60,7 @@ const formatCreatedAt = (createdAt: string) => {
   return format(new Date(createdAt), 'MMM d, yyyy');
 };
 const fetchRentalRequests = async () => {
-  console.log('fetching rentalRequests');
+  //   console.log('fetching rentalRequests');
   isLoading.value = true; // Set loading to true at the start
 
   try {
@@ -68,13 +69,13 @@ const fetchRentalRequests = async () => {
     if (error.value) {
       console.error('Failed to fetch events', error.value);
     } else if (data.value) {
-      console.log('data', data.value);
+      //       console.log('data', data.value);
       rentalRequests.value = data.value.allRentals.map(rental => ({
         ...rental,
         start: new Date(rental.startDate),
         end: new Date(rental.endDate),
       }));
-      console.log(rentalRequests.value);
+      //       console.log(rentalRequests.value);
     }
   } catch (e) {
     console.error('Failed to fetch events', e);

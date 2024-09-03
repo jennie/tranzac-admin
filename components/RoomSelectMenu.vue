@@ -54,7 +54,7 @@ watch(selectedRoomIds, (newIds) => {
 }, { deep: true });
 
 // // Log initial values
-// console.log('Initial Current Rooms:', props.modelValue);
-// console.log('Initial Room Options:', roomOptions.value);
-// console.log('Initial Selected Room IDs:', selectedRoomIds.value);
+// // console.log('Initial Current Rooms:', props.modelValue);
+// // console.log('Initial Room Options:', roomOptions.value);
+// // console.log('Initial Selected Room IDs:', selectedRoomIds.value);
 </script>

@@ -67,7 +67,7 @@ fs.createReadStream(csvFilePath)
     }
 
     // Debug logging
-    console.log("Row:", row);
+    //     console.log("Row:", row);
 
     const member = {
       firstName: row["First\nName"] || "",
@@ -92,11 +92,11 @@ fs.createReadStream(csvFilePath)
     };
 
     // Debug logging
-    console.log("Member:", member);
+    //     console.log("Member:", member);
 
     members.push(member);
   })
   .on("end", () => {
     fs.writeFileSync(jsonFilePath, JSON.stringify(members, null, 2));
-    console.log(`JSON file successfully generated at ${jsonFilePath}`);
+    //     console.log(`JSON file successfully generated at ${jsonFilePath}`);
   });

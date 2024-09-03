@@ -12,9 +12,9 @@ export const useUserStore = defineStore("userStore", {
   }),
   actions: {
     setUser(userData) {
-      console.log("Updating user store with:", userData);
+      //       console.log("Updating user store with:", userData);
       this.userInfo = userData; // Assuming userInfo expects an object
-      console.log("Updated user store:", this.userInfo);
+      //       console.log("Updated user store:", this.userInfo);
     },
   },
   getters: {
