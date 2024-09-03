@@ -2201,9 +2201,9 @@
     "@tanstack/virtual-core" "3.10.6"
 
 "@tranzac/pricing-lib@^1.0.1":
-  version "1.0.11"
-  resolved "https://registry.yarnpkg.com/@tranzac/pricing-lib/-/pricing-lib-1.0.11.tgz#bc658a04e3f00ff9e6008f201455d92006f035b5"
-  integrity sha512-MQ5zW6SKNG7IkmGpembGGKQ2dOTFA7DlaaXKULOt/eq5uood2pzO/J/oBxWVQzO7Sdd+fR6QyKppmZhHBwvgYA==
+  version "1.0.13"
+  resolved "https://registry.yarnpkg.com/@tranzac/pricing-lib/-/pricing-lib-1.0.13.tgz#1189ddb2c6c72a30fe7ed76bd07c6e34185f52d2"
+  integrity sha512-8G8svioO3ABWYNKGV05BJB0Dmsezv3DSOGhx8SksRf5QmVD1SOv6olIcgLzTAc6Hu2/eK0vEQRzJjuj6NS/0NA==
 
 "@trysound/sax@0.2.0":
   version "0.2.0"
@@ -10648,6 +10648,11 @@ util-deprecate@^1.0.1, util-deprecate@^1.0.2, util-deprecate@~1.0.1:
   version "1.0.2"
   resolved "https://registry.yarnpkg.com/util-deprecate/-/util-deprecate-1.0.2.tgz#450d4dc9fa70de732762fbd2d4a28981419a0ccf"
   integrity sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==
+
+uuid@^10.0.0:
+  version "10.0.0"
+  resolved "https://registry.yarnpkg.com/uuid/-/uuid-10.0.0.tgz#5a95aa454e6e002725c79055fd42aaba30ca6294"
+  integrity sha512-8XkAphELsDnEGrDxUOHB3RGvXz6TeuYSGEZBOjtTtPm2lwhGBjLgOzLHB63IUWfBpNucQjND6d3AOudO+H3RWQ==
 
 uuid@^9.0.1:
   version "9.0.1"

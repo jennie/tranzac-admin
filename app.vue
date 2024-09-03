@@ -4,7 +4,6 @@ import { useUserStore } from "@/stores/userStore";
 const authStore = useAuthStore();
 const userStore = useUserStore();
 const emit = defineEmits(['onLogin', 'onRegister', 'onError'])
-const { authModal } = useAuthModal();
 
 
 const colorMode = useColorMode();
@@ -21,32 +20,33 @@ const {
 const toast = useToast();
 const router = useRouter();
 
-const color = computed(() =>
-  colorMode.value === "dark" ? "#111827" : "white"
-);
+
 
 watchEffect(() => {
   if (
-
     authStore.needsRegistration
   ) {
-    authModal.value = true;
+    authStore.showAuthModal = true;
   }
 });
+
+
 
 watch(
   loggedIn,
   (newValue) => {
-    authModal.value = !newValue;
+    console.log("loggedIn changed:", newValue);
+    authStore.showAuthModal = !newValue;
   },
   { immediate: true }
 );
+
+
 
 useHead({
   meta: [
     { charset: "utf-8" },
     { name: "viewport", content: "width=device-width, initial-scale=1" },
-    { key: "theme-color", name: "theme-color", content: color },
   ],
   link: [{ rel: "icon", href: "/favicon.ico" }],
   htmlAttrs: {
@@ -63,7 +63,7 @@ useHead({
 
     <template v-if="loggedIn">
       <NuxtLayout>
-        <NuxtPage @open-login="authModal = true" />
+        <NuxtPage @open-login="authStore.showAuthModal = true" />
         <UNotifications />
         <UModals />
         <Teleport to="body">
@@ -73,9 +73,12 @@ useHead({
     </template>
     <template v-else>
       <NuxtLayout>
-        <UModal v-model="authModal" prevent-close fullscreen class="mx-auto">
+        <UModal v-if="!loggedIn" v-model="authStore.showAuthModal" prevent-close fullscreen class="mx-auto">
           <Auth @onLogin="onLogin" @onRegister="onRegister" @onError="onError" />
         </UModal>
+        <Teleport to="body">
+          <UNotifications />
+        </Teleport>
       </NuxtLayout>
     </template>
 
