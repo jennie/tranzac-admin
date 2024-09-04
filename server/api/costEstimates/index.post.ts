@@ -1,5 +1,5 @@
 // api/costEstimates.js
-import { PricingRules, getCostEstimateModel } from "pricing-lib";
+import PricingRules, { getCostEstimateModel } from "@tranzac/pricing-lib";
 import { ensureConnection } from "@/server/utils/mongoose";
 
 export default defineEventHandler(async (event) => {

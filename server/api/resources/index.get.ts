@@ -1,4 +1,4 @@
-import { getAdditionalCostModel } from "pricing-lib";
+import { getAdditionalCostModel } from "@tranzac/pricing-lib";
 import mongoose from "mongoose";
 
 export default defineEventHandler(async (event) => {

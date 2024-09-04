@@ -1,6 +1,6 @@
 // routes/api/costEstimates/[rentalRequestId]/versions/[versionNumber]/accept.js
 
-import { getCostEstimateModel } from "pricing-lib";
+import { getCostEstimateModel } from "@tranzac/pricing-lib";
 import { ensureConnection } from "~/server/utils/mongoose";
 
 export default defineEventHandler(async (event) => {
