@@ -1,6 +1,8 @@
 export default defineNuxtConfig({
   extends: ["@nuxt/ui-pro"],
-
+  build: {
+    transpile: ["@tranzac/pricing-lib"],
+  },
   modules: [
     "@nuxt/eslint",
     "@nuxt/ui",
