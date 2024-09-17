@@ -1,6 +1,6 @@
 import { defineEventHandler, readBody } from "h3";
 import { ensureConnection } from "@/server/utils/mongoose";
-import { getCostEstimateModel } from "@tranzac/pricing-lib";
+import getCostEstimateModel from "@tranzac/pricing-lib";
 
 export default defineEventHandler(async (event) => {
   try {

@@ -1,30 +1,16 @@
 import { getAdditionalCostModel } from "@tranzac/pricing-lib";
-import mongoose from "mongoose";
+import { ensureConnection } from "../../utils/mongoose";
+import { defineEventHandler, createError } from "h3";
 
 export default defineEventHandler(async (event) => {
-  setHeader(event, "Access-Control-Allow-Origin", "*");
-  setHeader(
-    event,
-    "Access-Control-Allow-Methods",
-    "GET, POST, PUT, DELETE, OPTIONS"
-  );
-  setHeader(
-    event,
-    "Access-Control-Allow-Headers",
-    "Content-Type, Authorization"
-  );
-
-  if (event.req.method === "OPTIONS") {
-    event.res.statusCode = 204;
-    event.res.end();
-    return;
-  }
-  await ensureConnection();
-
-  const AdditionalCosts = getAdditionalCostModel(mongoose);
-
+  // Ensure the database connection
+  const connection = await ensureConnection();
+  const AdditionalCosts = await getAdditionalCostModel(connection);
+  console.log("ARE WE HERE");
   try {
+    // Fetch the additional costs/resources
     const result = await AdditionalCosts.findOne({}).lean();
+    console.log("result", result);
     if (!result || !result.resources) {
       throw createError({
         statusCode: 404,
@@ -32,11 +18,16 @@ export default defineEventHandler(async (event) => {
       });
     }
 
+    // Return the resources found
     return {
-      resources: result.resources, // No need to transform the data
+      resources: result.resources,
     };
   } catch (error) {
+    // Log the error with its stack trace for easier debugging
     console.error("Error fetching resources:", error);
+    console.error(error.stack);
+
+    // Throw a 500 error if something goes wrong
     throw createError({
       statusCode: 500,
       statusMessage: "Error fetching resources",

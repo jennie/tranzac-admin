@@ -25,11 +25,27 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { useBookingStore } from '@/stores/bookingStore';
-import { useRoomMapping } from '@tranzac/pricing-lib';
 import { useResources } from '@/composables/useResources';
+const roomMapping = ref([]);
 
+async function fetchRoomMapping() {
+  try {
+    const response = await fetch('/api/getRoomMapping');
+    const data = await response.json();
+    if (data.success) {
+      roomMapping.value = data.data;
+    } else {
+      console.error('Failed to fetch room mapping:', data.error);
+    }
+  } catch (err) {
+    console.error('Error fetching room mapping:', err);
+  }
+}
+
+onMounted(async () => {
+  await fetchRoomMapping();
+});
 const bookingStore = useBookingStore();
-const { roomMapping } = useRoomMapping();
 const { resourceOptions } = useResources();
 
 const isModalOpen = ref(false);

@@ -13,7 +13,6 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue';
-import { useRoomMapping } from '@tranzac/pricing-lib';
 
 const props = defineProps({
   modelValue: {
@@ -28,8 +27,25 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue']);
 
-const { roomMapping } = useRoomMapping();
+const roomMapping = ref([]);
 
+async function fetchRoomMapping() {
+  try {
+    const response = await fetch('/api/getRoomMapping');
+    const data = await response.json();
+    if (data.success) {
+      roomMapping.value = data.data;
+    } else {
+      console.error('Failed to fetch room mapping:', data.error);
+    }
+  } catch (err) {
+    console.error('Error fetching room mapping:', err);
+  }
+}
+
+onMounted(async () => {
+  await fetchRoomMapping();
+});
 const roomOptions = computed(() =>
   (roomMapping.value || []).map(room => ({ label: room.name, value: room.id }))
 );

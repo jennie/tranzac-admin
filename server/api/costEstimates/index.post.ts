@@ -1,15 +1,19 @@
-// api/costEstimates.js
-import PricingRules, { getCostEstimateModel } from "@tranzac/pricing-lib";
+// /server/api/costEstimates/index.post.ts
+import mongoose from "mongoose";
 import { ensureConnection } from "@/server/utils/mongoose";
 
+import { PricingRules, getCostEstimateModel } from "@tranzac/pricing-lib";
+const CostEstimate = getCostEstimateModel(mongoose);
 export default defineEventHandler(async (event) => {
   await ensureConnection();
 
-  if (event.req.method === "POST") {
+  if (event.node.req.method === "POST") {
     const body = await readBody(event);
-    //     console.log("Body costEstimates:", body.costEstimates);
 
     try {
+      // Correctly instantiate the PricingRules class
+      const pricingRules = new PricingRules();
+
       let costEstimate = await CostEstimate.findOne({
         rentalRequestId: body.rentalRequestId,
       });

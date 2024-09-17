@@ -1,9 +1,10 @@
-import { getCostEstimateModel } from "@tranzac/pricing-lib";
+// server/api/costEstimates/[id]/index.get.ts
+import { PricingRules, getCostEstimateModel } from "@tranzac/pricing-lib";
 import { ensureConnection } from "~/server/utils/mongoose";
 
 export default defineEventHandler(async (event) => {
   const mongooseInstance = await ensureConnection();
-  const CostEstimate = getCostEstimateModel(mongooseInstance);
+  const CostEstimate = await getCostEstimateModel(mongooseInstance);
 
   const id = event.context.params.id;
   //   console.log("Fetching cost estimate for id:", id);

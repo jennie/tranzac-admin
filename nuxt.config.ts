@@ -3,6 +3,7 @@ export default defineNuxtConfig({
   build: {
     transpile: ["@tranzac/pricing-lib"],
   },
+  ssr: true,
   modules: [
     "@nuxt/eslint",
     "@nuxt/ui",
