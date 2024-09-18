@@ -1,22 +1,17 @@
 <!-- /components/CostEstimateEditor.vue -->
 <template>
   <div class="cost-estimate-editor space-y-8">
-    <div class="flex space-x-4">
-      <div class="mt-6 space-y-4">
-        <h4 class="text-lg font-semibold">Versions</h4>
-        <div class="flex space-x-4">
-          <USelect v-model="currentVersionNumber" :options="versionOptions" @update:modelValue="handleVersionChange" />
-          <UButton v-if="hasChanges" @click="createNewVersion" color="primary">Save New Version</UButton>
-        </div>
-      </div>
-    </div>
+    <EstimateStatusHistory :version="currentVersion" />
 
     <UCard class="shadow-lg" v-if="!isLoading">
       <template #header>
         <div class="flex flex-row items-center justify-between">
           <div class="flex flex-row items-center">
             <h3 class="text-2xl inline font-semibold dark:text-stone-200 mr-2">Cost Estimate</h3>
-            <UBadge :label="currentVersionLabel" variant="subtle" class="text-xs" color="blue" />
+            <USelect v-model="currentVersionNumber" :options="versionOptions"
+              @update:modelValue="(val) => handleVersionChange(Number(val))" />
+
+            <UButton v-if="hasChanges" @click="createNewVersion" color="primary">Save New Version</UButton>
           </div>
           <div>
             <span class="text-lg font-semibold dark:text-stone-100">{{ formatCurrency(totalCost || 0) }}</span>
@@ -39,49 +34,41 @@
             <div v-if="slot.perSlotCosts && slot.perSlotCosts.length > 0" class="p-4">
               <h4 class="text-sm uppercase font-bold text-primary">Per-Slot Costs</h4>
               <div v-for="(cost, costIndex) in slot.perSlotCosts" :key="costIndex">
-                <InvoiceItem :item="getInvoiceItem(slot, cost.description, cost.cost, 'perSlot')"
-                  @update="updateInvoiceItem" @remove="removeInvoiceItem" />
+                <InvoiceItem :item="cost" @update="updateInvoiceItem" @remove="removeInvoiceItem" />
               </div>
 
             </div>
             <!-- Room-Specific Costs -->
+            <!-- Room-Specific Costs -->
             <div v-if="slot.rooms && slot.rooms.length > 0">
               <div v-for="(room, roomIndex) in slot.rooms" :key="roomIndex" class="p-4">
                 <h4 class="text-xl font-bold">{{ getRoomName(room.roomSlug) }}</h4>
-
-                <template v-if="room.fullDayPrice">
-                  <InvoiceItem
-                    :item="getInvoiceItem(slot, 'Full Day Rental (Flat Rate)', room.fullDayPrice, 'fullDay', room.roomSlug)"
-                    @update="updateInvoiceItem" @remove="removeInvoiceItem" />
+                <!-- Full Day Rental -->
+                <template v-if="room.fullDayCostItem">
+                  <InvoiceItem :item="room.fullDayCostItem" @update="updateInvoiceItem" @remove="removeInvoiceItem" />
                 </template>
 
-                <template v-else>
-                  <InvoiceItem v-if="room.daytimePrice > 0" :item="getInvoiceItem(
-                    slot,
-                    formatDescription(room.daytimeHours, room.daytimeRate, room.daytimeRateType, 'Daytime'),
-                    room.daytimeHourly ? room.daytimeHours * room.daytimePrice : room.daytimePrice,
-                    'daytime',
-                    room.roomSlug
-                  )" @update="updateInvoiceItem" @remove="removeInvoiceItem" />
-                  <InvoiceItem v-if="room.eveningPrice > 0" :item="getInvoiceItem(
-                    slot,
-                    formatDescription(room.eveningHours, room.eveningRate, room.eveningRateType, 'Evening'),
-                    room.eveningHourly ? room.eveningHours * room.eveningPrice : room.eveningPrice,
-                    'evening',
-                    room.roomSlug
-                  )" @update="updateInvoiceItem" @remove="removeInvoiceItem" />
+                <!-- Daytime -->
+                <template v-if="room.daytimeCostItem">
+                  <InvoiceItem :item="room.daytimeCostItem" @update="updateInvoiceItem" @remove="removeInvoiceItem" />
                 </template>
 
+                <!-- Evening -->
+                <template v-if="room.eveningCostItem">
+                  <InvoiceItem :item="room.eveningCostItem" @update="updateInvoiceItem" @remove="removeInvoiceItem" />
+                </template>
+
+
+                <!-- Additional Costs -->
                 <div v-if="room.additionalCosts && room.additionalCosts.length > 0">
                   <h5 class="text-base font-semibold mt-6">Additional Costs</h5>
                   <div v-for="(cost, costIndex) in room.additionalCosts" :key="costIndex">
-                    <InvoiceItem :item="getInvoiceItem(slot, cost.description, cost.cost, 'additional', room.roomSlug)"
-                      @update="updateInvoiceItem" @remove="removeInvoiceItem" />
+                    <InvoiceItem :item="cost" @update="updateInvoiceItem" @remove="removeInvoiceItem" />
                   </div>
                 </div>
               </div>
-
             </div>
+
 
             <!-- Custom Line Item Input -->
             <div class="p-4">
@@ -123,16 +110,26 @@
       </div>
 
       <template #footer>
-        <div class="flex justify-between items-center mt-6 pt-4 border-t border-stone-300 dark:border-stone-700">
-          <span class="text-lg font-semibold dark:text-stone-100">Grand Total</span>
-          <span class="text-lg font-semibold dark:text-stone-100">{{ formatCurrency(totalCost) }}</span>
+        <div class="mt-6 pt-4 border-t border-stone-300 dark:border-stone-700">
+          <div class="flex justify-between items-center">
+            <span class="text-lg font-semibold dark:text-stone-100">Subtotal</span>
+            <span class="text-lg font-semibold dark:text-stone-100">{{ formatCurrency(totalCost) }}</span>
+          </div>
+          <div class="flex justify-between items-center mt-2">
+            <span class="text-lg font-semibold dark:text-stone-100">Tax (13% HST)</span>
+            <span class="text-lg font-semibold dark:text-stone-100">{{ formatCurrency(taxAmount) }}</span>
+          </div>
+          <div class="flex justify-between items-center mt-2">
+            <span class="text-lg font-semibold dark:text-stone-100">Total</span>
+            <span class="text-lg font-semibold dark:text-stone-100">{{ formatCurrency(totalWithTax) }}</span>
+          </div>
         </div>
         <div class="flex justify-end space-x-4 mt-4">
-
           <UButton @click="sendEstimate" color="primary">Send Estimate</UButton>
         </div>
-
       </template>
+
+
     </UCard>
 
     <div v-else class=" py-8">
@@ -148,8 +145,23 @@ import { useResources } from '@/composables/useResources';
 import { formatDescription } from '@/utils/formatters';
 import { formatCurrency, formatDate, formatTimeRange } from '@/utils/formatters';
 import cloneDeep from 'lodash/cloneDeep';
+import PricingRules from '@tranzac/pricing-lib';
 const originalData = ref(null);
 const editedData = ref(null);
+const pricingRules = new PricingRules(); // Create an instance of PricingRules
+const costEstimateVersions = ref([]);
+const currentVersionNumber = ref(0);
+const groupedCostEstimatesData = ref({});
+const error = ref(null);
+const taxAmount = computed(() => {
+  return pricingRules.calculateTax(totalCost.value); // Assuming you have a method to calculate tax
+});
+
+const totalWithTax = computed(() => {
+  return pricingRules.calculateTotalWithTax(totalCost.value); // Assuming there's a method for total with tax
+});
+
+
 import { v4 as uuidv4 } from 'uuid';
 const estimateIdRef = ref(null);
 const props = defineProps({
@@ -181,52 +193,54 @@ async function fetchRoomMapping() {
 
 onMounted(async () => {
   await fetchRoomMapping();
+  updateAllSlotTotals();
+
 });
 const fetchVersions = async () => {
-  //   console.log('fetchVersions: Starting fetch for rentalRequestId:', props.rentalRequestId);
   try {
     const { data, error } = await useFetch(`/api/costEstimates/${props.rentalRequestId}`);
-    //     console.log('fetchVersions: API response:', data.value, 'Error:', error.value);
 
     if (error.value) {
       throw new Error(error.value.message || 'Unknown error occurred');
     }
 
     if (data.value) {
-      //       console.log('fetchVersions: Returning data');
+      costEstimateVersions.value = data.value.versions.map(v => ({
+        value: v.version,         // Version number
+        label: v.label,           // Version label
+        totalCost: v.totalCost,   // Total cost
+        statusHistory: v.statusHistory || [], // Ensure statusHistory is included
+      }));
       return data.value;
     } else {
-      console.warn('fetchVersions: No data returned from API');
       throw new Error('No data returned from API');
     }
   } catch (err) {
-    console.error('fetchVersions: Error:', err);
     throw err;
   }
 };
+
+
+
+
+
 const { data: costEstimateData, pending, error: asyncError, refresh } = useAsyncData(
   'costEstimate',
   async () => {
-    //     console.log('useAsyncData: Fetching data for rentalRequestId:', props.rentalRequestId);
     try {
       const result = await fetchVersions();
-      //       console.log('useAsyncData: Fetched data:', result);
       return result;
     } catch (err) {
-      console.error('useAsyncData: Error fetching data:', err);
+      console.error('Error fetching cost estimate data:', err);
       throw err;
     }
   },
   {
-    watch: [() => props.rentalRequestId],
     immediate: true
   }
 );
 
-// Add a watcher to log when the async data changes
-watch(costEstimateData, (newData) => {
-  //   console.log('costEstimateData changed:', newData);
-}, { immediate: true });
+
 const emit = defineEmits(['save', 'close']);
 const originalGroupedCostEstimatesData = ref(null);
 
@@ -312,37 +326,71 @@ const eveningDescription = computed(() => {
 });
 const { resourceOptions } = useResources();
 
-const costEstimateVersions = ref([]);
-const currentVersionNumber = ref(0);
-const groupedCostEstimatesData = ref({});
-const error = ref(null);
-watch(groupedCostEstimatesData, (newVal) => {
-  //   console.log('groupedCostEstimatesData updated:', newVal);
-  // You can add any additional logic here if needed
-}, { deep: true });
+
+
 const versionOptions = computed(() => costEstimateVersions.value);
 const groupCostEstimates = (costEstimates) => {
   return costEstimates.reduce((acc, estimate) => {
-    const slotId = estimate.id;
+    const slotId = estimate.id;  // Using the estimate's ID as the slotId
+
     acc[slotId] = {
       id: slotId,
-      date: estimate.date,
-      start: estimate.start,
-      end: estimate.end,
-      perSlotCosts: estimate.perSlotCosts,
-      rooms: estimate.rooms,
-      totalCost: estimate.slotTotal,
+      ...estimate,
       newLineItem: {
         type: 'custom',
         description: '',
         resourceId: null,
-        cost: 0
+        cost: null
       },
-      customLineItems: []
+      rooms: (estimate.rooms || []).map(room => ({
+        ...room,
+        fullDayCostItem: room.fullDayPrice ? {
+          id: uuidv4(),
+          slotId: slotId,  // Ensure slotId is added here
+          roomSlug: room.roomSlug,
+          description: 'Full Day Rental (Flat Rate)',
+          cost: room.fullDayPrice,
+          type: 'fullDay',
+        } : null,
+        daytimeCostItem: room.daytimePrice ? {
+          id: uuidv4(),
+          slotId: slotId,  // Ensure slotId is added here
+          roomSlug: room.roomSlug,
+          description: formatDescription(room.daytimeHours, room.daytimeRate, room.daytimeRateType, 'Daytime'),
+          cost: room.daytimeHourly ? room.daytimeHours * room.daytimePrice : room.daytimePrice,
+          type: 'daytime',
+        } : null,
+        eveningCostItem: room.eveningPrice ? {
+          id: uuidv4(),
+          slotId: slotId,  // Ensure slotId is added here
+          roomSlug: room.roomSlug,
+          description: formatDescription(room.eveningHours, room.eveningRate, room.eveningRateType, 'Evening'),
+          cost: room.eveningHourly ? room.eveningHours * room.eveningPrice : room.eveningPrice,
+          type: 'evening',
+        } : null,
+        additionalCosts: (room.additionalCosts || []).map(cost => ({
+          ...cost,
+          slotId: slotId,  // Ensure slotId is added here
+          id: cost.id || uuidv4(),
+        })),
+      })),
+
+      perSlotCosts: (estimate.perSlotCosts || []).map(cost => ({
+        ...cost,
+        slotId: slotId,  // Ensure slotId is added here
+        id: cost.id || uuidv4(),
+      })),
+
+      customLineItems: (estimate.customLineItems || []).map(item => ({
+        ...item,
+        slotId: slotId,  // Ensure slotId is added here
+        id: item.id || uuidv4(),
+      })),
     };
     return acc;
   }, {});
 };
+
 
 const currentVersionLabel = computed(() => {
   const version = versionOptions.value.find(v => v.value === currentVersionNumber.value);
@@ -353,28 +401,37 @@ const groupedCostEstimates = computed(() => {
   return Object.values(groupedCostEstimatesData.value || {});
 });
 
-const totalCost = computed(() => {
-  const currentVersion = costEstimateVersions.value.find(v => v.value === currentVersionNumber.value);
-  return currentVersion?.totalCost ?? 0;
-});
+
+const totalCost = computed(() => calculatedGrandTotal.value);
 
 const isLoading = computed(() => {
   return Object.keys(groupedCostEstimatesData.value).length === 0;
 });
+
+const calculatedGrandTotal = computed(() => {
+  return Object.values(groupedCostEstimatesData.value).reduce((total, slot) => {
+    return total + (slot.totalCost || 0);
+  }, 0);
+});
+
 
 const updateStoredTotal = () => {
   let calculatedTotal = 0;
   groupedCostEstimates.value.forEach(slot => {
     calculatedTotal += slot.totalCost || 0;
   });
+  totalCost.value = calculateGrandTotal(); // Centralize total cost update here
+
   const versionIndex = costEstimateVersions.value.findIndex(v => v.value === currentVersionNumber.value);
   if (versionIndex !== -1) {
     costEstimateVersions.value[versionIndex] = {
       ...costEstimateVersions.value[versionIndex],
-      totalCost: calculatedTotal
+      totalCost: totalCost.value,
     };
   }
+
 };
+
 
 const isDataReady = computed(() => {
   //   console.log('isLoading computed: pending =', pending.value, 'costEstimateData =', !!costEstimateData.value);
@@ -383,41 +440,64 @@ const isDataReady = computed(() => {
 
 
 watch([costEstimateData, error], ([newData, newError]) => {
-  //   console.log('Watch triggered: newData =', newData, 'newError =', newError);
   if (newData) {
+    // Set the estimate ID and current version number
     estimateIdRef.value = newData._id;
     currentVersionNumber.value = newData.currentVersion;
+
+    // Map over versions to include statusHistory as well
     costEstimateVersions.value = newData.versions.map(v => ({
       value: v.version,
       label: v.label,
-      totalCost: v.totalCost
+      totalCost: v.totalCost,
+      tax: v.tax || 0,
+      totalWithTax: v.totalWithTax || 0,
+      statusHistory: v.statusHistory || [] // Ensure statusHistory is included
     }));
+
+    // Find and set the current version data, including the cost estimates
     const currentVersion = newData.versions.find(v => v.version === newData.currentVersion);
     if (currentVersion) {
+      // Process the grouped cost estimates and set the values
       groupedCostEstimatesData.value = groupCostEstimates(currentVersion.costEstimates);
+      totalCost.value = currentVersion.totalCost || 0;
+      taxAmount.value = currentVersion.tax || 0;
+      totalWithTax.value = currentVersion.totalWithTax || 0;
     }
-
   }
 }, { immediate: true });
 
 
+
+
+
 const handleVersionChange = async (newVersion) => {
-  currentVersionNumber.value = newVersion;
-  await fetchVersionDetails(newVersion);
-};
-
-const fetchVersionDetails = async (versionNumber) => {
-  if (!costEstimateData.value) return;
-
-  const version = costEstimateData.value.versions.find(v => v.version === versionNumber);
-  if (version) {
-    groupedCostEstimatesData.value = groupCostEstimates(version.costEstimates);
-    //     console.log('Updated groupedCostEstimatesData:', groupedCostEstimatesData.value);
-  } else {
-    console.error('Version not found:', versionNumber);
-    error.value = 'Version not found';
+  try {
+    console.log('Version change triggered for version:', newVersion);
+    currentVersionNumber.value = newVersion;
+    await fetchVersionDetails(newVersion);
+  } catch (error) {
+    console.error('Error fetching version details:', error);
+    error.value = 'Failed to load version details. Please try again.';
   }
 };
+
+
+
+const fetchVersionDetails = async (versionNumber) => {
+  const versionsArray = [...costEstimateData.value.versions];  // Create a shallow copy to work with
+  const version = versionsArray.find(v => v.version === versionNumber);
+  console.log('versionsArray', versionsArray)
+  console.log('version', version)
+  console.log('fetchVersionDetails:', versionNumber, version);
+  if (version) {
+    groupedCostEstimatesData.value = groupCostEstimates(version.costEstimates);
+    updateAllSlotTotals();  // Recalculate totals for the new version
+  } else {
+    throw new Error('Version not found');
+  }
+};
+
 
 
 
@@ -491,27 +571,32 @@ const addLineItem = (slot) => {
     id: uuidv4(),
     slotId: slot.id,
     description: slot.newLineItem.description,
-    amount: Number(slot.newLineItem.cost),
+    cost: Number(slot.newLineItem.cost),
     type: slot.newLineItem.type,
-    roomSlug: slot.newLineItem.roomSlug
+    roomSlug: slot.newLineItem.roomSlug,
   };
 
-  if (!slot.customLineItems) {
-    slot.customLineItems = [];
-  }
   slot.customLineItems.push(newItem);
-
   recalculateSlotTotal(slot);
-  updateStoredTotal();
-
-  resetNewLineItem(slot);
+  groupedCostEstimatesData.value = { ...groupedCostEstimatesData.value }; // Trigger reactivity
 };
+
+
 
 const removeCustomLineItem = (slot, item) => {
+  // Filter out the deleted item from the slot's customLineItems array
   slot.customLineItems = slot.customLineItems.filter(i => i.id !== item.id);
+
+  // Recalculate the total cost for this slot after removal
   recalculateSlotTotal(slot);
-  updateStoredTotal();
+
+  // Trigger reactivity by updating groupedCostEstimatesData
+  groupedCostEstimatesData.value = { ...groupedCostEstimatesData.value };
+
+  updateStoredTotal();  // Recalculate and update the overall total
 };
+
+
 
 const resetNewLineItem = (slot) => {
   Object.assign(slot.newLineItem, {
@@ -532,141 +617,156 @@ const getInvoiceItem = (slot, description, amount, type, roomSlug) => {
     const room = slot.rooms.find(r => r.roomSlug === roomSlug);
     amount = room.fullDayPrice || room.basePrice;
   }
-
   return {
     id: uuidv4(),
     slotId: slot.id,
     description: description,
-    amount: amount,
+    cost: cost,
     type: type,
-    roomSlug: roomSlug
+    roomSlug: roomSlug,
   };
 };
+const updateAllSlotTotals = () => {
+  Object.values(groupedCostEstimatesData.value).forEach(slot => {
+    slot.totalCost = calculateSlotTotal(slot); // Recalculate each slot total
+  });
+  totalCost.value = calculateGrandTotal(); // Recalculate the grand total
+  taxAmount.value = pricingRules.calculateTax(totalCost.value); // Calculate tax
+  totalWithTax.value = totalCost.value + taxAmount.value; // Final total with tax
+};
+const calculateGrandTotal = () => {
+  return Object.values(groupedCostEstimatesData.value).reduce((total, slot) => {
+    return total + (slot.totalCost || 0);
+  }, 0);
+};
 
-const updateInvoiceItem = async (item) => {
-  const [slotId, itemType, roomSlug] = item.id.split('_');
-  const slot = groupedCostEstimatesData.value[slotId];
+
+const updateInvoiceItem = (updatedItem) => {
+  const slot = groupedCostEstimatesData.value[updatedItem.slotId];
 
   if (!slot) {
-    console.error('Slot not found for', { slotId, itemType, roomSlug });
+    console.error('Slot not found for', updatedItem.slotId);
     return;
   }
 
-  const requestBody = {
-    slotId,
-    itemType,
-    itemDescription: item.description,
-    newAmount: item.amount,
-    ...(itemType !== 'perSlot' && { roomSlug })
-  };
+  let itemUpdated = false;
 
-  //   console.log('Updating item with data:', requestBody);
+  // Update perSlotCosts
+  slot.perSlotCosts = slot.perSlotCosts.map(cost => {
+    if (cost.id === updatedItem.id) {
+      itemUpdated = true;
+      return { ...updatedItem };
+    }
+    return cost;
+  });
 
-  try {
-    const { data } = await useFetch(`/api/costEstimates/${props.rentalRequestId}/versions/${currentVersionNumber.value}/items`, {
-      method: 'PUT',
-      body: requestBody
+  // Update rooms
+  slot.rooms = slot.rooms.map(room => {
+    // Update fullDayCostItem
+    if (room.fullDayCostItem && room.fullDayCostItem.id === updatedItem.id) {
+      itemUpdated = true;
+      room.fullDayCostItem = { ...updatedItem };
+    }
+
+    // Update daytimeCostItem
+    if (room.daytimeCostItem && room.daytimeCostItem.id === updatedItem.id) {
+      itemUpdated = true;
+      room.daytimeCostItem = { ...updatedItem };
+    }
+
+    // Update eveningCostItem
+    if (room.eveningCostItem && room.eveningCostItem.id === updatedItem.id) {
+      itemUpdated = true;
+      room.eveningCostItem = { ...updatedItem };
+    }
+
+    room.additionalCosts = room.additionalCosts.map(cost => {
+      if (cost.id === updatedItem.id) {
+        itemUpdated = true;
+        return { ...updatedItem };
+      }
+      return cost;
     });
 
-    if (data && data._value) {
-      const updatedSlot = data._value;
+    return room;
+  });
 
-      // Merge the updated slot data with the existing slot data
-      groupedCostEstimatesData.value[slotId] = {
-        ...slot,
-        ...updatedSlot,
-        perSlotCosts: updatedSlot.perSlotCosts || slot.perSlotCosts,
-        rooms: updatedSlot.rooms?.map(updatedRoom => {
-          const existingRoom = slot.rooms.find(room => room.roomSlug === updatedRoom.roomSlug);
-          return existingRoom ? { ...existingRoom, ...updatedRoom } : updatedRoom;
-        }) || slot.rooms,
-      };
-
-      recalculateSlotTotal(groupedCostEstimatesData.value[slotId]);
-      updateStoredTotal();
-    } else if (data.error) {
-      console.error('Failed to update item:', data.error);
-    } else {
-      console.error('Failed to update item: unexpected response structure', data);
+  // Update custom line items
+  slot.customLineItems = slot.customLineItems.map(item => {
+    if (item.id === updatedItem.id) {
+      itemUpdated = true;
+      return { ...updatedItem };
     }
-  } catch (error) {
-    console.error('Error updating invoice item:', error);
+    return item;
+  });
+
+  if (itemUpdated) {
+    recalculateSlotTotal(slot);
+    groupedCostEstimatesData.value = { ...groupedCostEstimatesData.value }; // Trigger reactivity
+    updateStoredTotal();  // Update total cost
+  } else {
+    console.error('Item not found for update', updatedItem);
   }
 };
 
 
-const removeInvoiceItem = async (item) => {
-  //   console.log('Removing item:', item);  // For debugging
 
+const removeInvoiceItem = async (item) => {
+  console.log(item);
   if (!item || !item.id) {
     console.error('Invalid item object:', item);
     return;
   }
 
-  let itemRemoved = false;
+  const slot = groupedCostEstimatesData.value[item.slotId];
 
-  // Search and remove the item from all possible locations
-  for (const slot of Object.values(groupedCostEstimatesData.value)) {
-    // Check perSlotCosts
-    const perSlotIndex = slot.perSlotCosts.findIndex(cost => cost.id === item.id);
-    if (perSlotIndex !== -1) {
-      slot.perSlotCosts.splice(perSlotIndex, 1);
-      itemRemoved = true;
-      break;
-    }
-
-    // Check rooms
-    for (const room of slot.rooms) {
-      // Check fullDay, daytime, evening prices
-      for (const priceType of ['fullDayPrice', 'daytimePrice', 'eveningPrice']) {
-        if (room[priceType] && room[priceType].id === item.id) {
-          delete room[priceType];
-          itemRemoved = true;
-          break;
-        }
-      }
-      if (itemRemoved) break;
-
-      // Check additionalCosts
-      const additionalIndex = room.additionalCosts.findIndex(cost => cost.id === item.id);
-      if (additionalIndex !== -1) {
-        room.additionalCosts.splice(additionalIndex, 1);
-        itemRemoved = true;
-        break;
-      }
-    }
-    if (itemRemoved) break;
-
-    // Check customLineItems
-    const customIndex = slot.customLineItems.findIndex(customItem => customItem.id === item.id);
-    if (customIndex !== -1) {
-      slot.customLineItems.splice(customIndex, 1);
-      itemRemoved = true;
-      break;
-    }
-  }
-
-  if (!itemRemoved) {
-    console.error('Item not found for deletion', item);
+  if (!slot) {
+    console.error('Slot not found for', item.slotId);
     return;
   }
 
-  try {
-    const { data } = await useFetch(`/api/costEstimates/${props.rentalRequestId}/versions/${currentVersionNumber.value}/items`, {
-      method: 'DELETE',
-      body: { itemId: item.id }
-    });
+  // Remove from perSlotCosts
+  slot.perSlotCosts = slot.perSlotCosts.filter(cost => cost.id !== item.id);
 
-    if (data.value && data.value.success) {
-      recalculateAllSlotTotals();
-      updateStoredTotal();
-    } else {
-      console.error('Failed to remove item:', data.value?.error);
+  // Remove from rooms
+  slot.rooms = slot.rooms.map(room => {
+    // Remove fullDayCostItem
+    if (room.fullDayCostItem && room.fullDayCostItem.id === item.id) {
+      room.fullDayCostItem = null;
     }
-  } catch (error) {
-    console.error('Error removing invoice item:', error);
-  }
+
+    // Remove daytimeCostItem
+    if (room.daytimeCostItem && room.daytimeCostItem.id === item.id) {
+      room.daytimeCostItem = null;
+    }
+
+    // Remove eveningCostItem
+    if (room.eveningCostItem && room.eveningCostItem.id === item.id) {
+      room.eveningCostItem = null;
+    }
+
+    // Remove from additionalCosts
+    room.additionalCosts = room.additionalCosts.filter(cost => cost.id !== item.id);
+
+    return room;
+  });
+
+  // Remove from customLineItems
+  slot.customLineItems = slot.customLineItems.filter(customItem => customItem.id !== item.id);
+
+  // Use reactive reassign to trigger reactivity
+  groupedCostEstimatesData.value = { ...groupedCostEstimatesData.value, [slot.id]: { ...slot } };
+
+  // Recalculate the total cost of the slot after the removal
+  recalculateSlotTotal(slot);
+
+  // Update the total cost
+  updateStoredTotal();
 };
+
+
+
+
 
 const recalculateAllSlotTotals = () => {
   for (const slot of Object.values(groupedCostEstimatesData.value)) {
@@ -690,34 +790,37 @@ const updateCustomLineItem = (slot, updatedItem) => {
 
 const recalculateSlotTotal = (slot) => {
   slot.totalCost = calculateSlotTotal(slot);
+
+  // Reassign the slot to trigger reactivity
+  groupedCostEstimatesData.value = {
+    ...groupedCostEstimatesData.value,
+    [slot.id]: { ...slot },
+  };
 };
 
 const calculateSlotTotal = (slot) => {
   let total = 0;
 
-  slot.perSlotCosts.forEach(cost => {
-    total += Number(cost.cost) || 0;
-  });
+  // Sum per-slot costs
+  total += (slot.perSlotCosts || []).reduce((sum, cost) => sum + (Number(cost.cost) || 0), 0);
 
-  slot.rooms.forEach(room => {
-    if (room.isFullDay) {
-      total += Number(room.fullDayPrice || room.basePrice) || 0;
+  // Sum room costs
+  (slot.rooms || []).forEach(room => {
+    if (Number(room.fullDayPrice) > 0) {
+      total += Number(room.fullDayPrice) || 0;
     } else {
-      total += Number(room.basePrice) || 0;
       total += Number(room.daytimePrice) || 0;
       total += Number(room.eveningPrice) || 0;
     }
-    room.additionalCosts.forEach(cost => {
-      total += Number(cost.cost) || 0;
-    });
+    total += (room.additionalCosts || []).reduce((sum, cost) => sum + (Number(cost.cost) || 0), 0);
   });
 
-  slot.customLineItems?.forEach(item => {
-    total += Number(item.amount) || 0;
-  });
+  // Sum custom line items
+  total += (slot.customLineItems || []).reduce((sum, item) => sum + (Number(item.cost) || 0), 0);
 
   return total;
 };
+
 const saveCostEstimate = async () => {
   try {
     await useFetch(`/api/costEstimates/${props.rentalRequestId}/versions/${currentVersionNumber.value}`, {
@@ -736,39 +839,119 @@ const saveCostEstimate = async () => {
 
 const createNewVersion = async () => {
   try {
-    const { data } = await useFetch(`/api/costEstimates/${props.rentalRequestId}/versions`, {
+    const preparedCostEstimates = prepareCostEstimatesForSave();
+
+    if (preparedCostEstimates.length === 0) {
+      throw new Error('No cost estimates to save.');
+    }
+
+    const { data, error } = await useFetch(`/api/costEstimates/${props.rentalRequestId}/versions`, {
       method: 'POST',
       body: {
-        costEstimates: Object.values(groupedCostEstimatesData.value),
+        costEstimates: preparedCostEstimates,
         totalCost: totalCost.value
       }
     });
-    await refresh();
-    currentVersionNumber.value = data.value.version;
+
+    if (error) {
+      throw new Error('Failed to create new version due to API error');
+    }
+
+    if (data?.value?.version) {
+      // Update the current version number
+      currentVersionNumber.value = data.value.version;
+
+      // Refresh the UI and fetch the new version
+      await refresh();
+
+      // Add the new version to the dropdown and select it
+      costEstimateVersions.value.push({
+        value: data.value.version,
+        label: `Version ${data.value.version}`,
+        totalCost: data.value.totalCost
+      });
+
+      // Automatically select and display the newly created version
+      await fetchVersionDetails(data.value.version);
+    } else {
+      throw new Error('Failed to create new version');
+    }
   } catch (err) {
     console.error('Error creating new version:', err);
     error.value = 'Failed to create new version';
   }
 };
 
+
+const prepareCostEstimatesForSave = () => {
+  if (!groupedCostEstimatesData.value) {
+    console.error('groupedCostEstimatesData is undefined or null.');
+    return [];  // Return an empty array if no cost estimates data is available
+  }
+
+  return Object.values(groupedCostEstimatesData.value).map(slot => ({
+    id: slot.id, // Slot ID
+    date: slot.date, // Slot Date
+    start: slot.start, // Slot start time
+    end: slot.end, // Slot end time
+    perSlotCosts: (slot.perSlotCosts || []).map(cost => ({
+      id: cost.id || uuidv4(),
+      description: cost.description,
+      subDescription: cost.subDescription || '',
+      cost: cost.cost
+    })),
+    rooms: (slot.rooms || []).map(room => ({
+      roomSlug: room.roomSlug,
+      basePrice: room.basePrice || 0,
+      daytimePrice: room.daytimePrice || 0,
+      eveningPrice: room.eveningPrice || 0,
+      fullDayPrice: room.fullDayPrice || 0,
+      daytimeHours: room.daytimeHours || 0,
+      eveningHours: room.eveningHours || 0,
+      daytimeRate: room.daytimeRate || 0,
+      eveningRate: room.eveningRate || 0,
+      daytimeRateType: room.daytimeRateType || '',
+      eveningRateType: room.eveningRateType || '',
+      additionalCosts: (room.additionalCosts || []).map(cost => ({
+        id: cost.id || uuidv4(),
+        description: cost.description,
+        subDescription: cost.subDescription || '',
+        cost: cost.cost
+      }))
+    })),
+    customLineItems: (slot.customLineItems || []).map(item => ({
+      id: item.id || uuidv4(),
+      description: item.description,
+      cost: item.cost
+    })).filter(item => item.cost > 0 && item.description.trim() !== ''),  // Ensure valid custom line items
+    slotTotal: slot.totalCost || 0 // Total cost of the slot
+  }));
+};
+
+
+
+
 const recalculateCosts = async () => {
   try {
-    const { data } = await useFetch(`/api/costEstimates/${props.rentalRequestId}/recalculate`, {
+    const response = await fetch(`/api/costEstimates/${props.rentalRequestId}/recalculate`, {
       method: 'POST',
-      body: {
-        version: currentVersionNumber.value
-      }
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ rentalRequestId: props.rentalRequestId, rentalDates: groupedCostEstimatesData.value }),
     });
-    if (data.value && data.value.success) {
-      await fetchVersionDetails(currentVersionNumber.value);
+    const result = await response.json();
+    if (result.success) {
+      groupedCostEstimatesData.value = groupCostEstimates(result.costEstimate);
+      updateAllSlotTotals(); // Recalculate totals
     } else {
-      console.error('Failed to recalculate costs:', data.value?.error);
+      console.error('Failed to recalculate costs:', result.error);
     }
-  } catch (err) {
-    console.error('Error recalculating costs:', err);
-    error.value = 'Failed to recalculate costs';
+  } catch (error) {
+    console.error('Error recalculating costs:', error);
   }
 };
+
 
 const generateStripeEstimate = async () => {
   try {
@@ -790,42 +973,63 @@ const generateStripeEstimate = async () => {
   }
 };
 
+// watch(() => props.rentalRequestId, async (newId, oldId) => {
+//   if (newId !== oldId) {
+//     await fetchVersions();
+//     if (currentVersionNumber.value !== null) {
+//       await fetchVersionDetails(currentVersionNumber.value);
+//     }
+//   }
+// });
+
 watch(() => props.rentalRequestId, async (newId, oldId) => {
   if (newId !== oldId) {
-    await fetchVersions();
-    if (currentVersionNumber.value !== null) {
-      await fetchVersionDetails(currentVersionNumber.value);
-    }
+    await fetchVersions();  // Fetch versions and version details in one go
   }
 });
-watch(groupedCostEstimatesData, (newVal) => {
+
+
+watch(groupedCostEstimatesData, (newValue) => {
   if (!originalGroupedCostEstimatesData.value) {
-    originalGroupedCostEstimatesData.value = cloneDeep(newVal);
+    originalGroupedCostEstimatesData.value = cloneDeep(newValue);
   }
-});
-
-
-watch(groupedCostEstimatesData, (newVal) => {
-  //   console.log('groupedCostEstimatesData updated:', newVal);
+  updateStoredTotal(); // Call the function that updates the stored total
+  updateAllSlotTotals(); // Ensure totals are updated when data changes
 }, { deep: true });
+
+
+
+
 
 
 
 watch(costEstimateData, (newData) => {
   if (newData) {
-    estimateIdRef.value = newData._id;
     currentVersionNumber.value = newData.currentVersion;
+
     costEstimateVersions.value = newData.versions.map(v => ({
       value: v.version,
       label: v.label,
-      totalCost: v.totalCost
+      totalCost: v.totalCost,
+      statusHistory: v.statusHistory || [],
+      createdAt: v.createdAt,
+      costEstimates: v.costEstimates || []
     }));
+
     const currentVersion = newData.versions.find(v => v.version === newData.currentVersion);
     if (currentVersion) {
       groupedCostEstimatesData.value = groupCostEstimates(currentVersion.costEstimates);
+      updateAllSlotTotals();  // Ensure slot totals are updated
     }
-    //     console.log('Data loaded:', newData);
   }
 }, { immediate: true });
+
+
+
+const currentVersion = computed(() => {
+  console.log('costEstimateVersions.value', costEstimateVersions.value);
+  return costEstimateVersions.value.find(v => v.value === currentVersionNumber.value) || {};
+});
+
 
 </script>

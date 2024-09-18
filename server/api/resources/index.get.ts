@@ -6,11 +6,9 @@ export default defineEventHandler(async (event) => {
   // Ensure the database connection
   const connection = await ensureConnection();
   const AdditionalCosts = await getAdditionalCostModel(connection);
-  console.log("ARE WE HERE");
   try {
     // Fetch the additional costs/resources
     const result = await AdditionalCosts.findOne({}).lean();
-    console.log("result", result);
     if (!result || !result.resources) {
       throw createError({
         statusCode: 404,

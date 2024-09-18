@@ -23,9 +23,9 @@ const props = defineProps({
 
 const emit = defineEmits(['update', 'remove']);
 
-const localAmount = ref(props.item.amount);
+const localAmount = ref(props.item.cost);
 
-watch(() => props.item.amount, (newAmount) => {
+watch(() => props.item.cost, (newAmount) => {
   localAmount.value = newAmount;
 });
 
@@ -35,6 +35,6 @@ const removeItem = () => {
 
 const updateAmount = () => {
   const newAmount = localAmount.value ? parseFloat(localAmount.value) : 0;
-  emit('update', { ...props.item, amount: newAmount });
+  emit('update', { ...props.item, cost: newAmount });
 };
 </script>

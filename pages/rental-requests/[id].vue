@@ -126,10 +126,11 @@
         <template #costEstimates="{ item }">
           <UDashboardSection>
             <div class="flex justify-between items-center mb-4">
-              <h3 class="text-2xl">Cost Estimate</h3>
               <div class="text-right">
                 <p class="text-lg font-semibold text-stone-500 dark:text-stone-300">
-                  Original Estimate: {{ formatCurrency(rental.originalCostEstimate) }}
+                  Original Estimate: {{ formatCurrency(rental.originalCostEstimate) }} <span
+                    class="text-stone-400 text-sm">excluding
+                    tax</span>
                 </p>
               </div>
             </div>

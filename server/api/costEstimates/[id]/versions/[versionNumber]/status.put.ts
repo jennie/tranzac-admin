@@ -1,8 +1,8 @@
-import getCostEstimateModel from "@tranzac/pricing-lib";
+import { getCostEstimateModel } from "@tranzac/pricing-lib";
 
 export default defineEventHandler(async (event) => {
   const connection = await ensureConnection();
-  const CostEstimate = getCostEstimateModel(connection);
+  const CostEstimate = await getCostEstimateModel(connection);
   const rentalRequestId = event.context.params.id;
   const versionNumber = parseInt(event.context.params.versionNumber, 10);
   const { status, changedBy, timestamp } = await readBody(event);

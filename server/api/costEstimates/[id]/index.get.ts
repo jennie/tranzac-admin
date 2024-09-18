@@ -1,4 +1,3 @@
-// server/api/costEstimates/[id]/index.get.ts
 import { PricingRules, getCostEstimateModel } from "@tranzac/pricing-lib";
 import { ensureConnection } from "~/server/utils/mongoose";
 
@@ -7,19 +6,16 @@ export default defineEventHandler(async (event) => {
   const CostEstimate = await getCostEstimateModel(mongooseInstance);
 
   const id = event.context.params.id;
-  //   console.log("Fetching cost estimate for id:", id);
 
   try {
     const costEstimate = await CostEstimate.findOne({ rentalRequestId: id });
 
     if (!costEstimate) {
-      //       console.log("Cost estimate not found for id:", id);
       return createError({
         statusCode: 404,
         statusMessage: "Cost estimate not found",
       });
     }
-    //     // console.log("Cost Estimate Object:", JSON.stringify(costEstimate, null, 2)); // Log the full costEstimate object
 
     const result = {
       _id: costEstimate._id, // Add the _id to the result
@@ -27,6 +23,7 @@ export default defineEventHandler(async (event) => {
         version: version.version,
         label: `Version ${version.version}`,
         totalCost: version.totalCost,
+        statusHistory: version.statusHistory, // Include statusHistory
         createdAt: version.createdAt,
         costEstimates: version.costEstimates.map((estimate) => ({
           id: estimate.id,
@@ -48,11 +45,6 @@ export default defineEventHandler(async (event) => {
             eveningRateType: room.eveningRateType,
             additionalCosts: room.additionalCosts,
             totalCost: room.totalCost,
-            rateDescription: room.rateDescription,
-            rateSubDescription: room.rateSubDescription,
-            minimumHours: room.minimumHours,
-            totalBookingHours: room.totalBookingHours,
-            isFullDay: room.isFullDay,
           })),
           slotTotal: estimate.slotTotal,
         })),
@@ -60,10 +52,6 @@ export default defineEventHandler(async (event) => {
       currentVersion: costEstimate.currentVersion,
     };
 
-    // console.log(
-    //   "Returning cost estimate data:",
-    //   JSON.stringify(result, null, 2)
-    // );
     return result;
   } catch (error) {
     console.error("Error fetching cost estimate versions:", error);

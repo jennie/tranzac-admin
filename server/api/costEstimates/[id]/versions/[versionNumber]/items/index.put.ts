@@ -1,6 +1,7 @@
 import { defineEventHandler, readBody } from "h3";
 import { ensureConnection } from "@/server/utils/mongoose";
 import getCostEstimateModel from "@tranzac/pricing-lib";
+import PricingRules from "@tranzac/pricing-lib";
 
 export default defineEventHandler(async (event) => {
   try {
@@ -82,19 +83,158 @@ export default defineEventHandler(async (event) => {
       return { statusCode: 404, error: "Item not found to update" };
     }
 
+    // After updating the item, use PricingRules to recalculate the cost estimates
+    // First, fetch the associated rental request
+    const RentalRequest = RentalRequestModel(connection);
+    const rentalRequest = await RentalRequest.findById(id).lean();
+
+    if (!rentalRequest) {
+      return { statusCode: 404, error: "Rental request not found" };
+    }
+
+    // Initialize PricingRules
+    const pricingRules = new PricingRules();
+    await pricingRules.initialize();
+
+    // Prepare data for PricingRules
+    const rentalRequestData = {
+      rentalDates: {},
+      resources: rentalRequest.resources || [],
+      private: rentalRequest.isPrivate || false,
+      expectedAttendance: rentalRequest.expectedAttendance || 0,
+    };
+
+    // Reconstruct rentalDates from the updated cost estimates
+    versionData.costEstimates.forEach((estimate) => {
+      const date = estimate.date;
+      if (!rentalRequestData.rentalDates[date]) {
+        rentalRequestData.rentalDates[date] = [];
+      }
+      rentalRequestData.rentalDates[date].push({
+        id: estimate.id,
+        start: estimate.start,
+        end: estimate.end,
+        roomSlugs: estimate.rooms.map((room) => room.roomSlug),
+        // Include any other necessary data from estimate
+      });
+    });
+
+    // Use PricingRules to recalculate the cost estimates
+    const {
+      costEstimates: recalculatedEstimates,
+      grandTotal,
+      tax,
+      totalWithTax,
+    } = await pricingRules.getPrice(rentalRequestData);
+
+    // Merge custom modifications made by the admin into the recalculated estimates
+    const mergedEstimates = versionData.costEstimates.map(
+      (originalEstimate) => {
+        const recalculatedEstimate = recalculatedEstimates.find(
+          (recalc) => recalc.id === originalEstimate.id
+        );
+
+        if (recalculatedEstimate) {
+          // Preserve admin modifications
+          // Update recalculatedEstimate with any custom changes from originalEstimate
+          // For example, if the admin modified perSlotCosts or room prices
+
+          // Merge perSlotCosts
+          recalculatedEstimate.perSlotCosts = originalEstimate.perSlotCosts;
+
+          // Merge rooms
+          recalculatedEstimate.rooms = recalculatedEstimate.rooms.map(
+            (room) => {
+              const originalRoom = originalEstimate.rooms.find(
+                (origRoom) => origRoom.roomSlug === room.roomSlug
+              );
+              if (originalRoom) {
+                // Override prices if they were modified by the admin
+                room.fullDayPrice =
+                  originalRoom.fullDayPrice || room.fullDayPrice;
+                room.daytimePrice =
+                  originalRoom.daytimePrice || room.daytimePrice;
+                room.eveningPrice =
+                  originalRoom.eveningPrice || room.eveningPrice;
+                room.additionalCosts =
+                  originalRoom.additionalCosts || room.additionalCosts;
+              }
+              return room;
+            }
+          );
+
+          // Merge customLineItems
+          recalculatedEstimate.customLineItems =
+            originalEstimate.customLineItems || [];
+
+          // Recalculate slotTotal
+          let slotTotal = 0;
+
+          // Sum per-slot costs
+          slotTotal += (recalculatedEstimate.perSlotCosts || []).reduce(
+            (sum, cost) => sum + (Number(cost.cost) || 0),
+            0
+          );
+
+          // Sum room costs
+          (recalculatedEstimate.rooms || []).forEach((room) => {
+            slotTotal += Number(room.fullDayPrice || 0);
+            slotTotal += Number(room.daytimePrice || 0);
+            slotTotal += Number(room.eveningPrice || 0);
+            slotTotal += (room.additionalCosts || []).reduce(
+              (sum, cost) => sum + (Number(cost.cost) || 0),
+              0
+            );
+          });
+
+          // Sum custom line items
+          slotTotal += (recalculatedEstimate.customLineItems || []).reduce(
+            (sum, item) => sum + (Number(item.cost) || 0),
+            0
+          );
+
+          recalculatedEstimate.slotTotal = slotTotal;
+
+          return recalculatedEstimate;
+        } else {
+          // If not found, return the original estimate
+          return originalEstimate;
+        }
+      }
+    );
+
+    // Update the version data with the merged estimates
+    versionData.costEstimates = mergedEstimates;
+
+    // Recalculate grandTotal based on merged estimates
+    const updatedGrandTotal = mergedEstimates.reduce(
+      (sum, estimate) => sum + (Number(estimate.slotTotal) || 0),
+      0
+    );
+
+    // Recalculate tax and total with tax using PricingRules or consistent logic
+    const HST_RATE = 0.13; // Ensure this matches the rate used in PricingRules
+    const updatedTax = Number((updatedGrandTotal * HST_RATE).toFixed(2));
+    const updatedTotalWithTax = Number(
+      (updatedGrandTotal + updatedTax).toFixed(2)
+    );
+
+    // Update version data totals
+    versionData.totalCost = updatedGrandTotal;
+    versionData.tax = updatedTax;
+    versionData.totalWithTax = updatedTotalWithTax;
+
+    // Save the updated cost estimate
     await costEstimate.save();
 
-    // Return a plain object with the updated slot
+    // Return the updated version data
     return {
       statusCode: 200,
-      id: slot.id,
-      date: slot.date,
-      start: slot.start,
-      end: slot.end,
-      estimates: slot.estimates,
-      perSlotCosts: slot.perSlotCosts,
-      rooms: slot.rooms,
-      totalCost: slot.totalCost,
+      version: versionData.version,
+      costEstimates: versionData.costEstimates,
+      totalCost: versionData.totalCost,
+      tax: versionData.tax,
+      totalWithTax: versionData.totalWithTax,
     };
   } catch (error) {
     console.error("Error processing request:", error);
