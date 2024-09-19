@@ -1,6 +1,5 @@
 <template>
   <div v-if="statusHistory.length > 0" class="status-history">
-    <h3 class="font-bold">Status History</h3>
     <ul>
       <li v-for="(statusItem, index) in statusHistory" :key="index">
         <p><strong>Status:</strong> {{ statusItem.status }}</p>

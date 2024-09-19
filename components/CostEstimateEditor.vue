@@ -1,7 +1,28 @@
 <!-- /components/CostEstimateEditor.vue -->
 <template>
   <div class="cost-estimate-editor space-y-8">
-    <EstimateStatusHistory :version="currentVersion" />
+
+    <UButton label="View Status History" @click="statusHistorySlideoverIsOpen = true" />
+
+    <USlideover v-model="statusHistorySlideoverIsOpen">
+      <UCard class="flex flex-col flex-1"
+        :ui="{ body: { base: 'flex-1' }, ring: '', divide: 'divide-y divide-gray-100 dark:divide-gray-800' }">
+        <template #header>
+          <div class="flex items-center justify-between">
+            <h3 class="text-base font-semibold leading-6 text-gray-900 dark:text-white">
+              Status History
+            </h3>
+            <UButton color="gray" variant="ghost" icon="i-heroicons-x-mark-20-solid" class="-my-1"
+              @click="statusHistorySlideoverIsOpen = false" />
+          </div>
+        </template>
+
+        <EstimateStatusHistory :version="currentVersion" />
+
+      </UCard>
+    </USlideover>
+
+
 
     <UCard class="shadow-lg" v-if="!isLoading">
       <template #header>
@@ -144,6 +165,8 @@ import { ref, computed, watch, onMounted } from 'vue';
 import { useResources } from '@/composables/useResources';
 import { formatDescription } from '@/utils/formatters';
 import { formatCurrency, formatDate, formatTimeRange } from '@/utils/formatters';
+const toast = useToast();
+
 import cloneDeep from 'lodash/cloneDeep';
 import PricingRules from '@tranzac/pricing-lib';
 const originalData = ref(null);
@@ -153,13 +176,15 @@ const costEstimateVersions = ref([]);
 const currentVersionNumber = ref(0);
 const groupedCostEstimatesData = ref({});
 const error = ref(null);
+const statusHistorySlideoverIsOpen = ref(false);
 const taxAmount = computed(() => {
-  return pricingRules.calculateTax(totalCost.value); // Assuming you have a method to calculate tax
+  return pricingRules.calculateTax(totalCost.value); // Use the pricingRules method
 });
 
 const totalWithTax = computed(() => {
-  return pricingRules.calculateTotalWithTax(totalCost.value); // Assuming there's a method for total with tax
+  return pricingRules.calculateTotalWithTax(totalCost.value); // Use the pricingRules method
 });
+
 
 
 import { v4 as uuidv4 } from 'uuid';
@@ -255,58 +280,62 @@ const hasChanges = computed(() => {
 
 
 const sendEstimate = async () => {
-  const estimateId = estimateIdRef.value; // Use the stored estimateId
+  const estimateId = estimateIdRef.value;
 
   if (!estimateId) {
     console.error('Estimate ID is undefined');
     return;
   }
 
-  try {
-    console.log('Sending estimate:', {
-      rentalRequestId: props.rentalRequestId,
-      estimateId: estimateId,
-      currentVersion: currentVersionNumber.value,
-      totalCost: totalCost.value,
+  // Get the current selected version data
+  const selectedVersion = costEstimateVersions.value.find(v => v.value === currentVersionNumber.value);
 
-    });
+  if (!selectedVersion) {
+    console.error('Selected version not found');
+    return;
+  }
+
+  try {
+    console.log('Sending estimate with version:', currentVersionNumber.value, selectedVersion);
+
     const response = await fetch('/api/costEstimates/sendEstimate', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        rentalRequestId: props.rentalRequestId,  // Rental Request ID
-        estimateId: estimateId,  // The correct MongoDB document _id
-        currentVersion: currentVersionNumber.value, // The current version number
-        totalCost: totalCost.value,
-        primaryContactEmail: props.rentalRequest.primaryContactEmail,
-        primaryContactName: props.rentalRequest.primaryContactName,
-        organization: props.rentalRequest.organization
+        userId: userId.value,
+        estimateId: estimateId,
+        currentVersion: currentVersionNumber.value,
+        costEstimates: Object.values(groupedCostEstimatesData.value).map(slot => ({
+          ...slot,
+          rooms: slot.rooms.map(room => ({
+            ...room,
+            fullDayCostItem: room.fullDayCostItem || null,
+            daytimeCostItem: room.daytimeCostItem || null,
+            eveningCostItem: room.eveningCostItem || null,
+          })),
+          customLineItems: slot.customLineItems || [],
+        })),
+        recipientEmail: props.rentalRequest.primaryContactEmail,
+        recipientName: props.rentalRequest.primaryContactName,
+        recipientOrganization: props.rentalRequest.organization,
+        roomMapping: roomMapping.value,
       }),
     });
 
     const result = await response.json();
+    console.log("Response from server:", result);
 
     if (result.success) {
-      console.log('Updating status for:', {
-        rentalRequestId: props.rentalRequestId,
-        versionNumber: currentVersionNumber.value,
+      toast.add({
+        icon: 'i-heroicons-check-badge',
+        title: 'Success!',
+        color: 'green',
+        description: 'This estimate has been emailed to the renter.',
       });
 
-      // Add new status entry to statusHistory
-      await fetch(`/api/costEstimates/${props.rentalRequestId}/versions/${currentVersionNumber.value}/status`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          status: 'sent',
-          changedBy: userId.value,
-          timestamp: new Date(),
-        }),
-      });
-      // console.log('Estimate sent successfully');
+      console.log('Estimate sent successfully');
     } else {
       console.error('Failed to send estimate:', result.message);
     }
@@ -315,6 +344,7 @@ const sendEstimate = async () => {
     console.error('Error sending estimate:', err);
   }
 };
+
 
 
 const daytimeDescription = computed(() => {
@@ -412,6 +442,13 @@ const calculatedGrandTotal = computed(() => {
   return Object.values(groupedCostEstimatesData.value).reduce((total, slot) => {
     return total + (slot.totalCost || 0);
   }, 0);
+});
+watch([totalCost, taxAmount, totalWithTax], ([newTotalCost, newTax, newTotalWithTax]) => {
+  console.log("Frontend Calculations:", {
+    subtotal: newTotalCost.toFixed(2),
+    tax: newTax.toFixed(2),
+    grandTotal: newTotalWithTax.toFixed(2),
+  });
 });
 
 
@@ -634,9 +671,26 @@ const updateAllSlotTotals = () => {
   taxAmount.value = pricingRules.calculateTax(totalCost.value); // Calculate tax
   totalWithTax.value = totalCost.value + taxAmount.value; // Final total with tax
 };
+
 const calculateGrandTotal = () => {
   return Object.values(groupedCostEstimatesData.value).reduce((total, slot) => {
-    return total + (slot.totalCost || 0);
+    // Sum per-slot costs
+    const perSlotTotal = (slot.perSlotCosts || []).reduce((sum, cost) => sum + (Number(cost.cost) || 0), 0);
+
+    // Sum room costs
+    const roomTotal = (slot.rooms || []).reduce((roomSum, room) => {
+      const fullDayPrice = Number(room.fullDayPrice) || 0;
+      const daytimePrice = Number(room.daytimePrice) || 0;
+      const eveningPrice = Number(room.eveningPrice) || 0;
+      const additionalCosts = (room.additionalCosts || []).reduce((sum, cost) => sum + (Number(cost.cost) || 0), 0);
+
+      return roomSum + (fullDayPrice > 0 ? fullDayPrice : (daytimePrice + eveningPrice)) + additionalCosts;
+    }, 0);
+
+    // Sum custom line items
+    const customTotal = (slot.customLineItems || []).reduce((sum, item) => sum + (Number(item.cost) || 0), 0);
+
+    return total + perSlotTotal + roomTotal + customTotal;
   }, 0);
 };
 

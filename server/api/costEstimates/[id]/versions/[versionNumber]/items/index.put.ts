@@ -212,17 +212,16 @@ export default defineEventHandler(async (event) => {
       0
     );
 
-    // Recalculate tax and total with tax using PricingRules or consistent logic
-    const HST_RATE = 0.13; // Ensure this matches the rate used in PricingRules
-    const updatedTax = Number((updatedGrandTotal * HST_RATE).toFixed(2));
-    const updatedTotalWithTax = Number(
-      (updatedGrandTotal + updatedTax).toFixed(2)
-    );
+    // Recalculate tax and total with tax using PricingRules
+    const updatedTax = pricingRules.calculateTax(updatedGrandTotal).toFixed(2);
+    const updatedTotalWithTax = pricingRules
+      .calculateTotalWithTax(updatedGrandTotal)
+      .toFixed(2);
 
     // Update version data totals
     versionData.totalCost = updatedGrandTotal;
-    versionData.tax = updatedTax;
-    versionData.totalWithTax = updatedTotalWithTax;
+    versionData.tax = Number(updatedTax);
+    versionData.totalWithTax = Number(updatedTotalWithTax);
 
     // Save the updated cost estimate
     await costEstimate.save();

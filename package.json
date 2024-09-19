@@ -43,6 +43,7 @@
     "jsonwebtoken": "^9.0.2",
     "lodash": "^4.17.21",
     "mongoose": "^8.5.4",
+    "node-fetch": "^3.3.2",
     "nuxt": "^3.11.2",
     "nuxt-mongoose": "^1.0.3",
     "ohash": "^1.1.3",
