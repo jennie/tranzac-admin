@@ -134,8 +134,8 @@
                 </p>
               </div>
             </div>
-            <CostEstimateEditor v-if="costEstimateData" :rental-request="costEstimateData" :rental-request-id="id"
-              @close="closeModal" @save="handleSave" />
+            <CostEstimateEditor v-if="costEstimateData" :rental-request="costEstimateData"
+              :rental-request-id="id.toString()" @close="closeModal" @save="handleSave" />
 
           </UDashboardSection>
         </template>

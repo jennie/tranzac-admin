@@ -5,6 +5,7 @@ import fetch from "node-fetch";
 import PricingRules from "@tranzac/pricing-lib";
 const pricingRules = new PricingRules();
 import { format } from "date-fns"; // Using date-fns for formatting
+import { formatDescription } from "@/utils/formatters";
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
@@ -15,62 +16,57 @@ export default defineEventHandler(async (event) => {
   const CostEstimate = await getCostEstimateModel(connection);
   const body = await readBody(event);
   const roomMapping = body.roomMapping || [];
-  // console.log("Room mapping:", roomMapping);
 
-  // console.log(
-  //   "BODY costEstimates:",
-  //   JSON.stringify(body.costEstimates, null, 2)
-  // );
-  // body.costEstimates.forEach((estimate) => {
-  //   console.log(
-  //     "Rooms for estimate ID:",
-  //     estimate.id,
-  //     JSON.stringify(estimate.rooms, null, 2)
-  //   );
-  // });
-
-  // Initialize items array
   let items = [];
 
   body.costEstimates.forEach((estimate) => {
-    // console.log("Rooms for estimate:", estimate.rooms);
-
     const date = new Date(estimate.date || Date.now()).toLocaleDateString(
       "en-US"
     );
 
-    // Per-slot costs (like staff, security, etc.)
+    // Per-slot costs
     const perSlotCosts = (estimate.perSlotCosts || []).map((cost) => ({
       date,
       description: cost.description || "N/A",
       total: (Number(cost.cost) || 0).toFixed(2),
     }));
 
+    // Room costs
     const roomCosts = (estimate.rooms || []).flatMap((room) => {
       const roomItems = [];
       const roomName =
         roomMapping.find((r) => r.slug === room.roomSlug)?.name ||
         room.roomSlug;
 
-      if (room.fullDayPrice) {
+      if (room.fullDayCostItem) {
         roomItems.push({
           date,
           description: `Full Day: ${roomName}`,
-          total: (Number(room.fullDayPrice) || 0).toFixed(2),
+          total: (Number(room.fullDayCostItem.cost) || 0).toFixed(2),
         });
       }
-      if (room.daytimePrice) {
+      if (room.daytimeCostItem) {
         roomItems.push({
           date,
-          description: `Daytime: ${roomName}`,
-          total: (Number(room.daytimePrice) || 0).toFixed(2),
+          description: formatDescription(
+            room.daytimeHours,
+            room.daytimePrice,
+            room.daytimeRateType,
+            "Daytime"
+          ),
+          total: (Number(room.daytimeCostItem.cost) || 0).toFixed(2),
         });
       }
-      if (room.eveningPrice) {
+      if (room.eveningCostItem) {
         roomItems.push({
           date,
-          description: `Evening: ${roomName}`,
-          total: (Number(room.eveningPrice) || 0).toFixed(2),
+          description: formatDescription(
+            room.eveningHours,
+            room.eveningPrice,
+            room.eveningRateType,
+            "Evening"
+          ),
+          total: (Number(room.eveningCostItem.cost) || 0).toFixed(2),
         });
       }
 
@@ -97,8 +93,6 @@ export default defineEventHandler(async (event) => {
 
     // Combine per-slot costs, room costs, and custom line items
     items = [...items, ...perSlotCosts, ...roomCosts, ...customLineItems];
-
-    // console.log(`Final Items:`, JSON.stringify(items, null, 2));
   });
 
   try {
@@ -131,19 +125,29 @@ export default defineEventHandler(async (event) => {
         const costItems = [];
         if (room.fullDayPrice) {
           costItems.push({
-            description: `Full Day: ${roomName}`,
+            description: `Full Day Flat Rate`,
             total: Number(room.fullDayPrice).toFixed(2),
           });
         }
         if (room.daytimePrice) {
           costItems.push({
-            description: `Daytime: ${roomName}`,
+            description: formatDescription(
+              room.daytimeHours,
+              room.daytimeRate,
+              room.daytimeRateType,
+              "Daytime"
+            ),
             total: Number(room.daytimePrice).toFixed(2),
           });
         }
         if (room.eveningPrice) {
           costItems.push({
-            description: `Evening: ${roomName}`,
+            description: formatDescription(
+              room.eveningHours,
+              room.eveningRate,
+              room.eveningRateType,
+              "Evening"
+            ),
             total: Number(room.eveningPrice).toFixed(2),
           });
         }
@@ -178,9 +182,6 @@ export default defineEventHandler(async (event) => {
 
     console.log("Slots with room data:", JSON.stringify(slots, null, 2));
 
-    // Add this logging statement after creating the slots:
-    console.log("Slots with room data:", JSON.stringify(slots, null, 2));
-
     const subtotal = currentVersionData.costEstimates.reduce(
       (total, estimate) => total + estimate.slotTotal,
       0
@@ -208,6 +209,10 @@ export default defineEventHandler(async (event) => {
       tax: tax.toFixed(2),
       grandTotal: grandTotal.toFixed(2),
     };
+    console.log(
+      "PDF Payload slots:",
+      JSON.stringify(pdfPayload.slots, null, 2)
+    );
 
     // console.log(
     //   "PDF Payload before sending:",
@@ -246,7 +251,7 @@ export default defineEventHandler(async (event) => {
     }
 
     const pdfData = await pdfResponse.json();
-
+    console.log("Full PDF Payload:", JSON.stringify(pdfPayload, null, 2));
     // Poll for document status
     let documentCard;
     while (true) {

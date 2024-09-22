@@ -16,9 +16,7 @@
               @click="statusHistorySlideoverIsOpen = false" />
           </div>
         </template>
-
         <EstimateStatusHistory :version="currentVersion" />
-
       </UCard>
     </USlideover>
 
@@ -29,10 +27,16 @@
         <div class="flex flex-row items-center justify-between">
           <div class="flex flex-row items-center">
             <h3 class="text-2xl inline font-semibold dark:text-stone-200 mr-2">Cost Estimate</h3>
-            <USelect v-model="currentVersionNumber" :options="versionOptions"
+            <USelect class="" v-model="currentVersionNumber" :options="versionOptions"
               @update:modelValue="(val) => handleVersionChange(Number(val))" />
 
-            <UButton v-if="hasChanges" @click="createNewVersion" color="primary">Save New Version</UButton>
+            <UButton v-if="hasChanges" @click="createNewVersion" color="primary" class="ml-6">Save New Version</UButton>
+            <div class="flex items-center ml-6">
+              <span v-if="hasChanges" class="text-yellow-500 mr-2">
+                <i class="fas fa-exclamation-triangle"></i> Unsaved changes
+              </span>
+
+            </div>
           </div>
           <div>
             <span class="text-lg font-semibold dark:text-stone-100">{{ formatCurrency(totalCost || 0) }}</span>
@@ -45,7 +49,7 @@
         <div v-for="(slot, slotId) in groupedCostEstimates" :key="slotId">
 
           <div
-            class="bg-white dark:bg-stone-950 border dark:border-stone-700 rounded-lg overflow-hidden shadow-sm mb-4">
+            class="bg-white dark:bg-stone-950 border dark:border-stone-700 rounded-lg overflow-hidden shadow-sm mb-6">
             <div
               class="bg-stone-100 dark:bg-stone-800 px-6 py-4 dark:text-stone-100 font-semibold flex justify-between items-center">
               <span>{{ formatDate(slot.date) }} - {{ formatTimeRange(slot.start, slot.end) }}</span>
@@ -53,17 +57,15 @@
 
             <!-- Per-Slot Costs -->
             <div v-if="slot.perSlotCosts && slot.perSlotCosts.length > 0" class="p-4">
-              <h4 class="text-sm uppercase font-bold text-primary">Per-Slot Costs</h4>
+              <h4 class="text-sm uppercase font-bold text-primary">Slot Costs</h4>
               <div v-for="(cost, costIndex) in slot.perSlotCosts" :key="costIndex">
                 <InvoiceItem :item="cost" @update="updateInvoiceItem" @remove="removeInvoiceItem" />
               </div>
 
             </div>
-            <!-- Room-Specific Costs -->
-            <!-- Room-Specific Costs -->
             <div v-if="slot.rooms && slot.rooms.length > 0">
               <div v-for="(room, roomIndex) in slot.rooms" :key="roomIndex" class="p-4">
-                <h4 class="text-xl font-bold">{{ getRoomName(room.roomSlug) }}</h4>
+                <h4 class="text-sm uppercase font-bold">{{ room.roomName }}</h4>
                 <!-- Full Day Rental -->
                 <template v-if="room.fullDayCostItem">
                   <InvoiceItem :item="room.fullDayCostItem" @update="updateInvoiceItem" @remove="removeInvoiceItem" />
@@ -79,10 +81,9 @@
                   <InvoiceItem :item="room.eveningCostItem" @update="updateInvoiceItem" @remove="removeInvoiceItem" />
                 </template>
 
-
                 <!-- Additional Costs -->
-                <div v-if="room.additionalCosts && room.additionalCosts.length > 0">
-                  <h5 class="text-base font-semibold mt-6">Additional Costs</h5>
+                <div v-if="room.additionalCosts && room.additionalCosts.length > 0" class="mt-6">
+                  <h4 class="text-sm uppercase font-bold text-primary">Additional Costs</h4>
                   <div v-for="(cost, costIndex) in room.additionalCosts" :key="costIndex">
                     <InvoiceItem :item="cost" @update="updateInvoiceItem" @remove="removeInvoiceItem" />
                   </div>
@@ -146,7 +147,8 @@
           </div>
         </div>
         <div class="flex justify-end space-x-4 mt-4">
-          <UButton @click="sendEstimate" color="primary">Send Estimate</UButton>
+          <UButton @click="saveAndSendEstimate" color="primary" :label="sendButtonLabel" />
+          <!-- <UButton @click="sendEstimate" color="primary">Send Estimate</UButton> -->
         </div>
       </template>
 
@@ -163,15 +165,19 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue';
 import { useResources } from '@/composables/useResources';
-import { formatDescription } from '@/utils/formatters';
-import { formatCurrency, formatDate, formatTimeRange } from '@/utils/formatters';
+import { formatDescription, formatCurrency, formatDate, formatTimeRange } from '@/utils/formatters';
+import { isEqual } from 'lodash-es';
+
 const toast = useToast();
 
 import cloneDeep from 'lodash/cloneDeep';
 import PricingRules from '@tranzac/pricing-lib';
 const originalData = ref(null);
 const editedData = ref(null);
-const pricingRules = new PricingRules(); // Create an instance of PricingRules
+
+const pricingRules = new PricingRules();
+await pricingRules.initialize();
+
 const costEstimateVersions = ref([]);
 const currentVersionNumber = ref(0);
 const groupedCostEstimatesData = ref({});
@@ -274,9 +280,11 @@ const userId = computed(() => user.value?._id || null);
 console.log('Current user ID:', user.value);
 // Now you can use userId.value wherever you need the user ID
 
+
 const hasChanges = computed(() => {
-  return JSON.stringify(groupedCostEstimatesData.value) !== JSON.stringify(originalGroupedCostEstimatesData.value);
+  return !isEqual(groupedCostEstimatesData.value, originalGroupedCostEstimatesData.value);
 });
+
 
 
 const sendEstimate = async () => {
@@ -287,7 +295,6 @@ const sendEstimate = async () => {
     return;
   }
 
-  // Get the current selected version data
   const selectedVersion = costEstimateVersions.value.find(v => v.value === currentVersionNumber.value);
 
   if (!selectedVersion) {
@@ -298,30 +305,45 @@ const sendEstimate = async () => {
   try {
     console.log('Sending estimate with version:', currentVersionNumber.value, selectedVersion);
 
+    const pdfPayload = {
+      userId: userId.value,
+      estimateId: estimateId,
+      currentVersion: currentVersionNumber.value,
+      costEstimates: Object.values(groupedCostEstimatesData.value).map(slot => ({
+        date: formatDate(slot.date),
+        startTime: formatTimeRange(slot.start, slot.start),
+        endTime: formatTimeRange(slot.start, slot.end),
+        perSlotCosts: slot.perSlotCosts.map(cost => ({
+          description: cost.description,
+          total: cost.cost.toFixed(2)
+        })),
+        rooms: slot.rooms.map(room => ({
+          roomName: room.roomName,
+          costItems: room.costItems,
+          additionalCosts: room.additionalCosts.map(cost => ({
+            description: cost.description,
+            total: cost.cost.toFixed(2)
+          }))
+        })),
+        customLineItems: slot.customLineItems.map(item => ({
+          description: item.description,
+          total: item.cost.toFixed(2)
+        }))
+      })),
+      recipientEmail: props.rentalRequest.primaryContactEmail,
+      recipientName: props.rentalRequest.primaryContactName,
+      recipientOrganization: props.rentalRequest.organization,
+      roomMapping: roomMapping.value,
+    };
+
+    console.log('PDF Payload:', JSON.stringify(pdfPayload, null, 2));
+
     const response = await fetch('/api/costEstimates/sendEstimate', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        userId: userId.value,
-        estimateId: estimateId,
-        currentVersion: currentVersionNumber.value,
-        costEstimates: Object.values(groupedCostEstimatesData.value).map(slot => ({
-          ...slot,
-          rooms: slot.rooms.map(room => ({
-            ...room,
-            fullDayCostItem: room.fullDayCostItem || null,
-            daytimeCostItem: room.daytimeCostItem || null,
-            eveningCostItem: room.eveningCostItem || null,
-          })),
-          customLineItems: slot.customLineItems || [],
-        })),
-        recipientEmail: props.rentalRequest.primaryContactEmail,
-        recipientName: props.rentalRequest.primaryContactName,
-        recipientOrganization: props.rentalRequest.organization,
-        roomMapping: roomMapping.value,
-      }),
+      body: JSON.stringify(pdfPayload),
     });
 
     const result = await response.json();
@@ -334,12 +356,10 @@ const sendEstimate = async () => {
         color: 'green',
         description: 'This estimate has been emailed to the renter.',
       });
-
       console.log('Estimate sent successfully');
     } else {
       console.error('Failed to send estimate:', result.message);
     }
-
   } catch (err) {
     console.error('Error sending estimate:', err);
   }
@@ -361,7 +381,7 @@ const { resourceOptions } = useResources();
 const versionOptions = computed(() => costEstimateVersions.value);
 const groupCostEstimates = (costEstimates) => {
   return costEstimates.reduce((acc, estimate) => {
-    const slotId = estimate.id;  // Using the estimate's ID as the slotId
+    const slotId = estimate.id;
 
     acc[slotId] = {
       id: slotId,
@@ -372,55 +392,47 @@ const groupCostEstimates = (costEstimates) => {
         resourceId: null,
         cost: null
       },
-      rooms: (estimate.rooms || []).map(room => ({
-        ...room,
-        fullDayCostItem: room.fullDayPrice ? {
-          id: uuidv4(),
-          slotId: slotId,  // Ensure slotId is added here
-          roomSlug: room.roomSlug,
-          description: 'Full Day Rental (Flat Rate)',
-          cost: room.fullDayPrice,
-          type: 'fullDay',
-        } : null,
-        daytimeCostItem: room.daytimePrice ? {
-          id: uuidv4(),
-          slotId: slotId,  // Ensure slotId is added here
-          roomSlug: room.roomSlug,
-          description: formatDescription(room.daytimeHours, room.daytimeRate, room.daytimeRateType, 'Daytime'),
-          cost: room.daytimeHourly ? room.daytimeHours * room.daytimePrice : room.daytimePrice,
-          type: 'daytime',
-        } : null,
-        eveningCostItem: room.eveningPrice ? {
-          id: uuidv4(),
-          slotId: slotId,  // Ensure slotId is added here
-          roomSlug: room.roomSlug,
-          description: formatDescription(room.eveningHours, room.eveningRate, room.eveningRateType, 'Evening'),
-          cost: room.eveningHourly ? room.eveningHours * room.eveningPrice : room.eveningPrice,
-          type: 'evening',
-        } : null,
-        additionalCosts: (room.additionalCosts || []).map(cost => ({
-          ...cost,
-          slotId: slotId,  // Ensure slotId is added here
-          id: cost.id || uuidv4(),
-        })),
-      })),
-
+      rooms: (estimate.rooms || []).map(room => {
+        const roomName = roomMapping.value.find((r) => r.slug === room.roomSlug)?.name || room.roomSlug;
+        return {
+          ...room,
+          roomName,
+          fullDayCostItem: room.fullDayPrice ? {
+            id: uuidv4(),
+            description: `Full Day Flat Rate`,
+            cost: room.fullDayPrice
+          } : null,
+          daytimeCostItem: room.daytimePrice ? {
+            id: uuidv4(),
+            description: formatDescription(room.daytimeHours, room.daytimeRate, room.daytimeRateType, 'Daytime', roomName),
+            cost: room.daytimePrice
+          } : null,
+          eveningCostItem: room.eveningPrice ? {
+            id: uuidv4(),
+            description: formatDescription(room.eveningHours, room.eveningRate, room.eveningRateType, 'Evening', roomName),
+            cost: room.eveningPrice
+          } : null,
+          additionalCosts: (room.additionalCosts || []).map(cost => ({
+            ...cost,
+            slotId: slotId,
+            id: cost.id || uuidv4(),
+          })),
+        };
+      }),
       perSlotCosts: (estimate.perSlotCosts || []).map(cost => ({
         ...cost,
-        slotId: slotId,  // Ensure slotId is added here
+        slotId: slotId,
         id: cost.id || uuidv4(),
       })),
-
       customLineItems: (estimate.customLineItems || []).map(item => ({
         ...item,
-        slotId: slotId,  // Ensure slotId is added here
+        slotId: slotId,
         id: item.id || uuidv4(),
       })),
     };
     return acc;
   }, {});
 };
-
 
 const currentVersionLabel = computed(() => {
   const version = versionOptions.value.find(v => v.value === currentVersionNumber.value);
@@ -507,35 +519,55 @@ watch([costEstimateData, error], ([newData, newError]) => {
 
 
 
-
 const handleVersionChange = async (newVersion) => {
   try {
     console.log('Version change triggered for version:', newVersion);
     currentVersionNumber.value = newVersion;
     await fetchVersionDetails(newVersion);
+    originalGroupedCostEstimatesData.value = cloneDeep(groupedCostEstimatesData.value);
+    resetChangesFlag();
+
   } catch (error) {
     console.error('Error fetching version details:', error);
     error.value = 'Failed to load version details. Please try again.';
+    toast.add({
+      title: 'Error',
+      description: 'Failed to load version details. Please try again.',
+      color: 'red'
+    });
   }
 };
 
 
+watch(currentVersionNumber, async (newVersion) => {
+  await fetchVersionDetails(newVersion);
+  // Reset the original data to match the newly loaded version
+  originalGroupedCostEstimatesData.value = cloneDeep(groupedCostEstimatesData.value);
+});
+
+const transformVersionData = () => {
+
+};
 
 const fetchVersionDetails = async (versionNumber) => {
-  const versionsArray = [...costEstimateData.value.versions];  // Create a shallow copy to work with
+  const versionsArray = [...costEstimateData.value.versions];
   const version = versionsArray.find(v => v.version === versionNumber);
-  console.log('versionsArray', versionsArray)
-  console.log('version', version)
   console.log('fetchVersionDetails:', versionNumber, version);
   if (version) {
     groupedCostEstimatesData.value = groupCostEstimates(version.costEstimates);
-    updateAllSlotTotals();  // Recalculate totals for the new version
+    originalGroupedCostEstimatesData.value = cloneDeep(groupedCostEstimatesData.value);
+    updateAllSlotTotals();
   } else {
     throw new Error('Version not found');
   }
 };
 
-
+const resetChangesFlag = () => {
+  if (typeof hasChanges !== 'undefined') {
+    hasChanges.value = false;
+  }
+  originalGroupedCostEstimatesData.value = cloneDeep(groupedCostEstimatesData.value);
+};
 
 
 
@@ -881,7 +913,7 @@ const saveCostEstimate = async () => {
       method: 'PUT',
       body: {
         costEstimates: Object.values(groupedCostEstimatesData.value),
-        totalCost: totalCost.value
+        totalCost: totalCost.value,
       }
     });
     await refresh();
@@ -940,14 +972,14 @@ const createNewVersion = async () => {
 const prepareCostEstimatesForSave = () => {
   if (!groupedCostEstimatesData.value) {
     console.error('groupedCostEstimatesData is undefined or null.');
-    return [];  // Return an empty array if no cost estimates data is available
+    return [];
   }
 
   return Object.values(groupedCostEstimatesData.value).map(slot => ({
-    id: slot.id, // Slot ID
-    date: slot.date, // Slot Date
-    start: slot.start, // Slot start time
-    end: slot.end, // Slot end time
+    id: slot.id,
+    date: slot.date,
+    start: slot.start,
+    end: slot.end,
     perSlotCosts: (slot.perSlotCosts || []).map(cost => ({
       id: cost.id || uuidv4(),
       description: cost.description,
@@ -977,8 +1009,8 @@ const prepareCostEstimatesForSave = () => {
       id: item.id || uuidv4(),
       description: item.description,
       cost: item.cost
-    })).filter(item => item.cost > 0 && item.description.trim() !== ''),  // Ensure valid custom line items
-    slotTotal: slot.totalCost || 0 // Total cost of the slot
+    })).filter(item => item.cost > 0 && item.description.trim() !== ''),
+    slotTotal: slot.totalCost || 0
   }));
 };
 
@@ -1084,6 +1116,17 @@ const currentVersion = computed(() => {
   console.log('costEstimateVersions.value', costEstimateVersions.value);
   return costEstimateVersions.value.find(v => v.value === currentVersionNumber.value) || {};
 });
+const sendButtonLabel = computed(() => {
+  return hasChanges.value
+    ? "Save Changes and Send Estimate"
+    : "Send Estimate";
+});
 
+const saveAndSendEstimate = async () => {
+  if (hasChanges.value) {
+    await saveCostEstimate();
+  }
+  await sendEstimate();
+};
 
 </script>
