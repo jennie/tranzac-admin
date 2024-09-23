@@ -3,8 +3,8 @@ import mongoose from "mongoose";
 import { ensureConnection } from "@/server/utils/mongoose";
 
 import { PricingRules, getCostEstimateModel } from "@tranzac/pricing-lib";
-const CostEstimate = await getCostEstimateModel(mongoose);
 export default defineEventHandler(async (event) => {
+  const CostEstimate = await getCostEstimateModel(mongoose);
   await ensureConnection();
 
   if (event.node.req.method === "POST") {
