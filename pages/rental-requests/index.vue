@@ -233,10 +233,7 @@ const filteredRentalRequests = computed(() => {
 
         <!-- Table Section -->
         <section class="table-section">
-          <h2 class="text-xl font-semibold mb-4">Rental Request Details</h2>
-          <p class="text-gray-600 mb-6">Detailed view of rental requests with filters applied based on the dashboard
-            selection.
-          </p>
+
 
           <!-- Filter toolbar and search bar -->
           <UDashboardNavbar title="Rental Requests" :badge="rentalRequests.length">

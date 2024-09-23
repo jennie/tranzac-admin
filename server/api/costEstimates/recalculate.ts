@@ -50,7 +50,7 @@ export default defineEventHandler(async (event) => {
     const { costEstimates, grandTotal, tax, totalWithTax } =
       await pricingRules.getPrice(normalizedData);
 
-    return { costEstimates, grandTotal, tax, totalWithTax };
+    return { grandTotal, tax, totalWithTax };
   } catch (error) {
     console.error("Error in calculateCostEstimates:", error);
     throw createError({
@@ -75,9 +75,10 @@ function normalizeRentalDates(rentalDates) {
 }
 
 function normalizeBooking(booking) {
+  const id = booking.id || uuidv4(); // Store the id in a variable
   return {
     ...booking,
-    id: booking.id || uuidv4(),
+    id: id, // Use the stored id
     date:
       booking.date ||
       (booking.start
@@ -86,7 +87,11 @@ function normalizeBooking(booking) {
     costItems: (booking.costItems || []).map((item) => ({
       id: item.id || item._id || uuidv4(),
       ...item,
-      slotId: booking.id || uuidv4(),
+      slotId: id, // Use the same id here
     })),
+    rooms: (booking.rooms || []).filter(
+      (room, index, self) =>
+        self.findIndex((r) => r.roomSlug === room.roomSlug) === index
+    ), // Ensure no duplicate rooms
   };
 }
