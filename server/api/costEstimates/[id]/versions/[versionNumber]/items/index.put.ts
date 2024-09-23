@@ -1,6 +1,6 @@
 import { defineEventHandler, readBody } from "h3";
 import { ensureConnection } from "@/server/utils/mongoose";
-import getCostEstimateModel from "@tranzac/pricing-lib";
+import { getCostEstimateModel } from "@tranzac/pricing-lib";
 import PricingRules from "@tranzac/pricing-lib";
 
 export default defineEventHandler(async (event) => {
@@ -18,7 +18,7 @@ export default defineEventHandler(async (event) => {
     }
 
     const connection = await ensureConnection();
-    const CostEstimate = getCostEstimateModel(connection);
+    const CostEstimate = await getCostEstimateModel(connection);
 
     // Find the cost estimate document
     const costEstimate = await CostEstimate.findOne({ rentalRequestId: id });

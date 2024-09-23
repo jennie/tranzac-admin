@@ -173,7 +173,7 @@ const filteredRentalRequests = computed(() => {
   <UDashboardPage>
     <UDashboardPanel grow>
       <!-- Wrapper for dashboard content -->
-      <DashboardPanelContent class="pb-24">
+      <UDashboardPanelContent class="pb-24">
         <!-- Section for Key Metrics -->
         <section class="metrics-section mb-8">
           <h2 class="text-xl font-semibold mb-4">Booking Overview</h2>
@@ -181,53 +181,53 @@ const filteredRentalRequests = computed(() => {
 
           <div class="dashboard-key-metrics grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <!-- New Requests Card -->
-            <DashboardCard title="New Requests" @click="filterByStatus('new')" class="cursor-pointer">
+            <UDashboardCard title="New Requests" @click="filterByStatus('new')" class="cursor-pointer">
               <template #default>
                 <div class="text-3xl font-bold">{{ totalNewRequests }}</div>
                 <p class="text-sm text-gray-500 mt-2">Total new requests in the system</p>
               </template>
-            </DashboardCard>
+            </UDashboardCard>
 
             <!-- Estimate Sent Card -->
-            <DashboardCard title="Estimate Sent" @click="filterByStatus('estimate_sent')" class="cursor-pointer">
+            <UDashboardCard title="Estimate Sent" @click="filterByStatus('estimate_sent')" class="cursor-pointer">
               <template #default>
                 <div class="text-3xl font-bold">{{ estimateSent }}</div>
                 <p class="text-sm text-gray-500 mt-2">Requests where estimates were sent</p>
               </template>
-            </DashboardCard>
+            </UDashboardCard>
 
             <!-- Estimate Accepted Card -->
-            <DashboardCard title="Estimate Accepted" @click="filterByStatus('estimate_accepted')"
+            <UDashboardCard title="Estimate Accepted" @click="filterByStatus('estimate_accepted')"
               class="cursor-pointer">
               <template #default>
                 <div class="text-3xl font-bold">{{ estimateAccepted }}</div>
                 <p class="text-sm text-gray-500 mt-2">Requests where estimates were accepted</p>
               </template>
-            </DashboardCard>
+            </UDashboardCard>
 
             <!-- Contract Signed Card -->
-            <DashboardCard title="Contract Signed" @click="filterByStatus('contract_signed')" class="cursor-pointer">
+            <UDashboardCard title="Contract Signed" @click="filterByStatus('contract_signed')" class="cursor-pointer">
               <template #default>
                 <div class="text-3xl font-bold">{{ contractSigned }}</div>
                 <p class="text-sm text-gray-500 mt-2">Contracts signed by clients</p>
               </template>
-            </DashboardCard>
+            </UDashboardCard>
 
             <!-- Deposit Paid Card -->
-            <DashboardCard title="Deposit Paid" @click="filterByStatus('deposit_paid')" class="cursor-pointer">
+            <UDashboardCard title="Deposit Paid" @click="filterByStatus('deposit_paid')" class="cursor-pointer">
               <template #default>
                 <div class="text-3xl font-bold">{{ depositPaid }}</div>
                 <p class="text-sm text-gray-500 mt-2">Requests where deposit has been paid</p>
               </template>
-            </DashboardCard>
+            </UDashboardCard>
 
             <!-- Balance Paid Card -->
-            <DashboardCard title="Balance Paid" @click="filterByStatus('balance_paid')" class="cursor-pointer">
+            <UDashboardCard title="Balance Paid" @click="filterByStatus('balance_paid')" class="cursor-pointer">
               <template #default>
                 <div class="text-3xl font-bold">{{ balancePaid }}</div>
                 <p class="text-sm text-gray-500 mt-2">Requests where full balance has been paid</p>
               </template>
-            </DashboardCard>
+            </UDashboardCard>
           </div>
         </section>
 
@@ -290,7 +290,7 @@ const filteredRentalRequests = computed(() => {
             </div>
           </UCard>
         </section>
-      </DashboardPanelContent>
+      </UDashboardPanelContent>
     </UDashboardPanel>
 
   </UDashboardPage>
