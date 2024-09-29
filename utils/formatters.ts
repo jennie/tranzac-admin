@@ -12,11 +12,20 @@ export const formatCurrency = (value: number | undefined | null): string => {
     currency: "CAD",
   }).format(value);
 };
-export function formatDescription(hours, price, rateType, period) {
+export function formatDescription(
+  hours,
+  price,
+  rateType,
+  period,
+  roomName = ""
+) {
+  const formattedPrice = formatCurrency(price);
   if (rateType === "flat") {
-    return `${period} (flat rate)`;
+    return `${period} (flat rate: ${formattedPrice})`;
   }
-  return `${hours}h ${period} @ $${price}/hour`;
+  return `${hours}h ${period} @ ${formattedPrice}${
+    rateType === "hourly" ? "/hour" : ""
+  }`;
 }
 export function formatDate(dateString: string): string {
   try {

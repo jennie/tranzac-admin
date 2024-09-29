@@ -24,10 +24,10 @@ export default defineEventHandler(async (event) => {
     await ensureConnection();
     const body = await readBody(event);
 
-    console.log(
-      "Rental Dates received in API route:",
-      JSON.stringify(body.rentalDates, null, 2)
-    );
+    // console.log(
+    //   "Rental Dates received in API route:",
+    //   JSON.stringify(body.rentalDates, null, 2)
+    // );
 
     // Ensure body.rentalDates is an object
     if (!body.rentalDates || typeof body.rentalDates !== "object") {
@@ -36,10 +36,10 @@ export default defineEventHandler(async (event) => {
 
     // Pass rentalDates directly without normalization
     const pricingRules = new PricingRules();
-    console.log(
-      "Checking additionalCosts:",
-      JSON.stringify(body.rentalDates, null, 2)
-    );
+    // console.log(
+    //   "Checking additionalCosts:",
+    //   JSON.stringify(body.rentalDates, null, 2)
+    // );
 
     const { costEstimates, grandTotal, tax, totalWithTax } =
       await pricingRules.getPrice({ rentalDates: body.rentalDates });

@@ -676,7 +676,8 @@ const costEstimateData = computed(() => {
         rooms: slot.rooms.map(room => room.id),
         resources: slot.resources,
         private: slot.private,
-        expectedAttendance: slot.expectedAttendance
+        expectedAttendance: slot.expectedAttendance,
+        rateDescription: slot.rateDescription || ''
       }))
     }))
   };
