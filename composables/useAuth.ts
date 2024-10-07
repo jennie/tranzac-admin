@@ -16,7 +16,6 @@ export function useAuth() {
   const loggedIn = ref(false);
   const user = ref(null);
   const authModal = ref(false); // Define authModal
-  // console.log("Initializing useAuth. Session State:", sessionState);
 
   async function clear() {
     console.log("Clearing user session...");
@@ -72,28 +71,56 @@ export function useAuth() {
   async function onRegister(registeredUser) {
     try {
       authStore.showAuthModal = false;
-      authStore.showAuthModal = false;
       loggedIn.value = true;
-      user.value = registeredUser;
+      user.value = registeredUser.user;
 
       const userStore = useUserStore();
-      userStore.setUser(registeredUser);
+      userStore.setUser(registeredUser.user);
 
-      // Include the user ID in the session state
-      sessionState.value = { ...sessionState.value, _id: registeredUser._id };
+      // Include the user ID and token in the session state
+      sessionState.value = {
+        token: registeredUser.token, // Token received from the backend
+        _id: registeredUser.user._id,
+        email: registeredUser.user.email,
+        name: registeredUser.user.name, // Include the name
+      };
 
-      //       console.log("registeredUser", registeredUser);
+      // Optionally, call `me()` to merge additional data if necessary
+      await me();
+
+      // Use the user's name for the toast message
+      const displayName =
+        registeredUser.user.name || registeredUser.user.email || "User";
 
       navigateTo("/");
       toast.add({
         title: "Registered",
         icon: "i-ph-sign-in",
-        description: `${
-          registeredUser.name || registeredUser.email
-        } registered successfully.`,
+        description: `${displayName} registered successfully.`,
       });
     } catch (error) {
       onError(error);
+    }
+  }
+
+  async function register(registerData) {
+    try {
+      const data = await $fetch("/api/auth/register", {
+        method: "POST",
+        body: registerData,
+      });
+
+      if (!data) {
+        throw new Error("An unexpected error occurred");
+      }
+
+      onRegister(data);
+    } catch (error) {
+      if (error) {
+        errorMessage.value = error.message;
+      } else {
+        errorMessage.value = "An unexpected error occurred";
+      }
     }
   }
 
@@ -166,6 +193,7 @@ export function useAuth() {
     onLogin,
     authModal,
     onRegister,
+    register,
     onSignOut,
     onError,
     clear,
