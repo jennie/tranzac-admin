@@ -33,96 +33,7 @@
 
           </UDashboardSection>
         </template>
-        <template #dates="{ item }">
 
-
-          <UDashboardSection title="Rental Dates and Slots" description="">
-            <div v-for="date in rental.dates || []" :key="date.id" class="mb-6">
-              <h3 class="text-lg font-semibold mb-2">
-                {{ formatDate(date.date) }}
-                <span v-if="date.slots && date.slots.length > 0" class="text-sm font-normal">
-                  ({{ formatTimeRangeReadable(date.slots[0]?.startTime?.time, date.slots[date.slots.length -
-                    1]?.endTime?.time) }})
-                </span>
-              </h3>
-              <div v-for="slot in date.slots || []" :key="slot.id"
-                class="ml-4 mb-4 border border-gray-200 rounded-lg p-4">
-                <!-- <pre>{{ slot }}</pre> -->
-                <div class="grid grid-cols-2 gap-4">
-                  <div class="">
-
-                    <div class="space-y-4">
-                      <UFormGroup label="Title">
-                        <UInput v-model="slot.title" placeholder="Enter title" />
-                      </UFormGroup>
-                      <UFormGroup label="Event Type">
-                        <EventTypeSelect v-model="slot.eventType" />
-                      </UFormGroup>
-                      <UFormGroup label="Expected Attendance">
-                        <UInput v-model="slot.expectedAttendance" type="number"
-                          placeholder="Enter expected attendance" />
-                      </UFormGroup>
-                      <UFormGroup label="Description">
-                        <UTextarea v-model="slot.description" placeholder="Enter description" />
-                      </UFormGroup>
-                    </div>
-                  </div>
-                  <div class="bg-stone-100 dark:bg-stone-950 p-3 rounded-md my-6 prose prose-cream dark:prose-invert">
-                    <div class="flex flex-row justify-between items-center">
-                      <h4 class="m-0 p-0">Important Times</h4>
-                      <!-- {{ slot.endTime }} -->
-                    </div>
-                    <div class="grid grid-cols-2 gap-4">
-                      <UFormGroup label="Start Time">
-                        <TimeSelect :model-value="slot.startTime?.time"
-                          @update:model-value="updateTime(slot, 'startTime', $event)" :options="timeOptions"
-                          placeholder="Select start time" />
-                      </UFormGroup>
-                      <UFormGroup label="End Time">
-                        <TimeSelect :model-value="slot.endTime?.time"
-                          @update:model-value="updateTime(slot, 'endTime', $event)" :options="timeOptions"
-                          placeholder="Select end time" />
-                      </UFormGroup>
-                      <UFormGroup label="Load In">
-                        <TimeSelect :model-value="slot.loadInTime?.time"
-                          @update:model-value="updateTime(slot, 'loadInTime', $event)" :options="timeOptions"
-                          placeholder="Select load-in time" />
-                      </UFormGroup>
-                      <UFormGroup label="Sound Check">
-                        <TimeSelect :model-value="slot.soundCheckTime?.time"
-                          @update:model-value="updateTime(slot, 'soundCheckTime', $event)" :options="timeOptions"
-                          placeholder="Select sound check time" />
-                      </UFormGroup>
-                      <UFormGroup label="Doors">
-                        <TimeSelect :model-value="slot.doorsTime?.time"
-                          @update:model-value="updateTime(slot, 'doorsTime', $event)" :options="timeOptions"
-                          placeholder="Select doors time" />
-                      </UFormGroup>
-                    </div>
-                  </div>
-
-                  <UFormGroup label="Rooms">
-                    <RoomSelectMenu v-model="slot.rooms" :debug-mode="false" />
-                  </UFormGroup>
-                  <UFormGroup label="Resources">
-                    <ResourceSelectMenu v-model="slot.resources" :resource-options="resourceOptions" />
-                  </UFormGroup>
-                </div>
-
-                <div class="flex flex-row w-full items-center space-x-8 mt-4">
-                  <UFormGroup label="Private">
-                    <UToggle on-icon="i-heroicons-check-20-solid" name="private" off-icon="i-heroicons-x-mark-20-solid"
-                      v-model="slot.private" size="2xl" />
-                  </UFormGroup>
-                  <UFormGroup label="All Ages">
-                    <UToggle on-icon="i-heroicons-check-20-solid" name="allAges" off-icon="i-heroicons-x-mark-20-solid"
-                      v-model="slot.allAges" size="2xl" />
-                  </UFormGroup>
-                </div>
-              </div>
-            </div>
-          </UDashboardSection>
-        </template>
         <template #costEstimates="{ item }">
           <UDashboardSection>
             <div class="flex justify-between items-center mb-4">
@@ -139,6 +50,10 @@
 
           </UDashboardSection>
         </template>
+        <template #events="{ item }">
+          <RentalsEventsSection :rental="rental" />
+        </template>
+
       </UTabs>
     </UDashboardPanelContent>
   </UDashboardPanel>
@@ -169,8 +84,8 @@ const { resourceOptions } = useResources();
 
 const tabs = [
   { slot: 'renter', label: 'Renter Info' },
-  { slot: 'dates', label: 'Dates & Times' },
-  { slot: 'costEstimates', label: 'Estimate' }
+  { slot: 'costEstimates', label: 'Estimate' },
+  { slot: 'events', label: 'Events' }
 ];
 
 const QUERY = `

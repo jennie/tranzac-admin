@@ -28,7 +28,7 @@
     "@rschedule/core": "^1.5.0",
     "@rschedule/standard-date-adapter": "^1.5.0",
     "@sendgrid/mail": "^8.1.1",
-    "@tranzac/pricing-lib": "^1.2.10",
+    "@tranzac/pricing-lib": "^1.2.14",
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.5",
     "@unovis/ts": "^1.4.0",

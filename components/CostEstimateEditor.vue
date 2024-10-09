@@ -51,13 +51,35 @@
       <div v-if="groupedCostEstimatesData && Object.keys(groupedCostEstimatesData).length > 0">
         <!-- Loop through grouped cost estimates -->
         <div v-for="(slot, slotId) in groupedCostEstimates" :key="slot.date">
+
+
           <div
             class="bg-white dark:bg-stone-950 border dark:border-stone-700 rounded-lg overflow-hidden shadow-sm mb-6">
             <div
               class="bg-stone-100 dark:bg-stone-800 px-6 py-4 dark:text-stone-100 font-semibold flex justify-between items-center">
               <span>{{ formatDate(slot.date) }} - {{ formatTimeRange(slot.start, slot.end) }}</span>
             </div>
-
+            <div class="p-4">
+              <!-- Room Selection -->
+              <div class="mb-4">
+                <h5 class="text-md font-semibold mb-2">Room Selection</h5>
+                <div v-for="room in availableRooms" :key="room.id" class="flex items-center mb-2">
+                  <UCheckbox v-model="slot.selectedRooms" :val="room.id" :disabled="!isRoomAvailable(room.id, slot)"
+                    @change="updateRoomSelection(slot, room.id)" />
+                  <span class="ml-2">{{ room.name }}</span>
+                  <span v-if="!isRoomAvailable(room.id, slot)" class="text-red-500 ml-2">(Unavailable)</span>
+                </div>
+              </div>
+              <!-- Resource Selection -->
+              <div class="mb-4">
+                <h5 class="text-md font-semibold mb-2">Resource Selection</h5>
+                <div v-for="resource in resourceOptions" :key="resource.id" class="flex items-center mb-2">
+                  <UCheckbox v-model="slot.selectedResources" :val="resource.id"
+                    @change="updateResourceSelection(slot, resource.id)" />
+                  <span class="ml-2">{{ resource.name }}</span>
+                </div>
+              </div>
+            </div>
             <!-- Per-Slot Costs -->
             <div v-if="slot.perSlotCosts && slot.perSlotCosts.length > 0" class="p-4">
               <h4 class="text-sm uppercase font-bold text-primary">Slot Costs</h4>
@@ -189,16 +211,22 @@ import { ref, computed, watch, onMounted } from 'vue';
 import { useResources } from '@/composables/useResources';
 import { formatDescription, formatCurrency, formatDate, formatTimeRange } from '@/utils/formatters';
 import { isEqual } from 'lodash-es';
-const isSubmitting = ref(false);
-
-const toast = useToast();
-
+import { useAdminBookingStore } from '@/stores/adminBookingStore';
 import cloneDeep from 'lodash/cloneDeep';
 import _ from 'lodash';
+const rentalData = computed(() => adminBookingStore.rentalData)
+const eventSlots = computed(() => adminBookingStore.eventSlots)
+const route = useRoute()
+const rentalRequestId = ref(route.params.id) // Assuming the ID is in the route params
+
+const isSubmitting = ref(false);
+const toast = useToast();
+const adminBookingStore = useAdminBookingStore();
 
 const taxAmount = ref(0);
 const totalWithTax = ref(0);
 const totalCost = ref(0);
+console.log('Initial rentalRequestId:', rentalRequestId.value)
 
 
 const originalData = ref(null);
@@ -249,8 +277,17 @@ onMounted(async () => {
   await fetchVersions();
   await recalculateCosts(); // Recalculate when the component is mounted
   originalGroupedCostEstimatesData.value = cloneDeep(groupedCostEstimatesData.value);
-
+  console.log('BookingManagerWorkflow mounted, rentalRequestId:', rentalRequestId.value)
+  if (rentalRequestId.value) {
+    console.log('Setting currentRentalRequest:', rentalRequestId.value)
+    adminBookingStore.setCurrentRentalRequest(rentalRequestId.value)
+    await adminBookingStore.fetchRentalRequestData(rentalRequestId.value)
+  } else {
+    console.error('No rental request ID found in the route')
+  }
 });
+
+
 
 const fetchVersions = async () => {
   try {
@@ -556,13 +593,51 @@ const handleVersionChange = async (newVersion) => {
 
 
 
+onMounted(async () => {
+  try {
+    isLoading.value = true
+    adminBookingStore.setCurrentRentalRequest(props.rentalRequestId)
+    await adminBookingStore.fetchRentalData
+    isLoading.value = false
+  } catch (err) {
+    console.error('Error in CostEstimateEditor:', err)
+    error.value = err.message || 'An error occurred while fetching data'
+    isLoading.value = false
+  }
+})
+
+onMounted(async () => {
+  console.log('BookingManagerWorkflow mounted, rentalRequestId:', rentalRequestId.value)
+  if (rentalRequestId.value) {
+    await adminBookingStore.fetchRentalRequestData(rentalRequestId.value)
+  } else {
+    console.error('No rental request ID found in the route')
+  }
+})
+
+// Watch for changes in the route params
+watch(() => route.params.id, async (newId) => {
+  console.log('Route param id changed:', newId)
+  if (newId && newId !== rentalRequestId.value) {
+    rentalRequestId.value = newId
+    await adminBookingStore.fetchRentalRequestData(newId)
+  }
+})
+
 watch(currentVersionNumber, async (newVersion) => {
   await fetchVersionDetails(newVersion);
   // Reset the original data to match the newly loaded version
   originalGroupedCostEstimatesData.value = cloneDeep(groupedCostEstimatesData.value);
 });
 
-
+watch(() => route.params.id, (newId) => {
+  console.log('Route param id changed:', newId)
+  if (newId && newId !== rentalRequestId.value) {
+    rentalRequestId.value = newId
+    adminBookingStore.setCurrentRentalRequest(newId)
+    adminBookingStore.fetchRentalRequestData(newId)
+  }
+})
 
 const fetchVersionDetails = async (versionNumber) => {
   const versionsArray = [...costEstimateData.value.versions];
@@ -833,7 +908,7 @@ const recalculateSlotTotal = (slot) => {
 
 
 watch(() => groupedCostEstimatesData.value, (newValue) => {
-  console.log('groupedCostEstimatesData updated:', JSON.stringify(newValue, null, 2));
+  // console.log('groupedCostEstimatesData updated:', JSON.stringify(newValue, null, 2));
   Object.values(newValue).forEach(slot => {
     slot.rooms.forEach(room => {
       console.log(`Room ${room.roomSlug} daytimeCostItem:`, room.daytimeCostItem);
@@ -942,8 +1017,11 @@ const createNewVersion = async () => {
 
     // Fetch the new version details to load the data into the editor
     await fetchVersionDetails(newVersion.version);
-
-    // Handle success response, such as showing a notification to the user
+    await bookingStore.updateRentalRequest({
+      id: props.rentalRequestId,
+      rooms: selectedRooms,
+      resources: selectedResources,
+    });
     toast.add({
       title: 'Version Created',
       description: 'A new version has been successfully saved.',
@@ -1324,6 +1402,36 @@ const saveAndSendEstimate = async () => {
 };
 
 
+// rooms and resources
+const updateResourceSelection = (slot, resourceId) => {
 
+  recalculateCosts(slot);
+};
+import { useRooms } from '@/composables/useRooms'
+
+const { rooms, checkRoomAvailability } = useRooms()
+
+const isRoomAvailable = async (roomId, slot) => {
+  const result = await checkRoomAvailability(roomId, new Date(slot.start), new Date(slot.end))
+  return result.isAvailable
+}
+
+const updateRoomSelection = async (slot, roomId) => {
+  const availability = await isRoomAvailable(roomId, slot)
+  if (availability) {
+    // Update room selection logic
+    if (!slot.selectedRooms.includes(roomId)) {
+      slot.selectedRooms.push(roomId)
+    } else {
+      slot.selectedRooms = slot.selectedRooms.filter(id => id !== roomId)
+    }
+    // Recalculate costs
+    await recalculateCosts(slot)
+  } else {
+    // Handle unavailable room (e.g., show an error message)
+    console.error('Room is not available for the selected time slot')
+    // You might want to use a toast or alert to inform the user
+  }
+}
 
 </script>

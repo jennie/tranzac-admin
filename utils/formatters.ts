@@ -27,7 +27,31 @@ export function formatDescription(
     rateType === "hourly" ? "/hour" : ""
   }`;
 }
+const format12Hour = (time) => {
+  if (!time) return "";
+  try {
+    let parsedTime;
+    if (time.includes("T")) {
+      parsedTime = parseISO(time);
+    } else {
+      parsedTime = parse(time, "HH:mm", new Date());
+    }
+    if (isValid(parsedTime)) {
+      return format(parsedTime, "h:mm a");
+    }
+  } catch (error) {
+    console.error(`Error formatting time: ${time}`, error);
+  }
+  return "";
+};
+
+export const formatTimeRangeReadable = (startTime, endTime) => {
+  const formattedStart = format12Hour(startTime);
+  const formattedEnd = format12Hour(endTime);
+  return `${formattedStart} - ${formattedEnd}`;
+};
 export function formatDate(dateString: string): string {
+  console.log("Formatting date:", dateString);
   try {
     const date = parseISO(dateString);
     return format(date, "EEEE, MMMM d, yyyy");

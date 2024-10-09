@@ -1,15 +1,15 @@
 <template>
-  <USelectMenu searchable searchable-placeholder="Start typing..." :model-value="displayValue"
-    @update:model-value="updateValue" :options="formattedOptions" :placeholder="placeholder" />
+  <USelectMenu :model-value="displayValue" @update:model-value="onSelectChange" :options="formattedOptions"
+    option-attribute="label" :placeholder="placeholder" />
 </template>
 
 <script lang="ts" setup>
 import { computed, ref, watch } from 'vue';
-import { format, parse, isValid } from 'date-fns';
+import { format, parse, parseISO, isValid } from 'date-fns';
 
 const props = defineProps({
   modelValue: {
-    type: String,
+    type: [String, Object],
     default: ''
   },
   options: {
@@ -24,56 +24,68 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue']);
 
-const displayValue = computed(() => {
-  return format12Hour(props.modelValue);
-});
+const displayValue = ref('');
+
+const onSelectChange = (selectedOption: string) => {
+  emit('update:modelValue', selectedOption);
+};
 
 const formattedOptions = computed(() => {
   return props.options.map(option => ({
     label: format12Hour(option.value),
-    value: option.value
+    value: option.value // This should be in 'HH:mm' format
   }));
 });
 
-const format12Hour = (time) => {
-  if (!time) return '';
+const format12Hour = (time: string): string => {
+  if (!time) return "";
   try {
-    const parsedTime = parse(time, 'HH:mm', new Date());
+    const parsedTime = parse(time, "HH:mm", new Date());
+    if (isValid(parsedTime)) {
+      return format(parsedTime, "h:mm a");
+    }
+  } catch (error) {
+    console.error(`Error formatting time: ${time}`, error);
+  }
+  return "";
+};
+
+const extractTimeAndFormat12Hour = (value: string | object): string => {
+  if (!value) return '';
+  try {
+    let timeString: string;
+    if (typeof value === 'object' && value !== null && 'value' in value) {
+      timeString = (value as { value: string }).value;
+    } else if (typeof value === 'string') {
+      timeString = value;
+    } else {
+      return '';
+    }
+
+    // Check if the timeString is in 'HH:mm' format
+    if (/^\d{2}:\d{2}$/.test(timeString)) {
+      const parsedTime = parse(timeString, "HH:mm", new Date());
+      if (isValid(parsedTime)) {
+        return format(parsedTime, 'h:mm a');
+      }
+    }
+
+    // If not in 'HH:mm' format, try parsing as ISO
+    const parsedTime = parseISO(timeString);
     if (isValid(parsedTime)) {
       return format(parsedTime, 'h:mm a');
     }
   } catch (error) {
-    console.error(`Error formatting time: ${time}`, error);
+    console.error(`Error extracting and formatting time:`, error);
   }
   return '';
 };
 
-const format24Hour = (time) => {
-  if (!time) return '';
-  try {
-    const parsedTime = parse(time, 'h:mm a', new Date());
-    if (isValid(parsedTime)) {
-      return format(parsedTime, 'HH:mm');
-    }
-  } catch (error) {
-    console.error(`Error formatting time: ${time}`, error);
-  }
-  return '';
-};
-
-const updateValue = (newValue) => {
-  // Convert the 12-hour format back to 24-hour format
-  const time24 = format24Hour(newValue);
-  emit('update:modelValue', time24);
-};
-
-// Watch for changes in modelValue and update displayValue
 watch(() => props.modelValue, (newValue) => {
   if (newValue) {
-    const formatted = format12Hour(newValue);
-    if (formatted !== displayValue.value) {
-      displayValue.value = formatted;
-    }
+    displayValue.value = extractTimeAndFormat12Hour(newValue);
+  } else {
+    displayValue.value = '';
   }
-});
+}, { immediate: true });
 </script>
