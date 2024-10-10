@@ -126,9 +126,22 @@ const props = defineProps({
   },
 
 });
-const rentalData = computed(() => adminBookingStore.rentalData);
+import { storeToRefs } from 'pinia';
 
-const adminBookingStore = useAdminBookingStore();
+const store = useAdminBookingStore();
+const {
+  groupedCostEstimatesData,
+  totalCost,
+  taxAmount,
+  totalWithTax,
+  rentalData,
+  eventSlots,
+  costEstimateVersions,
+  currentVersionNumber,
+  hasChanges,
+  sendButtonLabel
+} = storeToRefs(store);
+
 const { resourceOptions } = useResources();
 
 const isLoading = ref(true);
@@ -149,31 +162,24 @@ const endTime = ref('02:00'); // default to 2 AM next day if not set in rentalDa
 //   }
 // });
 const parseTime = (timeString) => {
-  console.log('timeString:', timeString);
-
   let parsedTime;
-
-  // Check if it's an ISO date string
   if (timeString.includes('T')) {
     parsedTime = parseISO(timeString);
   } else {
-    // Assume it's a time string in 'HH:mm' format
     parsedTime = parse(timeString, 'HH:mm', new Date());
   }
-
-  console.log('parsedTime:', parsedTime);
   return isValid(parsedTime) ? parsedTime : null;
 };
 
 
 const generateTimeOptions = (slot) => {
-  console.log('slot:', slot);
+  // console.log('slot:', slot);
   const options = [];
 
   // Get start and end times for the slot, default to your fallback times if missing
   let start = parseTime(slot.startTime?.time || "12:00");
   let end = parseTime(slot.endTime?.time || "02:00");
-  console.log('start:', parseTime(slot.startTime?.time));
+  // console.log('start:', parseTime(slot.startTime?.time));
   // Validate start and end times
   if (!start || !end) return options;
 
@@ -193,7 +199,7 @@ const generateTimeOptions = (slot) => {
 
     current = addMinutes(current, 30);
   }
-  console.log('options:', options);
+  // console.log('options:', options);
   return options;
 };
 
@@ -240,7 +246,7 @@ const saveChanges = async () => {
     };
 
     console.log('Saving event slots:', JSON.stringify(slotsToSave, null, 2));
-    await adminBookingStore.saveEventSlots(slotsToSave);
+    await store.saveEventSlots(slotsToSave);
     console.log('Changes saved successfully');
   } catch (error) {
     console.error('Error saving changes:', error);
@@ -251,16 +257,16 @@ const saveChanges = async () => {
 
 onMounted(async () => {
   isLoading.value = true;
-  adminBookingStore.setCurrentRentalRequest(props.rental.id);
-  await adminBookingStore.fetchRentalData();
+  store.setCurrentRentalRequest(props.rental.id);
+  await store.fetchRentalData();
   isLoading.value = false;
 });
 
 watch(() => props.rental.id, async (newId) => {
   if (newId) {
     isLoading.value = true;
-    adminBookingStore.setCurrentRentalRequest(newId);
-    await adminBookingStore.fetchRentalData();
+    store.setCurrentRentalRequest(newId);
+    await store.fetchRentalData();
     isLoading.value = false;
   }
 });

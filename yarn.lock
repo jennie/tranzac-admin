@@ -2200,10 +2200,10 @@
   dependencies:
     "@tanstack/virtual-core" "3.10.6"
 
-"@tranzac/pricing-lib@^1.2.14":
-  version "1.2.14"
-  resolved "https://registry.yarnpkg.com/@tranzac/pricing-lib/-/pricing-lib-1.2.14.tgz#c7a894dca63e962a211e99b576b9d4c6b5746343"
-  integrity sha512-9V/0mrURpLMIcLLVS6MYbD8yQso1pTiEffkLAiILEa2mcY7d4J9dXnA9V0u/k4qs38h0xAqIn/qMln+3XzQEbQ==
+"@tranzac/pricing-lib@^1.2.22":
+  version "1.2.22"
+  resolved "https://registry.yarnpkg.com/@tranzac/pricing-lib/-/pricing-lib-1.2.22.tgz#f99a99d313cee85031919b12032e17e766b3d1c1"
+  integrity sha512-tflFARoGCXl3YWsu83caleSDT3qq4sCESQtmE4kucY780rCZU/71q+lnKO1SYWht0XmwkGjtNFuBiumonV8OIg==
   dependencies:
     date-fns "^3.6.0"
     date-fns-tz "^3.1.3"

@@ -50,16 +50,17 @@ export const formatTimeRangeReadable = (startTime, endTime) => {
   const formattedEnd = format12Hour(endTime);
   return `${formattedStart} - ${formattedEnd}`;
 };
-export function formatDate(dateString: string): string {
-  console.log("Formatting date:", dateString);
+export const formatDate = (dateString) => {
+  if (!dateString) return "Invalid Date";
+  const date = parseISO(dateString);
+  if (!isValid(date)) return "Invalid Date";
   try {
-    const date = parseISO(dateString);
-    return format(date, "EEEE, MMMM d, yyyy");
+    return format(date, "MMMM d, yyyy");
   } catch (error) {
     console.error("Error formatting date:", dateString, error);
-    return "Invalid date";
+    return "Invalid Date";
   }
-}
+};
 
 export const formatTime = (time) => {
   if (!time) return "";

@@ -8,7 +8,9 @@ export default defineEventHandler(async (event) => {
   const id = event.context.params.id;
 
   try {
-    const costEstimate = await CostEstimate.findOne({ rentalRequestId: id });
+    const costEstimate = await CostEstimate.findOne({
+      rentalRequestId: id,
+    }).lean(); // Use .lean() to get plain JavaScript objects
 
     if (!costEstimate) {
       return createError({
@@ -27,9 +29,11 @@ export default defineEventHandler(async (event) => {
         createdAt: version.createdAt,
         costEstimates: version.costEstimates.map((estimate) => ({
           id: estimate.id,
-          date: estimate.date,
-          start: estimate.start,
-          end: estimate.end,
+          date: estimate.date
+            ? estimate.date.toISOString().split("T")[0]
+            : null,
+          start: estimate.start ? estimate.start.toISOString() : null,
+          end: estimate.end ? estimate.end.toISOString() : null,
           perSlotCosts: estimate.perSlotCosts,
           rooms: estimate.estimates.map((room) => ({
             roomSlug: room.roomSlug,
