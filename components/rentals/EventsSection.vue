@@ -118,6 +118,7 @@ import { useAdminBookingStore } from '@/stores/adminBookingStore';
 import { formatDate, formatTimeRange, formatTimeRangeReadable } from '@/utils/formatters';
 import { useResources } from '@/composables/useResources';
 import { parseISO, format, addMinutes, isBefore, isValid, set } from 'date-fns';
+import { generateTimeOptions } from '@/utils/timeUtils';
 
 const props = defineProps({
   rental: {
@@ -149,18 +150,6 @@ const isLoading = ref(true);
 const startTime = ref('12:00'); // default to 12 PM if not set in rentalData
 const endTime = ref('02:00'); // default to 2 AM next day if not set in rentalData
 
-// If you have dynamic values based on rentalData, set them here
-// watch(rentalData, (newData) => {
-//   if (newData && newData.dates && newData.dates.length > 0) {
-//     const firstSlot = newData.dates[0].slots[0];
-//     if (firstSlot && firstSlot.startTime?.time) {
-//       startTime.value = format(parse(firstSlot.startTime.time, 'HH:mm', new Date()), 'HH:mm');
-//     }
-//     if (firstSlot && firstSlot.endTime?.time) {
-//       endTime.value = format(parse(firstSlot.endTime.time, 'HH:mm', new Date()), 'HH:mm');
-//     }
-//   }
-// });
 const parseTime = (timeString) => {
   let parsedTime;
   if (timeString.includes('T')) {
@@ -172,36 +161,6 @@ const parseTime = (timeString) => {
 };
 
 
-const generateTimeOptions = (slot) => {
-  // console.log('slot:', slot);
-  const options = [];
-
-  // Get start and end times for the slot, default to your fallback times if missing
-  let start = parseTime(slot.startTime?.time || "12:00");
-  let end = parseTime(slot.endTime?.time || "02:00");
-  // console.log('start:', parseTime(slot.startTime?.time));
-  // Validate start and end times
-  if (!start || !end) return options;
-
-  // Calculate the last available time, 30 minutes before `end`
-  const lastAvailableTime = addMinutes(end, -30);
-
-  // Generate time options at 30-minute intervals
-  let current = start;
-  while (isBefore(current, lastAvailableTime) || current.getTime() === lastAvailableTime.getTime()) {
-    const formattedTime = format(current, 'HH:mm');
-    const displayTime = format(current, 'h:mm a');
-
-    options.push({
-      label: displayTime,
-      value: formattedTime
-    });
-
-    current = addMinutes(current, 30);
-  }
-  // console.log('options:', options);
-  return options;
-};
 
 
 const updateTime = (slot, timeType, newValue) => {

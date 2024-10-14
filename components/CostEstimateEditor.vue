@@ -48,32 +48,15 @@
           </div>
         </div>
       </template>
+      <RentalsDateManager :initialDates="addedDates" @trigger-modal="handleModalOpen"
+        @update:dates="handleDateUpdates" />
+
       <div v-if="Object.keys(groupedCostEstimates).length > 0">
         <div v-for="(slots, key) in groupedCostEstimates" :key="key">
-          <h2 class="text-xl font-bold my-4">{{ formatDate(date) }} {{ formatGroupKey(key) }}
+          <h2 class="text-xl font-bold my-4">{{ formatGroupKey(key) }}
           </h2>
           <div v-for="slot in slots" :key="slot.id">
-            <div class="p-4">
-              <!-- Room Selection -->
-              <div class="mb-4">
-                <h5 class="text-md font-semibold mb-2">Room Selection</h5>
-                <div v-for="room in availableRooms" :key="room.id" class="flex items-center mb-2">
-                  <UCheckbox v-model="slot.selectedRooms" :val="room.id" :disabled="!isRoomAvailable(room.id, slot)"
-                    @change="updateRoomSelection(slot, room.id)" />
-                  <span class="ml-2">{{ room.name }}</span>
-                  <span v-if="!isRoomAvailable(room.id, slot)" class="text-red-500 ml-2">(Unavailable)</span>
-                </div>
-              </div>
-              <!-- Resource Selection -->
-              <div class="mb-4">
-                <h5 class="text-md font-semibold mb-2">Resource Selection</h5>
-                <div v-for="resource in resourceOptions" :key="resource.id" class="flex items-center mb-2">
-                  <UCheckbox v-model="slot.selectedResources" :val="resource.id"
-                    @change="updateResourceSelection(slot, resource.id)" />
-                  <span class="ml-2">{{ resource.name }}</span>
-                </div>
-              </div>
-            </div>
+
             <!-- Per-Slot Costs -->
             <div v-if="slot.perSlotCosts && slot.perSlotCosts.length > 0" class="p-4">
               <h4 class="text-sm uppercase font-bold text-primary">Slot Costs</h4>
@@ -82,37 +65,33 @@
               </div>
 
             </div>
-            <div v-if="slot.rooms && slot.rooms.length > 0">
-              <div v-for="(room, roomIndex) in slot.rooms" :key="roomIndex" class="p-4">
+            <div v-for="(estimate, estimateIndex) in slot.estimates" :key="estimateIndex">
+              <h4 class="text-sm uppercase font-bold">{{ estimate.roomSlug }}</h4>
 
+              <!-- Full Day Rental -->
+              <template v-if="estimate.fullDayCostItem">
+                <InvoiceItem :item="estimate.fullDayCostItem" @update="updateInvoiceItem" @remove="removeInvoiceItem" />
+              </template>
 
+              <!-- Daytime -->
+              <template v-if="estimate.daytimeCostItem">
+                <InvoiceItem :item="estimate.daytimeCostItem" @update="updateInvoiceItem" @remove="removeInvoiceItem" />
+              </template>
 
-                <h4 class="text-sm uppercase font-bold">{{ room.roomName }}</h4>
+              <!-- Evening -->
+              <template v-if="estimate.eveningCostItem">
+                <InvoiceItem :item="estimate.eveningCostItem" @update="updateInvoiceItem" @remove="removeInvoiceItem" />
+              </template>
 
-                <!-- Full Day Rental -->
-                <template v-if="room.fullDayCostItem">
-                  <InvoiceItem :item="room.fullDayCostItem" @update="updateInvoiceItem" @remove="removeInvoiceItem" />
-                </template>
-
-                <!-- Daytime -->
-                <template v-if="room.daytimeCostItem">
-                  <InvoiceItem :item="room.daytimeCostItem" @update="updateInvoiceItem" @remove="removeInvoiceItem" />
-                </template>
-
-                <!-- Evening -->
-                <template v-if="room.eveningCostItem">
-                  <InvoiceItem :item="room.eveningCostItem" @update="updateInvoiceItem" @remove="removeInvoiceItem" />
-                </template>
-
-                <!-- Additional Costs -->
-                <div v-if="room.additionalCosts && room.additionalCosts.length > 0" class="mt-6">
-                  <h4 class="text-sm uppercase font-bold text-primary">Additional Costs</h4>
-                  <div v-for="(cost, costIndex) in room.additionalCosts" :key="costIndex">
-                    <InvoiceItem :item="cost" @update="updateInvoiceItem" @remove="removeInvoiceItem" />
-                  </div>
+              <!-- Additional Costs -->
+              <div v-if="estimate.additionalCosts && estimate.additionalCosts.length > 0" class="mt-6">
+                <h4 class="text-sm uppercase font-bold text-primary">Additional Costs</h4>
+                <div v-for="(cost, costIndex) in estimate.additionalCosts" :key="costIndex">
+                  <InvoiceItem :item="cost" @update="updateInvoiceItem" @remove="removeInvoiceItem" />
                 </div>
               </div>
             </div>
+
 
 
             <!-- Custom Line Item Input -->
@@ -203,9 +182,13 @@ import { ref, computed, watch, onMounted } from 'vue';
 import { useAdminBookingStore } from '@/stores/adminBookingStore';
 import { storeToRefs } from 'pinia';
 import { useResources } from '@/composables/useResources';
-import { isValid, parseISO } from 'date-fns';
+import { isValid, parseISO, format } from 'date-fns';
 import { formatDescription, formatCurrency, formatDate, formatTimeRange } from '@/utils/formatters';
 import _ from 'lodash';
+import { da } from 'date-fns/locale';
+const newDate = ref(null);
+const addedDates = ref([]);
+const showDates = ref(true);  // For toggling the visibility of the date list
 
 const props = defineProps({
   rentalRequest: {
@@ -255,8 +238,37 @@ const route = useRoute();
 const toast = useToast();
 const { user } = useAuth();
 const userId = computed(() => user.value?._id || null);
-console.log('Current user ID:', user.value);
-// Now you can use userId.value wherever you need the user ID
+
+
+// CostEstimateEditor.vue
+const handleDateUpdates = async (updatedDates) => {
+  addedDates.value = updatedDates;
+  console.log('Updated Dates:', addedDates.value);
+
+  // Save new dates and slots to the backend
+  const slotsData = {
+    dates: addedDates.value.map((date) => ({
+      date: date.date,
+      ...(date.id && !date.isNew ? { id: date.id } : {}),
+      slots: date.slots.map((slot) => ({
+        title: slot.title,
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+        rooms: slot.rooms.map((room) => ({ id: room.id })),
+        resources: slot.resources || [],
+        ...(slot.id && !slot.isNew ? { id: slot.id } : {}),
+      })),
+    })),
+  };
+
+  await store.saveEventSlots(slotsData);
+
+  // Re-fetch rental data after saving
+  await store.fetchRentalData(props.rentalRequestId);
+
+  // Recalculate costs with the updated data
+  await store.recalculateCosts();
+};
 
 
 
@@ -264,24 +276,32 @@ console.log('Current user ID:', user.value);
 
 
 
-
-const daytimeDescription = computed(() => {
-  return formatDescription(props.room.daytimeHours, props.room.daytimeRate, props.room.daytimeRateType, 'Daytime');
-});
-
-const eveningDescription = computed(() => {
-  return formatDescription(props.room.eveningHours, props.room.eveningRate, props.room.eveningRateType, 'Evening');
-});
 const { resourceOptions } = useResources();
 
 const isSubmitting = ref(false);
 const statusHistorySlideoverIsOpen = ref(false);
+
+// CostEstimateEditor.vue
 watch(rentalData, (newData) => {
-  if (newData && newData.dates) {
-    const estimates = newData.dates.flatMap(date => date.slots);
-    groupedCostEstimatesData.value = groupCostEstimates(estimates); // 
+  if (newData && newData.dates && newData.dates.slots > 0) {
+    const estimates = newData.dates.flatMap((date) =>
+
+      date.slots.map((slot) => ({
+        ...slot,
+        rooms: slot.rooms || [],
+        startTime: slot.startTime?.time
+          ? slot.startTime
+          : { time: slot.startTime },
+        endTime: slot.endTime?.time ? slot.endTime : { time: slot.endTime },
+        date: new Date(date.date).toISOString(),
+      }))
+    );
+    groupedCostEstimatesData.value = groupCostEstimates(estimates);
   }
 });
+// after making these changes, when i saved a new slot, it overwrote the existing dates data in DatoCMS instead of appending a new date with the new slot data. (If a date already exists I would also expect it to append the slot to the existing date) additionally, i get an error about "invalid time value. values: Start Time: { time: '12:00' } End Time: { time: '17:00' }
+
+
 const groupedCostEstimates = computed(() => {
   console.log("Computing groupedCostEstimates:", groupedCostEstimatesData.value);
   return groupedCostEstimatesData.value || {};
@@ -290,23 +310,29 @@ const groupedCostEstimates = computed(() => {
 
 
 onMounted(async () => {
-  console.log('Grouped Cost Estimates Data:', groupedCostEstimatesData.value);
-  console.log('Keys:', Object.keys(groupedCostEstimatesData.value));
-
   isLoading.value = true;
   try {
     await store.fetchRoomMapping();
     await store.fetchVersions();
+
     if (props.rentalRequestId) {
       store.setCurrentRentalRequest(props.rentalRequestId);
       await store.fetchRentalData(props.rentalRequestId);
+      console.log('Rental data fetched:', rentalData.value);
+
+      // Initialize addedDates with existing dates from rentalData
+      if (rentalData.value && rentalData.value.dates) {
+        addedDates.value = rentalData.value.dates;
+      }
     }
+
     await store.recalculateCosts();
-    console.log("Recalculated costs:", groupedCostEstimatesData.value); // Log the data
   } finally {
     isLoading.value = false;
   }
 });
+
+
 
 
 
@@ -384,7 +410,11 @@ const handleAddLineItem = async (slot) => {
   };
 
   await addLineItem(slot, newItem);
+
+  // Recalculate costs after adding a custom line item
+  await store.recalculateCosts();
 };
+
 
 const saveAndSendEstimate = async () => {
   isSubmitting.value = true;
@@ -392,6 +422,8 @@ const saveAndSendEstimate = async () => {
     if (hasChanges.value) {
       await saveCostEstimate();
     }
+    await recalculateCosts(); // Recalculate before sending
+
     const pdfPayload = preparePdfPayload();
     await sendEstimate(pdfPayload);
     toast.add({
@@ -411,6 +443,7 @@ const saveAndSendEstimate = async () => {
     isSubmitting.value = false;
   }
 };
+
 
 const preparePdfPayload = () => {
   // Implement the logic to prepare the PDF payload

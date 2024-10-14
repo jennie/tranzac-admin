@@ -33,9 +33,10 @@ const onSelectChange = (selectedOption: string) => {
 const formattedOptions = computed(() => {
   return props.options.map(option => ({
     label: format12Hour(option.value),
-    value: option.value // This should be in 'HH:mm' format
+    value: option.value
   }));
 });
+
 
 const format12Hour = (time: string): string => {
   if (!time) return "";

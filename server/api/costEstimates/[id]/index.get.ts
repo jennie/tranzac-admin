@@ -18,41 +18,44 @@ export default defineEventHandler(async (event) => {
         statusMessage: "Cost estimate not found",
       });
     }
+    console.log("&&&&&&&&&&costEstimate", costEstimate);
 
     const result = {
-      _id: costEstimate._id, // Add the _id to the result
-      versions: costEstimate.versions.map((version) => ({
-        version: version.version,
-        label: `Version ${version.version}`,
-        totalCost: version.totalCost,
-        statusHistory: version.statusHistory, // Include statusHistory
-        createdAt: version.createdAt,
-        costEstimates: version.costEstimates.map((estimate) => ({
-          id: estimate.id,
-          date: estimate.date
-            ? estimate.date.toISOString().split("T")[0]
-            : null,
-          start: estimate.start ? estimate.start.toISOString() : null,
-          end: estimate.end ? estimate.end.toISOString() : null,
-          perSlotCosts: estimate.perSlotCosts,
-          rooms: estimate.estimates.map((room) => ({
-            roomSlug: room.roomSlug,
-            basePrice: room.basePrice,
-            daytimeHours: room.daytimeHours,
-            eveningHours: room.eveningHours,
-            daytimePrice: room.daytimePrice,
-            eveningPrice: room.eveningPrice,
-            fullDayPrice: room.fullDayPrice,
-            daytimeRate: room.daytimeRate,
-            daytimeRateType: room.daytimeRateType,
-            eveningRate: room.eveningRate,
-            eveningRateType: room.eveningRateType,
-            additionalCosts: room.additionalCosts,
-            totalCost: room.totalCost,
-          })),
-          slotTotal: estimate.slotTotal,
-        })),
-      })),
+      _id: costEstimate._id,
+      versions: Array.isArray(costEstimate.versions)
+        ? costEstimate.versions.map((version) => ({
+            version: version.version,
+            label: `Version ${version.version}`,
+            totalCost: version.totalCost,
+            statusHistory: version.statusHistory || [],
+            createdAt: version.createdAt,
+            costEstimates: version.costEstimates.map((estimate) => ({
+              id: estimate.id,
+              date: estimate.date
+                ? estimate.date.toISOString().split("T")[0]
+                : null,
+              start: estimate.start ? estimate.start.toISOString() : null,
+              end: estimate.end ? estimate.end.toISOString() : null,
+              perSlotCosts: estimate.perSlotCosts,
+              rooms: estimate.estimates.map((room) => ({
+                roomSlug: room.roomSlug,
+                basePrice: room.basePrice,
+                daytimeHours: room.daytimeHours,
+                eveningHours: room.eveningHours,
+                daytimePrice: room.daytimePrice,
+                eveningPrice: room.eveningPrice,
+                fullDayPrice: room.fullDayPrice,
+                daytimeRate: room.daytimeRate,
+                daytimeRateType: room.daytimeRateType,
+                eveningRate: room.eveningRate,
+                eveningRateType: room.eveningRateType,
+                additionalCosts: room.additionalCosts,
+                totalCost: room.totalCost,
+              })),
+              slotTotal: estimate.slotTotal,
+            })),
+          }))
+        : [],
       currentVersion: costEstimate.currentVersion,
     };
 

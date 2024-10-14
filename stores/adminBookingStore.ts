@@ -1,7 +1,7 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import { v4 as uuidv4 } from "uuid";
-import { format, parseISO, isValid } from "date-fns";
+import { format, parseISO, isValid, parse } from "date-fns";
 import _ from "lodash";
 import type {
   ICostEstimate,
@@ -21,79 +21,38 @@ export const useAdminBookingStore = defineStore("adminBookingStore", () => {
   const roomMapping = ref([]);
   const originalGroupedCostEstimatesData = ref(null);
 
-  const groupCostEstimates = (costEstimates) => {
-    if (!costEstimates || costEstimates.length === 0) return {};
+  function parseTime(dateString, timeString) {
+    return parse(`${dateString} ${timeString}`, "yyyy-MM-dd HH:mm", new Date());
+  }
 
-    console.log("Grouping cost estimates:", costEstimates);
+  // useAdminBookingStore.js
+  function groupCostEstimates(costEstimates) {
+    if (!costEstimates || costEstimates.length === 0) {
+      console.warn("No cost estimates to group.");
+      return {};
+    }
 
     return costEstimates.reduce((acc, estimate) => {
-      console.log("Processing estimate:", estimate);
-
-      let dateKey;
-      if (estimate.date) {
-        const parsedDate = parseISO(estimate.date);
-        dateKey = isValid(parsedDate)
-          ? format(parsedDate, "yyyy-MM-dd")
-          : estimate.date;
-      } else if (estimate.startTime && estimate.startTime.time) {
-        const parsedDate = parseISO(estimate.startTime.time);
-        dateKey = isValid(parsedDate)
-          ? format(parsedDate, "yyyy-MM-dd")
-          : "unknown-date";
-      } else {
-        console.warn("Estimate without valid date:", estimate);
-        dateKey = "unknown-date";
-      }
-
-      console.log(`Using dateKey: ${dateKey} for estimate:`, estimate);
+      const dateKey =
+        estimate.date instanceof Date
+          ? estimate.date.toISOString()
+          : new Date(estimate.date).toISOString(); // Ensure ISO format
 
       if (!acc[dateKey]) {
         acc[dateKey] = [];
       }
 
       acc[dateKey].push({
-        id: estimate.id,
         ...estimate,
-        resources: estimate.resources || [],
-        newLineItem: {
-          type: "custom",
-          description: "",
-          resourceId: null,
-          cost: 0,
-        },
-        perSlotCosts: (estimate.perSlotCosts || []).map((cost) => ({
-          ...cost,
-          slotId: estimate.id,
-        })),
-        customLineItems: (estimate.customLineItems || []).map((item) => ({
-          ...item,
-          slotId: estimate.id,
-        })),
-        rooms: (estimate.rooms || []).map((room) => ({
-          ...room,
-          daytimeCostItem: room.daytimeCostItem
-            ? { ...room.daytimeCostItem, slotId: estimate.id }
-            : null,
-          eveningCostItem: room.eveningCostItem
-            ? { ...room.eveningCostItem, slotId: estimate.id }
-            : null,
-          fullDayCostItem: room.fullDayPrice
-            ? {
-                id: uuidv4(),
-                description: `Full Day Rate`,
-                cost: room.fullDayPrice,
-                slotId: estimate.id,
-              }
-            : null,
-          additionalCosts: (room.additionalCosts || []).map((cost) => ({
-            ...cost,
-            slotId: estimate.id,
-          })),
-        })),
+        id: estimate.id || uuidv4(), // Ensure each slot has a unique ID
+        perSlotCosts: estimate.perSlotCosts || [],
+        customLineItems: estimate.customLineItems || [],
+        estimates: estimate.estimates || [],
       });
+
       return acc;
     }, {});
-  };
+  }
 
   const fetchRentalData = async () => {
     if (!currentRentalRequestId.value) {
@@ -109,19 +68,24 @@ export const useAdminBookingStore = defineStore("adminBookingStore", () => {
         throw new Error(`Failed to fetch rental data: ${response.statusText}`);
       }
       const data = await response.json();
+      console.log("Fetched rental data from API:", data); // Log full response
+
       rentalData.value = data;
-      console.log("Fetched rental data:", data);
 
       const estimates = data.dates.flatMap((date) =>
         date.slots.map((slot) => ({
           ...slot,
+          rooms: slot.rooms || [],
+          startTime: parseTime(date.date, slot.startTime.time),
+          endTime: parseTime(date.date, slot.endTime.time),
           date: date.date, // Ensure each slot has the correct date
         }))
       );
-      console.log("Prepared estimates for grouping:", estimates);
+
+      console.log("Prepared estimates for grouping:", estimates); // Log the estimates
 
       groupedCostEstimatesData.value = groupCostEstimates(estimates);
-      console.log("Grouped cost estimates:", groupedCostEstimatesData.value);
+      console.log("Grouped cost estimates:", groupedCostEstimatesData.value); // Log the grouped cost estimates
     } catch (err) {
       console.error("Error fetching rental data:", err);
       groupedCostEstimatesData.value = {}; // Ensure it's always an object
@@ -135,15 +99,22 @@ export const useAdminBookingStore = defineStore("adminBookingStore", () => {
         `/api/costEstimates/${currentRentalRequestId.value}`
       );
       const data = await response.json();
-      costEstimateVersions.value = data.versions.map((v) => ({
-        value: v.version,
-        label: v.label,
-        totalCost: v.totalCost,
-        statusHistory: v.statusHistory || [],
-      }));
+      console.log("Fetched versions data:", data); // Add this line for debugging
+      if (data && data.versions && Array.isArray(data.versions)) {
+        costEstimateVersions.value = data.versions.map((v) => ({
+          value: v.version,
+          label: v.label,
+          totalCost: v.totalCost,
+          statusHistory: v.statusHistory || [],
+        }));
+      } else {
+        console.error("Unexpected data structure:", data);
+        costEstimateVersions.value = [];
+      }
       return data;
     } catch (err) {
       console.error("Error fetching versions:", err);
+      costEstimateVersions.value = [];
       throw err;
     }
   };
@@ -173,73 +144,174 @@ export const useAdminBookingStore = defineStore("adminBookingStore", () => {
       throw new Error("Version not found");
     }
   };
+
+  // useAdminBookingStore.js
   async function saveEventSlots(slots) {
     console.log("Saving event slots:", JSON.stringify(slots, null, 2));
+
     if (!currentRentalRequestId.value) {
       console.error("No rental request ID set. Unable to save event slots.");
       return;
     }
 
-    const formatTimeValue = (timeField) => {
-      if (typeof timeField === "string") {
-        return timeField;
-      }
-      if (timeField && typeof timeField === "object" && "time" in timeField) {
-        return timeField.time;
-      }
-      if (timeField && typeof timeField === "object" && "value" in timeField) {
-        return timeField.value;
-      }
-      return null; // or a default value
-    };
-
-    // Adjust the payload to match expected DatoCMS structure
-    const formattedPayload = {
-      dates: slots.dates.map((date) => ({
-        date: date.date,
-        slots: date.slots.map((slot) => ({
-          title: slot.title,
-          start_time: formatTimeValue(slot.startTime),
-          end_time: formatTimeValue(slot.endTime),
-          all_ages: slot.allAges,
-          description: slot.description,
-          doors_time: formatTimeValue(slot.doorsTime),
-          event_type: slot.eventType,
-          expected_attendance: slot.expectedAttendance,
-          load_in_time: formatTimeValue(slot.loadInTime),
-          load_out_time: formatTimeValue(slot.loadOutTime),
-          private: slot.private,
-          resources: slot.resources,
-          sound_check_time: formatTimeValue(slot.soundCheckTime),
-          rooms: slot.rooms.map((room) => room.id),
-        })),
-      })),
-    };
-
     try {
-      const response = await fetch(
+      // Fetch existing rental data if not already available
+      let existingRentalData = rentalData.value;
+      if (!existingRentalData) {
+        await fetchRentalData();
+        existingRentalData = rentalData.value;
+      }
+
+      // Merge existing dates and slots with new ones
+      const existingDates = existingRentalData.dates || [];
+
+      // Create a map of existing dates for easy lookup
+      const existingDatesMap = new Map();
+      existingDates.forEach((date) => {
+        existingDatesMap.set(date.date, date.slots || []);
+      });
+      // Merge existing dates and slots with new ones
+      slots.dates.forEach((newDate) => {
+        const dateKey = newDate.date;
+        const existingSlots = existingDatesMap.get(dateKey) || [];
+
+        // Map existing slots by id for easy lookup
+        const existingSlotsMap = new Map();
+        existingSlots.forEach((slot) => {
+          existingSlotsMap.set(slot.id, slot);
+        });
+
+        // Merge slots
+        const mergedSlots = [];
+
+        newDate.slots.forEach((newSlot) => {
+          if (newSlot.id && existingSlotsMap.has(newSlot.id)) {
+            // Existing slot, update it
+            mergedSlots.push({
+              ...existingSlotsMap.get(newSlot.id),
+              ...newSlot,
+              isNew: false,
+            });
+          } else {
+            // New slot
+            mergedSlots.push({
+              ...newSlot,
+              isNew: true,
+            });
+          }
+        });
+
+        existingDatesMap.set(dateKey, mergedSlots);
+      });
+
+      // Prepare the merged dates array
+      const mergedDates = Array.from(existingDatesMap.entries()).map(
+        ([date, slots]) => ({
+          date: date,
+          slots: slots,
+        })
+      );
+
+      // Now construct the payloads for DatoCMS and MongoDB
+      const formattedDatoPayload = {
+        dates: mergedDates.map((date) => ({
+          ...(date.id && !date.isNew ? { id: date.id } : {}),
+          date: date.date,
+          slots: date.slots.map((slot) => ({
+            ...(slot.id && !slot.isNew ? { id: slot.id } : {}),
+            title: slot.title,
+            startTime: slot.startTime,
+            endTime: slot.endTime,
+            all_ages: slot.allAges,
+            description: slot.description,
+            doors_time: slot.doorsTime,
+            event_type: slot.eventType,
+            expected_attendance: slot.expectedAttendance,
+            load_in_time: slot.loadInTime,
+            load_out_time: slot.loadOutTime,
+            private: slot.private,
+            resources: slot.resources,
+            sound_check_time: slot.soundCheckTime,
+            rooms: slot.rooms.map((room) => room.id),
+          })),
+        })),
+      };
+
+      // Prepare the payload for MongoDB
+      const formattedMongoPayload = {
+        rentalDates: mergedDates.map((date) => ({
+          date: date.date,
+          bookings: date.slots.map((slot) => ({
+            id: slot.id,
+            title: slot.title,
+            startTime: slot.startTime,
+            endTime: slot.endTime,
+            rooms: slot.rooms.map((room) => ({
+              roomSlug: room.slug || room.id, // Ensure rooms have slugs or use IDs
+            })),
+            resources: slot.resources,
+            isPrivate: slot.private,
+            expectedAttendance: slot.expectedAttendance,
+          })),
+        })),
+      };
+
+      // Step 1: Save Slots to DatoCMS
+      const datoResponse = await fetch(
         `/api/rentalRequests/${currentRentalRequestId.value}/slots`,
         {
           method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(formattedPayload),
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(formattedDatoPayload),
         }
       );
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Server response:", errorText);
-        throw new Error(`Failed to save event slots: ${response.statusText}`);
+
+      if (!datoResponse.ok) {
+        const errorText = await datoResponse.text();
+        console.error("Server response from DatoCMS:", errorText);
+        throw new Error(
+          `Failed to save event slots to DatoCMS: ${datoResponse.statusText}`
+        );
       }
-      const updatedRental = await response.json();
+
+      const updatedRental = await datoResponse.json();
       rentalData.value = updatedRental.body;
-      console.log("Event slots saved successfully", updatedRental.body);
+      console.log(
+        "Event slots saved successfully to DatoCMS:",
+        updatedRental.body
+      );
+
+      // Step 2: Save Slots and Recalculate Costs in MongoDB
+      const mongoResponse = await fetch(`/api/costEstimates/recalculate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formattedMongoPayload),
+      });
+
+      if (!mongoResponse.ok) {
+        const errorText = await mongoResponse.text();
+        console.error("Server response from MongoDB:", errorText);
+        throw new Error(
+          `Failed to save event slots to MongoDB: ${mongoResponse.statusText}`
+        );
+      }
+
+      const updatedCostEstimate = await mongoResponse.json();
+      console.log(
+        "Cost estimate recalculated and saved to MongoDB:",
+        updatedCostEstimate
+      );
     } catch (error) {
-      console.error("Error saving event slots:", error);
+      console.error(
+        "Error saving event slots and updating cost estimates:",
+        error
+      );
       throw error;
     }
   }
+
   const eventSlots = computed(() => {
     if (rentalData.value && rentalData.value.dates) {
       return rentalData.value.dates.flatMap((date) => date.slots);
@@ -325,38 +397,37 @@ export const useAdminBookingStore = defineStore("adminBookingStore", () => {
   }
 
   function recalculateSlotTotal(slot) {
-    console.log("Recalculating slot total for slot:", slot);
-
     let total = 0;
+    console.log("Calculating total for slot:", slot);
 
+    // Add per-slot costs
     total += (slot.perSlotCosts || []).reduce(
       (sum, cost) => sum + (Number(cost.cost) || 0),
       0
     );
 
-    (slot.rooms || []).forEach((room) => {
-      if (room.fullDayCostItem) {
-        total += Number(room.fullDayCostItem.cost || 0);
-      } else {
-        total += Number(room.daytimeCostItem?.cost || 0);
-        total += Number(room.eveningCostItem?.cost || 0);
-      }
-      total += (room.additionalCosts || []).reduce(
+    // Add estimate costs (this is where room costs are likely being stored)
+    (slot.estimates || []).forEach((estimate) => {
+      total += Number(estimate.totalCost || 0);
+
+      total += (estimate.additionalCosts || []).reduce(
         (sum, cost) => sum + (Number(cost.cost) || 0),
         0
       );
     });
 
+    // Add custom line items if they exist
     total += (slot.customLineItems || []).reduce(
       (sum, item) => sum + (Number(item.cost) || 0),
       0
     );
 
     slot.slotTotal = total;
-    console.log("Final slot total:", total); // Log the final total
 
-    // Ensure the data is reactive and updates the UI
+    // Update UI with new totals
     groupedCostEstimatesData.value = { ...groupedCostEstimatesData.value };
+
+    console.log("Final slot total with estimates included:", total);
   }
 
   function updateTotals() {
@@ -390,9 +461,11 @@ export const useAdminBookingStore = defineStore("adminBookingStore", () => {
       for (const [dateKey, slots] of Object.entries(
         groupedCostEstimatesData.value
       )) {
-        console.log("Processing date:", dateKey, "with slots:", slots); // Log each date and its slots
-
         rentalDates[dateKey] = slots.map((slot) => {
+          const startDateTime = "2023-10-01T10:00:00Z";
+          const endDateTime = "2023-10-01T12:00:00Z";
+          console.log("TIMES:", startDateTime, endDateTime);
+          console.log("Slot in recalculateCosts:", slot);
           const roomSlugs = slot.rooms
             .map((room) => {
               const mappedRoom = roomMapping.value.find(
@@ -403,29 +476,22 @@ export const useAdminBookingStore = defineStore("adminBookingStore", () => {
             .filter(Boolean);
 
           return {
+            date: dateKey,
             id: slot.id,
-            title: slot.title,
-            startTime: slot.startTime,
-            endTime: slot.endTime,
-            allAges: slot.allAges,
-            description: slot.description,
-            doorsTime: slot.doorsTime.time,
-            eventType: slot.eventType,
+            startTime: startDateTime,
+            endTime: endDateTime,
             expectedAttendance: slot.expectedAttendance,
-            loadInTime: slot.loadInTime.time,
-            loadOutTime: slot.loadOutTime.time,
             private: slot.private,
             resources: slot.resources || [],
             rooms: slot.rooms,
             roomSlugs,
-            isPrivate: slot.private,
-            soundCheckTime: slot.soundCheckTime.time,
           };
         });
       }
 
-      console.log("Rental dates for recalculation:", rentalDates); // Log rental dates before sending to API
-
+      // Log the rentalDates object before sending to the API
+      console.log("Rental dates for recalculation:", rentalDates);
+      // date exists here
       const { data } = await useFetch("/api/costEstimates/recalculate", {
         method: "POST",
         body: {
@@ -434,67 +500,22 @@ export const useAdminBookingStore = defineStore("adminBookingStore", () => {
         },
       });
 
-      console.log("Recalculated data:", data.value); // Log recalculated data
+      console.log("Recalculated data from API:", data.value);
 
       if (data.value && data.value.costEstimates) {
-        const newGroupedData = {};
-        data.value.costEstimates.forEach((updatedEstimate) => {
-          const dateKey = format(parseISO(updatedEstimate.date), "yyyy-MM-dd");
-          if (!newGroupedData[dateKey]) {
-            newGroupedData[dateKey] = [];
-          }
-          newGroupedData[dateKey].push({
-            ...updatedEstimate,
-            rooms: updatedEstimate.estimates.map((estimate) => ({
-              ...estimate,
-              fullDayCostItem: estimate.fullDayPrice
-                ? {
-                    id: uuidv4(),
-                    description: `Full Day Rate`,
-                    cost: estimate.fullDayPrice,
-                    slotId: updatedEstimate.id,
-                  }
-                : null,
-              daytimeCostItem: estimate.daytimeCostItem
-                ? {
-                    ...estimate.daytimeCostItem,
-                    id: estimate.daytimeCostItem.id || uuidv4(),
-                    slotId: updatedEstimate.id,
-                  }
-                : null,
-              eveningCostItem: estimate.eveningCostItem
-                ? {
-                    ...estimate.eveningCostItem,
-                    id: estimate.eveningCostItem.id || uuidv4(),
-                    slotId: updatedEstimate.id,
-                  }
-                : null,
-              additionalCosts: (estimate.additionalCosts || []).map((cost) => ({
-                ...cost,
-                id: cost.id || uuidv4(),
-                slotId: updatedEstimate.id,
-              })),
-            })),
-            newLineItem: {
-              type: "custom",
-              description: "",
-              resourceId: null,
-              cost: 0,
-            },
-          });
-        });
+        groupedCostEstimatesData.value = groupCostEstimates(
+          data.value.costEstimates
+        );
 
-        groupedCostEstimatesData.value = newGroupedData;
+        console.log(
+          "Grouped cost estimates after recalculation:",
+          groupedCostEstimatesData.value
+        );
       } else {
         console.error(
           "Recalculation failed or returned unexpected data structure"
         );
       }
-
-      console.log(
-        "Updated grouped cost estimates:",
-        groupedCostEstimatesData.value
-      ); // Log grouped estimates after recalculation
 
       // After recalculating costs, update the totals
       updateAllSlotTotals();
@@ -643,7 +664,7 @@ export const useAdminBookingStore = defineStore("adminBookingStore", () => {
       originalGroupedCostEstimatesData.value = _.cloneDeep(
         groupedCostEstimatesData.value
       );
-      resetChangesFlag();
+      // resetChangesFlag();
 
       const newVersion = data.value.version;
       costEstimateVersions.value.push({

@@ -1,5 +1,4 @@
 import { ref, onMounted } from "vue";
-import { useRoomMapping } from "@/composables/useRoomMapping";
 
 export function useRooms() {
   const { roomMapping: localRoomMapping } = useRoomMapping();
