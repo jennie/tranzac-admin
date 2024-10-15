@@ -10,53 +10,66 @@ export default defineEventHandler(async (event) => {
   try {
     const costEstimate = await CostEstimate.findOne({
       rentalRequestId: id,
-    }).lean(); // Use .lean() to get plain JavaScript objects
+    }).lean();
 
     if (!costEstimate) {
+      console.log("Cost estimate not found for id:", id);
       return createError({
         statusCode: 404,
         statusMessage: "Cost estimate not found",
       });
     }
-    console.log("&&&&&&&&&&costEstimate", costEstimate);
+
+    console.log("Cost estimate found:", JSON.stringify(costEstimate, null, 2));
 
     const result = {
       _id: costEstimate._id,
       versions: Array.isArray(costEstimate.versions)
         ? costEstimate.versions.map((version) => ({
             version: version.version,
-            label: `Version ${version.version}`,
+            label: version.label || `Version ${version.version}`,
             totalCost: version.totalCost,
             statusHistory: version.statusHistory || [],
             createdAt: version.createdAt,
-            costEstimates: version.costEstimates.map((estimate) => ({
-              id: estimate.id,
-              date: estimate.date
-                ? estimate.date.toISOString().split("T")[0]
-                : null,
-              start: estimate.start ? estimate.start.toISOString() : null,
-              end: estimate.end ? estimate.end.toISOString() : null,
-              perSlotCosts: estimate.perSlotCosts,
-              rooms: estimate.estimates.map((room) => ({
-                roomSlug: room.roomSlug,
-                basePrice: room.basePrice,
-                daytimeHours: room.daytimeHours,
-                eveningHours: room.eveningHours,
-                daytimePrice: room.daytimePrice,
-                eveningPrice: room.eveningPrice,
-                fullDayPrice: room.fullDayPrice,
-                daytimeRate: room.daytimeRate,
-                daytimeRateType: room.daytimeRateType,
-                eveningRate: room.eveningRate,
-                eveningRateType: room.eveningRateType,
-                additionalCosts: room.additionalCosts,
-                totalCost: room.totalCost,
-              })),
-              slotTotal: estimate.slotTotal,
-            })),
+            costEstimates: Array.isArray(version.costEstimates)
+              ? version.costEstimates.map((estimate) => ({
+                  id: estimate.id,
+                  date: estimate.date
+                    ? estimate.date.toISOString().split("T")[0]
+                    : null,
+                  start: estimate.start ? estimate.start.toISOString() : null,
+                  end: estimate.end ? estimate.end.toISOString() : null,
+                  perSlotCosts: estimate.perSlotCosts || [],
+                  rooms: Array.isArray(estimate.estimates)
+                    ? estimate.estimates.map((room) => ({
+                        roomSlug: room.roomSlug,
+                        basePrice: room.basePrice,
+                        daytimeHours: room.daytimeHours,
+                        eveningHours: room.eveningHours,
+                        daytimePrice: room.daytimePrice,
+                        eveningPrice: room.eveningPrice,
+                        fullDayPrice: room.fullDayPrice,
+                        daytimeRate: room.daytimeRate,
+                        daytimeRateType: room.daytimeRateType,
+                        eveningRate: room.eveningRate,
+                        eveningRateType: room.eveningRateType,
+                        additionalCosts: room.additionalCosts,
+                        totalCost: room.totalCost,
+                        rateDescription: room.rateDescription,
+                        minimumHours: room.minimumHours,
+                        totalBookingHours: room.totalBookingHours,
+                        isFullDay: room.isFullDay,
+                        daytimeCostItem: room.daytimeCostItem,
+                        eveningCostItem: room.eveningCostItem,
+                      }))
+                    : [],
+                  slotTotal: estimate.slotTotal,
+                }))
+              : [],
           }))
         : [],
       currentVersion: costEstimate.currentVersion,
+      status: costEstimate.status,
     };
 
     return result;
@@ -65,6 +78,7 @@ export default defineEventHandler(async (event) => {
     return createError({
       statusCode: 500,
       statusMessage: "Error fetching cost estimate versions",
+      stack: error.stack,
     });
   }
 });

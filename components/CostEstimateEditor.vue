@@ -1,135 +1,105 @@
-<!-- /components/CostEstimateEditor.vue -->
 <template>
   <div class="cost-estimate-editor space-y-8">
-
-    <UButton label="View Status History" @click="statusHistorySlideoverIsOpen = true" />
-
-    <USlideover v-model="statusHistorySlideoverIsOpen">
-      <UCard class="flex flex-col flex-1"
-        :ui="{ body: { base: 'flex-1' }, ring: '', divide: 'divide-y divide-gray-100 dark:divide-gray-800' }">
-        <template #header>
-          <div class="flex items-center justify-between">
-            <h3 class="text-base font-semibold leading-6 text-gray-900 dark:text-white">
-              Status History
-            </h3>
-            <UButton color="gray" variant="ghost" icon="i-heroicons-x-mark-20-solid" class="-my-1"
-              @click="statusHistorySlideoverIsOpen = false" />
-          </div>
-        </template>
-        <EstimateStatusHistory :version="currentVersion" />
-      </UCard>
-    </USlideover>
-
-
+    <!-- Status History Button and Slideover (unchanged) -->
 
     <UCard class="shadow-lg" v-if="!isLoading">
+      <!-- Card Header (unchanged) -->
 
-      <template #header>
-        <div class="flex flex-row items-center justify-between">
-          <div class="flex flex-row items-center">
-            <h3 class="text-2xl inline font-semibold dark:text-stone-200 mr-2">Cost Estimate</h3>
-            <USelect class="" v-model="currentVersionNumber" :options="versionOptions"
-              @update:modelValue="(val) => handleVersionChange(Number(val))" />
-
-            <UButton v-if="hasChanges" @click="createNewVersion" color="primary" class="ml-6">Save New Version</UButton>
-            <div class="flex items-center ml-6">
-              <span v-if="hasChanges" class="text-yellow-500 mr-2">
-                <i class="fas fa-exclamation-triangle"></i> Unsaved changes
-              </span>
-              <UButton v-if="hasChanges" @click="resetChanges" color="green" class="ml-2">
-                Revert Changes
-              </UButton>
-
-
-            </div>
-          </div>
-          <div>
-            <span class="text-lg font-semibold dark:text-stone-100">{{ formatCurrency(totalCost || 0) }}</span>
-          </div>
-        </div>
-      </template>
       <RentalsDateManager :initialDates="addedDates" @trigger-modal="handleModalOpen"
         @update:dates="handleDateUpdates" />
 
-      <div v-if="Object.keys(groupedCostEstimates).length > 0">
-        <div v-for="(slots, key) in groupedCostEstimates" :key="key">
-          <h2 class="text-xl font-bold my-4">{{ formatGroupKey(key) }}
+      <div v-if="Object.keys(groupedCostEstimates).length > 0" class="space-y-8">
+        <div v-for="(slots, date) in groupedCostEstimates" :key="date"
+          class="bg-stone-50 dark:bg-stone-900 p-6 rounded-lg shadow-md">
+          <h2 class="text-xl font-semibold mb-4 text-primary">
+            {{ formatDate(date, 'MMMM d, yyyy') }}
+
+
           </h2>
-          <div v-for="slot in slots" :key="slot.id">
 
-            <!-- Per-Slot Costs -->
-            <div v-if="slot.perSlotCosts && slot.perSlotCosts.length > 0" class="p-4">
-              <h4 class="text-sm uppercase font-bold text-primary">Slot Costs</h4>
-              <div v-for="(cost, costIndex) in slot.perSlotCosts" :key="costIndex">
-                <InvoiceItem :item="cost" @update="updateInvoiceItem" @remove="removeInvoiceItem" />
-              </div>
+          <div v-for="slot in slots" :key="slot.id" class="mb-6 p-4 bg-white dark:bg-stone-800 rounded-md shadow">
+            <h3 class="text-lg font-semibold mb-2">
+              <!-- {{ formatTimeRange(slot.start, slot.end) }} -->
+            </h3>
 
-            </div>
-            <div v-for="(estimate, estimateIndex) in slot.estimates" :key="estimateIndex">
-              <h4 class="text-sm uppercase font-bold">{{ estimate.roomSlug }}</h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div class="space-y-4">
+                <!-- Per-Slot Costs -->
+                <div v-if="slot.perSlotCosts && slot.perSlotCosts.length > 0">
+                  <h4 class="text-sm uppercase font-bold text-primary mb-2">Slot Costs</h4>
+                  <div v-for="(cost, costIndex) in slot.perSlotCosts" :key="costIndex">
+                    <InvoiceItem :item="cost" @update="updateInvoiceItem" @remove="removeInvoiceItem" />
+                  </div>
+                </div>
 
-              <!-- Full Day Rental -->
-              <template v-if="estimate.fullDayCostItem">
-                <InvoiceItem :item="estimate.fullDayCostItem" @update="updateInvoiceItem" @remove="removeInvoiceItem" />
-              </template>
+                <!-- Room Estimates -->
+                <h4 class="text-sm uppercase font-bold text-primary mb-2">Room Costs</h4>
+                <div v-for="(estimate, estimateIndex) in slot.estimates" :key="estimateIndex" class="mb-4">
 
-              <!-- Daytime -->
-              <template v-if="estimate.daytimeCostItem">
-                <InvoiceItem :item="estimate.daytimeCostItem" @update="updateInvoiceItem" @remove="removeInvoiceItem" />
-              </template>
+                  <h4 class="text-md font-semibold mb-2">{{ store.getRoomName(estimate.roomSlug) }}</h4>
 
-              <!-- Evening -->
-              <template v-if="estimate.eveningCostItem">
-                <InvoiceItem :item="estimate.eveningCostItem" @update="updateInvoiceItem" @remove="removeInvoiceItem" />
-              </template>
+                  <template v-if="estimate.fullDayCostItem">
+                    <InvoiceItem :item="estimate.fullDayCostItem" @update="updateInvoiceItem"
+                      @remove="removeInvoiceItem" />
+                  </template>
 
-              <!-- Additional Costs -->
-              <div v-if="estimate.additionalCosts && estimate.additionalCosts.length > 0" class="mt-6">
-                <h4 class="text-sm uppercase font-bold text-primary">Additional Costs</h4>
-                <div v-for="(cost, costIndex) in estimate.additionalCosts" :key="costIndex">
-                  <InvoiceItem :item="cost" @update="updateInvoiceItem" @remove="removeInvoiceItem" />
+                  <template v-if="estimate.daytimeCostItem">
+                    <InvoiceItem :item="estimate.daytimeCostItem" @update="updateInvoiceItem"
+                      @remove="removeInvoiceItem" />
+                  </template>
+
+                  <template v-if="estimate.eveningCostItem">
+                    <InvoiceItem :item="estimate.eveningCostItem" @update="updateInvoiceItem"
+                      @remove="removeInvoiceItem" />
+                  </template>
+
+                  <!-- Additional Costs -->
+                  <div v-if="estimate.additionalCosts && estimate.additionalCosts.length > 0" class="mt-2">
+                    <h5 class="text-sm font-semibold text-gray-600 mb-1">Additional Costs</h5>
+                    <div v-for="(cost, costIndex) in estimate.additionalCosts" :key="costIndex">
+                      <InvoiceItem :item="cost" @update="updateInvoiceItem" @remove="removeInvoiceItem" />
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
 
+              <div class="bg-stone-100 dark:bg-stone-950 p-4 rounded-md space-y-4">
+                <!-- Custom Line Item Input -->
+                <h4 class="text-sm uppercase font-bold text-primary mb-2">Add Custom Line Item</h4>
+                <div v-if="slot.newLineItem" class="grid grid-cols-2 gap-4">
+                  <USelect v-model="slot.newLineItem.type" :options="[
+                    { label: 'Custom', value: 'custom' },
+                    { label: 'Resource', value: 'resource' }
+                  ]" @update:modelValue="(value) => handleNewLineItemTypeChange(slot, value)" />
 
+                  <USelect v-if="slot.newLineItem.type === 'resource'" v-model="slot.newLineItem.resourceId"
+                    :options="getAvailableResourcesForSlot(slot)"
+                    :disabled="getAvailableResourcesForSlot(slot).length === 0"
+                    @update:modelValue="(value) => onResourceSelect(slot, value)" />
 
-            <!-- Custom Line Item Input -->
-            <div class="p-4">
-              <h4 class="text-lg font-semibold mb-2">Add Custom Line Item</h4>
-              <div v-if="slot.newLineItem" class="flex items-center space-x-4">
-                <USelect v-if="slot.newLineItem" v-model="slot.newLineItem.type" :options="[
-                  { label: 'Custom', value: 'custom' },
-                  { label: 'Resource', value: 'resource' }
-                ]" @update:modelValue="(value) => handleNewLineItemTypeChange(slot, value)" />
+                  <UInput v-else v-model="slot.newLineItem.description" placeholder="Description" />
+                  <UInput v-model="slot.newLineItem.cost" type="number" step="0.01" placeholder="Cost"
+                    @update:modelValue="(event) => updateCost(slot, event)" />
+                  <UButton @click="() => addLineItem(slot)" :disabled="!isValidNewLineItem(slot.newLineItem)"
+                    class="col-span-2">
+                    Add
+                  </UButton>
+                </div>
 
-                <USelect v-if="slot.newLineItem.type === 'resource'" v-model="slot.newLineItem.resourceId"
-                  :options="getAvailableResourcesForSlot(slot)"
-                  :disabled="getAvailableResourcesForSlot(slot).length === 0" class="w-1/3"
-                  @update:modelValue="(value) => onResourceSelect(slot, value)" />
-
-                <UInput v-else v-model="slot.newLineItem.description" placeholder="Description" class="w-1/3" />
-                <UInput v-model="slot.newLineItem.cost" type="number" step="0.01" placeholder="Cost" class="w-1/4"
-                  @update:modelValue="(event) => updateCost(slot, event)" />
-                <UButton @click="() => addLineItem(slot)" :disabled="!isValidNewLineItem(slot.newLineItem)"
-                  class="w-1/6">
-                  Add
-                </UButton>
-              </div>
-            </div>
-
-            <!-- Display Custom Line Items -->
-            <div v-if="slot.customLineItems && slot.customLineItems.length > 0" class="p-4">
-              <h4 class="text-sm uppercase font-bold text-primary">Custom Line Items</h4>
-              <div v-for="(item, itemIndex) in slot.customLineItems" :key="itemIndex">
-                <InvoiceItem :item="item" @update="(updatedItem) => updateCustomLineItem(slot, updatedItem)"
-                  @remove="() => removeCustomLineItem(slot, item)" />
+                <!-- Display Custom Line Items -->
+                <div v-if="slot.customLineItems && slot.customLineItems.length > 0">
+                  <h4 class="text-sm uppercase font-bold text-primary mb-2">Custom Line Items</h4>
+                  <div v-for="(item, itemIndex) in slot.customLineItems" :key="itemIndex">
+                    <InvoiceItem :item="item" @update="(updatedItem) => updateCustomLineItem(slot, updatedItem)"
+                      @remove="() => removeCustomLineItem(slot, item)" />
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-      <div v-else class=" py-8">
+      <div v-else class="py-8">
         <p class="text-lg text-gray-500">No cost estimates available for this version.</p>
       </div>
 
@@ -182,6 +152,7 @@ import { ref, computed, watch, onMounted } from 'vue';
 import { useAdminBookingStore } from '@/stores/adminBookingStore';
 import { storeToRefs } from 'pinia';
 import { useResources } from '@/composables/useResources';
+
 import { isValid, parseISO, format } from 'date-fns';
 import { formatDescription, formatCurrency, formatDate, formatTimeRange } from '@/utils/formatters';
 import _ from 'lodash';
@@ -252,8 +223,8 @@ const handleDateUpdates = async (updatedDates) => {
       ...(date.id && !date.isNew ? { id: date.id } : {}),
       slots: date.slots.map((slot) => ({
         title: slot.title,
-        startTime: slot.startTime,
-        endTime: slot.endTime,
+        startTime: slot.startTime || slot.start,
+        endTime: slot.endTime || slot.end,
         rooms: slot.rooms.map((room) => ({ id: room.id })),
         resources: slot.resources || [],
         ...(slot.id && !slot.isNew ? { id: slot.id } : {}),
@@ -299,7 +270,7 @@ watch(rentalData, (newData) => {
     groupedCostEstimatesData.value = groupCostEstimates(estimates);
   }
 });
-// after making these changes, when i saved a new slot, it overwrote the existing dates data in DatoCMS instead of appending a new date with the new slot data. (If a date already exists I would also expect it to append the slot to the existing date) additionally, i get an error about "invalid time value. values: Start Time: { time: '12:00' } End Time: { time: '17:00' }
+
 
 
 const groupedCostEstimates = computed(() => {
@@ -449,10 +420,6 @@ const preparePdfPayload = () => {
   // Implement the logic to prepare the PDF payload
   // This should be similar to the pdfPayload object in your original sendEstimate function
 };
-const formatGroupKey = (key) => {
-  if (key === 'unknown-date') return 'Unknown Date';
-  if (isValid(parseISO(key))) return formatDate(key);
-  return `Group: ${key}`;
-};
+
 
 </script>

@@ -14,29 +14,7 @@
       </div>
     </div>
 
-    <!-- List of Added Dates -->
-    <div v-if="dates.length > 0">
-      <div v-for="(dateObj, index) in dates" :key="index" class="mt-4">
-        <UCard>
-          <template #header>
-            <div class="flex items-center justify-between">
-              <h3 class="text-lg font-semibold">{{ formatDate(dateObj.date) }}</h3>
-              <UButton icon="i-heroicons-chevron-down" @click="toggleDateSlots(index)" />
-            </div>
-          </template>
 
-          <template v-if="dateObj.showSlots">
-            <!-- Display Slots for each date -->
-            <div v-for="(slot, slotIndex) in dateObj.slots" :key="slotIndex" class="mb-2">
-              <p><strong>Slot Title:</strong> {{ slot.title }} | <strong>Start Time:</strong> {{ slot.startTime }} |
-                <strong>End Time:</strong> {{ slot.endTime }} | <strong>Rooms:</strong> {{ slot.rooms.map(room =>
-                  room.name).join(', ') }}
-              </p>
-            </div>
-          </template>
-        </UCard>
-      </div>
-    </div>
 
     <!-- Slot Manager Modal -->
     <RentalsSlotManager :initialSlots="[]" :isModalOpen="isDateModalOpen" @update:slots="handleSlotsUpdate" />

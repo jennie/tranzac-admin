@@ -73,13 +73,16 @@ export const useAdminBookingStore = defineStore("adminBookingStore", () => {
       rentalData.value = data;
 
       const estimates = data.dates.flatMap((date) =>
-        date.slots.map((slot) => ({
-          ...slot,
-          rooms: slot.rooms || [],
-          startTime: parseTime(date.date, slot.startTime.time),
-          endTime: parseTime(date.date, slot.endTime.time),
-          date: date.date, // Ensure each slot has the correct date
-        }))
+        date.slots.map((slot) => {
+          console.log("=-=-=-=SLOT=-=-=-=", slot.startTime.time);
+          return {
+            ...slot,
+            rooms: slot.rooms || [],
+            startTime: slot.startTime.time,
+            endTime: slot.endTime.time,
+            date: new Date(date.date).toISOString(), // Ensure the date is in ISO format
+          };
+        })
       );
 
       console.log("Prepared estimates for grouping:", estimates); // Log the estimates
@@ -462,10 +465,6 @@ export const useAdminBookingStore = defineStore("adminBookingStore", () => {
         groupedCostEstimatesData.value
       )) {
         rentalDates[dateKey] = slots.map((slot) => {
-          const startDateTime = "2023-10-01T10:00:00Z";
-          const endDateTime = "2023-10-01T12:00:00Z";
-          console.log("TIMES:", startDateTime, endDateTime);
-          console.log("Slot in recalculateCosts:", slot);
           const roomSlugs = slot.rooms
             .map((room) => {
               const mappedRoom = roomMapping.value.find(
@@ -478,8 +477,8 @@ export const useAdminBookingStore = defineStore("adminBookingStore", () => {
           return {
             date: dateKey,
             id: slot.id,
-            startTime: startDateTime,
-            endTime: endDateTime,
+            startTime: slot.startTime,
+            endTime: slot.endTime,
             expectedAttendance: slot.expectedAttendance,
             private: slot.private,
             resources: slot.resources || [],

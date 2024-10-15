@@ -1,9 +1,18 @@
-// utils/formatters.js
-
-import { format, parse, isValid, parseISO } from "date-fns";
+import {
+  format,
+  parse,
+  isValid,
+  parseISO,
+  setMilliseconds,
+  setSeconds,
+  setMinutes,
+  setHours,
+} from "date-fns";
 import { toZonedTime } from "date-fns-tz";
 
-export const formatCurrency = (value: number | undefined | null): string => {
+const timeZone = "America/Toronto";
+
+export const formatCurrency = (value) => {
   if (typeof value !== "number") {
     return "N/A";
   }
@@ -12,6 +21,7 @@ export const formatCurrency = (value: number | undefined | null): string => {
     currency: "CAD",
   }).format(value);
 };
+
 export function formatDescription(
   hours,
   price,
@@ -27,14 +37,15 @@ export function formatDescription(
     rateType === "hourly" ? "/hour" : ""
   }`;
 }
+
 const format12Hour = (time) => {
   if (!time) return "";
   try {
     let parsedTime;
     if (time.includes("T")) {
-      parsedTime = parseISO(time);
+      parsedTime = toZonedTime(parseISO(time), timeZone);
     } else {
-      parsedTime = parse(time, "HH:mm", new Date());
+      parsedTime = toZonedTime(parse(time, "HH:mm", new Date()), timeZone);
     }
     if (isValid(parsedTime)) {
       return format(parsedTime, "h:mm a");
@@ -50,36 +61,10 @@ export const formatTimeRangeReadable = (startTime, endTime) => {
   const formattedEnd = format12Hour(endTime);
   return `${formattedStart} - ${formattedEnd}`;
 };
-import { format, isValid, parseISO } from "date-fns";
 
-export const formatDate = (dateInput) => {
-  if (!dateInput) return;
-
-  let date;
-
-  // If it's already a Date object, use it directly
-  if (dateInput instanceof Date) {
-    date = dateInput;
-  }
-  // If it's a string, try to parse it as ISO format
-  else if (typeof dateInput === "string") {
-    date = parseISO(dateInput);
-  }
-  // Handle any other types of date inputs (e.g., timestamps)
-  else {
-    date = new Date(dateInput);
-  }
-
-  // Check if the parsed date is valid
-  if (!isValid(date)) return;
-
-  try {
-    // Format the date as "MMMM d, yyyy" (e.g., "October 10, 2023")
-    return format(date, "MMMM d, yyyy");
-  } catch (error) {
-    console.error("Error formatting date:", dateInput, error);
-    return;
-  }
+export const formatDate = (date, formatString = "MMMM dd, yyyy", timeZone) => {
+  const zonedDate = toZonedTime(new Date(date), timeZone); // Convert to Toronto time zone
+  return format(zonedDate, formatString);
 };
 
 export const formatTime = (time) => {
@@ -93,11 +78,12 @@ export const formatTime = (time) => {
 
     let parsedTime;
     if (timeString.includes("T")) {
-      // ISO string format
-      parsedTime = new Date(timeString);
+      parsedTime = toZonedTime(new Date(timeString), timeZone);
     } else {
-      // HH:mm format
-      parsedTime = parse(timeString, "HH:mm", new Date());
+      parsedTime = toZonedTime(
+        parse(timeString, "HH:mm", new Date()),
+        timeZone
+      );
     }
 
     if (!isValid(parsedTime)) {
@@ -113,13 +99,12 @@ export const formatTime = (time) => {
 };
 
 export const formatTimeRange = (start, end) => {
-  const timeZone = "America/Toronto"; // Replace with your desired timezone
   try {
     const startDate = toZonedTime(new Date(start), timeZone);
     const endDate = toZonedTime(new Date(end), timeZone);
 
-    const startTime = format(startDate, "h:mm a", { timeZone });
-    const endTime = format(endDate, "h:mm a", { timeZone });
+    const startTime = format(startDate, "h:mm a");
+    const endTime = format(endDate, "h:mm a");
 
     return `${startTime} - ${endTime}`;
   } catch (error) {
@@ -131,7 +116,7 @@ export const formatTimeRange = (start, end) => {
 export const formatDateTime = (dateTimeString) => {
   if (!dateTimeString) return "";
   try {
-    const dateTime = parseISO(dateTimeString);
+    const dateTime = toZonedTime(parseISO(dateTimeString), timeZone);
     if (!isValid(dateTime)) {
       console.warn(`Invalid date-time string: ${dateTimeString}`);
       return "Invalid date-time";

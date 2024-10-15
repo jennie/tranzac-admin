@@ -10,10 +10,7 @@
       Regular rate: {{ formatCurrency(item.regularRate) }}/hour
     </div>
     <div class="flex items-center space-x-2">
-      <UInput v-model="localAmount" @input="updateAmount" type="number" step="1" class="w-28" :ui="{
-        wrapper: 'flex-shrink-0',
-        input: 'text-right'
-      }" />
+      {{ formatCurrency(localAmount) }}
       <UButton @click="removeItem" color="red" variant="ghost" icon="i-heroicons-trash" size="sm" />
     </div>
   </div>

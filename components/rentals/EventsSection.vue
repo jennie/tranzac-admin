@@ -9,7 +9,8 @@
     <div v-else>
       <div v-for="date in rentalData.dates" :key="date.id" class="mb-6">
         <h3 class="text-lg font-semibold mb-2">
-          {{ formatDate(date.date) }}
+          {{ formatDate(date.date, 'MMMM d, yyyy') }}
+
           <span v-if="date.slots && date.slots.length > 0" class="text-sm font-normal">
             ({{ formatTimeRangeReadable(date.slots[0]?.startTime?.time, date.slots[date.slots.length -
               1]?.endTime?.time) }})
