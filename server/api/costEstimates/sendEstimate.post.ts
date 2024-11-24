@@ -277,7 +277,7 @@ export default defineEventHandler(async (event) => {
     // Prepare the email content
     const msg = {
       to: body.recipientEmail,
-      from: "jennie@machinemagic.co",
+      from: "queries@tranzac.org",
       subject: `Cost Estimate for Rental Request ${pdfPayload.rentalRequestId}`,
       text: `Please find attached your cost estimate for rental request ${pdfPayload.rentalRequestId}.`,
       html: `<strong>Please find attached your cost estimate for rental request ${pdfPayload.rentalRequestId}.</strong>`,

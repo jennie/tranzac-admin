@@ -23,17 +23,23 @@ export default defineEventHandler(async (event) => {
   try {
     await ensureConnection();
     const body = await readBody(event);
-    console.log("-----------------body.rentalDates", body.rentalDates);
+    console.log("--------->", body.rentalDates);
     if (!body.rentalDates || typeof body.rentalDates !== "object") {
-      return { costEstimates: [], grandTotal: 0, tax: 0, totalWithTax: 0 };
+      return {
+        costEstimates: [],
+        customLineItems: {},
+        grandTotal: 0,
+        tax: 0,
+        totalWithTax: 0,
+      };
     }
 
     const pricingRules = new PricingRules();
 
-    const { costEstimates, grandTotal, tax, totalWithTax } =
+    const { costEstimates, customLineItems, grandTotal, tax, totalWithTax } =
       await pricingRules.getPrice({ rentalDates: body.rentalDates });
 
-    return { costEstimates, grandTotal, tax, totalWithTax };
+    return { costEstimates, customLineItems, grandTotal, tax, totalWithTax };
   } catch (error) {
     console.error("Error in calculateCostEstimates:", error);
     throw createError({

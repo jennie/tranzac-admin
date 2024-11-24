@@ -24,6 +24,43 @@ export const useAdminBookingStore = defineStore("adminBookingStore", () => {
   function parseTime(dateString, timeString) {
     return parse(`${dateString} ${timeString}`, "yyyy-MM-dd HH:mm", new Date());
   }
+  function updateSecurityCost(slotId, newCost) {
+    const slot = findSlotById(slotId);
+    if (slot) {
+      let securityItem = slot.customLineItems.find(
+        (item) => item.description === "Security"
+      );
+      if (securityItem) {
+        securityItem.cost = Number(newCost);
+      } else {
+        securityItem = {
+          id: uuidv4(),
+          description: "Security",
+          cost: Number(newCost),
+          isEditable: true,
+        };
+        slot.customLineItems.push(securityItem);
+      }
+      recalculateSlotTotal(slot);
+      updateTotals();
+    }
+  }
+
+  function removeRoom(slot, estimate) {
+    const index = slot.estimates.findIndex(
+      (e) => e.roomSlug === estimate.roomSlug
+    );
+    if (index !== -1) {
+      slot.estimates.splice(index, 1);
+      recalculateSlotTotal(slot);
+      updateTotals();
+    }
+  }
+
+  function isRequiredCost(cost) {
+    const requiredCosts = ["Early Open Staff", "Cleaning Fee"];
+    return requiredCosts.includes(cost.description);
+  }
 
   // useAdminBookingStore.js
   function groupCostEstimates(costEstimates) {
@@ -31,6 +68,10 @@ export const useAdminBookingStore = defineStore("adminBookingStore", () => {
       console.warn("No cost estimates to group.");
       return {};
     }
+    console.log(
+      "Cost Estimates before grouping:",
+      JSON.stringify(costEstimates, null, 2)
+    ); // Add this line
 
     return costEstimates.reduce((acc, estimate) => {
       const dateKey =
@@ -399,71 +440,120 @@ export const useAdminBookingStore = defineStore("adminBookingStore", () => {
     updateTotals();
   }
 
-  function recalculateSlotTotal(slot) {
+  // function recalculateSlotTotal(slot) {
+  //   let total = 0;
+
+  //   // Add per-slot costs
+  //   total += (slot.perSlotCosts || []).reduce(
+  //     (sum, cost) => sum + (Number(cost.cost) || 0),
+  //     0
+  //   );
+
+  //   // Add estimate costs
+  //   (slot.estimates || []).forEach((estimate) => {
+  //     total += Number(estimate.totalCost || 0);
+
+  //     total += (estimate.additionalCosts || []).reduce(
+  //       (sum, cost) => sum + (Number(cost.cost) || 0),
+  //       0
+  //     );
+  //   });
+
+  //   // Add custom line items
+  //   total += (slot.customLineItems || []).reduce(
+  //     (sum, item) => sum + (Number(item.cost) || 0),
+  //     0
+  //   );
+
+  //   slot.slotTotal = total;
+
+  //   groupedCostEstimatesData.value = { ...groupedCostEstimatesData.value };
+  // }
+  function recalculateSlotTotal(slot: any) {
+    if (!slot) {
+      console.warn("Slot is undefined or null in recalculateSlotTotal");
+      return;
+    }
+
     let total = 0;
-    console.log("Calculating total for slot:", slot);
 
-    // Add per-slot costs
-    total += (slot.perSlotCosts || []).reduce(
-      (sum, cost) => sum + (Number(cost.cost) || 0),
-      0
-    );
+    // Ensure slot.estimates is an array before using forEach
+    if (Array.isArray(slot.estimates)) {
+      slot.estimates.forEach((estimate: any) => {
+        total += estimate.totalCost || 0;
 
-    // Add estimate costs (this is where room costs are likely being stored)
-    (slot.estimates || []).forEach((estimate) => {
-      total += Number(estimate.totalCost || 0);
-
-      total += (estimate.additionalCosts || []).reduce(
-        (sum, cost) => sum + (Number(cost.cost) || 0),
-        0
+        // Handle additionalCosts array
+        if (Array.isArray(estimate.additionalCosts)) {
+          estimate.additionalCosts.forEach((cost: any) => {
+            total += cost.cost || 0;
+          });
+        }
+      });
+    } else {
+      console.warn(
+        "slot.estimates is not an array or undefined:",
+        slot.estimates
       );
-    });
+    }
 
-    // Add custom line items if they exist
-    total += (slot.customLineItems || []).reduce(
-      (sum, item) => sum + (Number(item.cost) || 0),
-      0
-    );
+    // Handle perSlotCosts array
+    if (Array.isArray(slot.perSlotCosts)) {
+      slot.perSlotCosts.forEach((cost: any) => {
+        total += cost.cost || 0;
+      });
+    } else {
+      console.warn(
+        "slot.perSlotCosts is not an array or undefined:",
+        slot.perSlotCosts
+      );
+    }
 
+    // Assign the recalculated total
     slot.slotTotal = total;
-
-    // Update UI with new totals
-    groupedCostEstimatesData.value = { ...groupedCostEstimatesData.value };
-
-    console.log("Final slot total with estimates included:", total);
+    console.log("Recalculated slot total:", total);
   }
 
   function updateTotals() {
     let newTotalCost = 0;
 
-    const rawGroupedCostEstimates = toRaw(groupedCostEstimatesData.value);
-    console.log("Raw grouped cost estimates data:", rawGroupedCostEstimates);
-
-    for (const [dateKey, slots] of Object.entries(rawGroupedCostEstimates)) {
-      console.log(`Processing date: ${dateKey} with slots:`, slots);
-
+    for (const [dateKey, slots] of Object.entries(
+      groupedCostEstimatesData.value
+    )) {
       slots.forEach((slot) => {
-        console.log("Slot total:", slot.slotTotal);
-        newTotalCost += slot.slotTotal || 0;
+        // Add per-slot costs
+        newTotalCost += slot.perSlotCosts.reduce(
+          (sum, cost) => sum + (Number(cost.cost) || 0),
+          0
+        );
+
+        // Add room estimates
+        slot.estimates.forEach((estimate) => {
+          newTotalCost += estimate.totalCost;
+        });
+
+        // Add custom line items
+        newTotalCost += slot.customLineItems.reduce(
+          (sum, item) => sum + (Number(item.cost) || 0),
+          0
+        );
       });
     }
+
+    console.log("New Total Cost:", newTotalCost);
 
     totalCost.value = newTotalCost;
     taxAmount.value = newTotalCost * 0.13;
     totalWithTax.value = newTotalCost + taxAmount.value;
-
-    console.log("Total Cost:", totalCost.value);
-    console.log("Tax Amount:", taxAmount.value);
-    console.log("Total with Tax:", totalWithTax.value);
   }
 
-  const recalculateCosts = async () => {
+  async function recalculateCosts() {
     try {
       const rentalDates = {};
 
       for (const [dateKey, slots] of Object.entries(
         groupedCostEstimatesData.value
       )) {
+        console.log("SLOTS:", slots);
         rentalDates[dateKey] = slots.map((slot) => {
           const roomSlugs = slot.rooms
             .map((room) => {
@@ -484,13 +574,11 @@ export const useAdminBookingStore = defineStore("adminBookingStore", () => {
             resources: slot.resources || [],
             rooms: slot.rooms,
             roomSlugs,
+            customLineItems: slot.customLineItems || [],
           };
         });
       }
 
-      // Log the rentalDates object before sending to the API
-      console.log("Rental dates for recalculation:", rentalDates);
-      // date exists here
       const { data } = await useFetch("/api/costEstimates/recalculate", {
         method: "POST",
         body: {
@@ -499,30 +587,46 @@ export const useAdminBookingStore = defineStore("adminBookingStore", () => {
         },
       });
 
-      console.log("Recalculated data from API:", data.value);
-
+      console.log("API Response data:", data); // Add this line
       if (data.value && data.value.costEstimates) {
-        groupedCostEstimatesData.value = groupCostEstimates(
+        const newGroupedCostEstimates = groupCostEstimates(
           data.value.costEstimates
         );
 
-        console.log(
-          "Grouped cost estimates after recalculation:",
-          groupedCostEstimatesData.value
-        );
+        for (const dateKey in newGroupedCostEstimates) {
+          for (const slot of newGroupedCostEstimates[dateKey]) {
+            const existingSlot = groupedCostEstimatesData.value[dateKey]?.find(
+              (s) => s.id === slot.id
+            );
+            if (existingSlot) {
+              const existingSecurityItem = existingSlot.customLineItems.find(
+                (item) => item.id === "security"
+              );
+              if (existingSecurityItem) {
+                slot.customLineItems = slot.customLineItems.filter(
+                  (item) => item.id !== "security"
+                );
+                slot.customLineItems.push(existingSecurityItem);
+              }
+            }
+          }
+        }
+
+        groupedCostEstimatesData.value = newGroupedCostEstimates;
+        updateAllSlotTotals();
+        updateTotals();
       } else {
         console.error(
           "Recalculation failed or returned unexpected data structure"
         );
       }
 
-      // After recalculating costs, update the totals
       updateAllSlotTotals();
       updateTotals();
     } catch (error) {
       console.error("Error recalculating costs:", error);
     }
-  };
+  }
 
   function updateInvoiceItem(updatedItem) {
     const slot = groupedCostEstimatesData.value[updatedItem.slotId];
@@ -542,6 +646,13 @@ export const useAdminBookingStore = defineStore("adminBookingStore", () => {
     });
 
     if (!itemFound) {
+      slot.customLineItems = slot.customLineItems.map((item) => {
+        if (item.id === updatedItem.id) {
+          itemFound = true;
+          return { ...item, ...updatedItem };
+        }
+        return item;
+      });
       slot.rooms = slot.rooms.map((room) => {
         if (
           room.fullDayCostItem &&
@@ -576,16 +687,6 @@ export const useAdminBookingStore = defineStore("adminBookingStore", () => {
     }
 
     if (!itemFound) {
-      slot.customLineItems = slot.customLineItems.map((item) => {
-        if (item.id === updatedItem.id) {
-          itemFound = true;
-          return { ...item, ...updatedItem };
-        }
-        return item;
-      });
-    }
-
-    if (!itemFound) {
       console.error(
         "Item not found in any category for update:",
         updatedItem.id
@@ -597,13 +698,15 @@ export const useAdminBookingStore = defineStore("adminBookingStore", () => {
     updateTotals();
   }
 
-  function updateCustomLineItem(slot, updatedItem) {
-    const index = slot.customLineItems.findIndex(
-      (item) => item.id === updatedItem.id
-    );
-    if (index !== -1) {
-      slot.customLineItems[index] = updatedItem;
-      recalculateSlotTotal(slot);
+  function updateCustomLineItem(slotId, itemId, newValue) {
+    const slot = findSlotById(slotId);
+    if (slot) {
+      const item = slot.customLineItems.find((i) => i.id === itemId);
+      if (item) {
+        item.cost = Number(newValue);
+        recalculateSlotTotal(slot);
+        updateTotals();
+      }
     }
   }
 
@@ -707,6 +810,7 @@ export const useAdminBookingStore = defineStore("adminBookingStore", () => {
         description: cost.description || "No description",
         subDescription: cost.subDescription || "",
         cost: cost.cost,
+        isRequired: cost.isRequired,
       })),
       estimates: (slot.rooms || []).map((room) => ({
         roomSlug: room.roomSlug || "N/A",
@@ -727,6 +831,7 @@ export const useAdminBookingStore = defineStore("adminBookingStore", () => {
           description: cost.description || "No description",
           subDescription: cost.subDescription || "",
           cost: cost.cost,
+          isRequired: cost.isRequired,
         })),
         daytimeCostItem: room.daytimeCostItem
           ? { ...room.daytimeCostItem, slotId: room.daytimeCostItem.slotId }
@@ -958,5 +1063,8 @@ export const useAdminBookingStore = defineStore("adminBookingStore", () => {
     saveEventSlots,
     groupCostEstimates,
     groupedCostEstimatesData,
+    removeRoom,
+    isRequiredCost,
+    updateSecurityCost,
   };
 });

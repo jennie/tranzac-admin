@@ -9,9 +9,16 @@
     <div v-if="item.regularRate && item.regularRate !== item.appliedRate" class="text-sm text-stone-300">
       Regular rate: {{ formatCurrency(item.regularRate) }}/hour
     </div>
+    <div v-if="item.isFullDay == true" class="flex flex-col text-sm">
+      <div class="flex justify-between text-base">
+        <span class="text-stone-200 font-bold">Full Day Flat Rate</span>
+        <span class="text-sm">{{ formatCurrency(item.fullDayPrice) }}</span>
+      </div>
+    </div>
     <div class="flex items-center space-x-2">
       {{ formatCurrency(localAmount) }}
-      <UButton @click="removeItem" color="red" variant="ghost" icon="i-heroicons-trash" size="sm" />
+      <UButton v-if="removable && !item.isRequired" @click="removeItem" color="red" variant="ghost"
+        icon="i-heroicons-trash" size="sm" />
     </div>
   </div>
 </template>
@@ -24,6 +31,10 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  removable: {
+    type: Boolean,
+    default: true
+  }
 });
 
 const emit = defineEmits(['update', 'remove']);
@@ -34,8 +45,9 @@ watch(() => props.item.cost, (newAmount) => {
   localAmount.value = newAmount;
 });
 
+
 const removeItem = () => {
-  emit('remove', props.item);
+  emit('remove', props.item.id);
 };
 
 const updateAmount = () => {

@@ -1,25 +1,18 @@
 <template>
   <div class="cost-estimate-editor space-y-8">
-    <!-- Status History Button and Slideover (unchanged) -->
-
     <UCard class="shadow-lg" v-if="!isLoading">
-      <!-- Card Header (unchanged) -->
-
       <RentalsDateManager :initialDates="addedDates" @trigger-modal="handleModalOpen"
         @update:dates="handleDateUpdates" />
-
       <div v-if="Object.keys(groupedCostEstimates).length > 0" class="space-y-8">
         <div v-for="(slots, date) in groupedCostEstimates" :key="date"
           class="bg-stone-50 dark:bg-stone-900 p-6 rounded-lg shadow-md">
           <h2 class="text-xl font-semibold mb-4 text-primary">
             {{ formatDate(date, 'MMMM d, yyyy') }}
-
-
           </h2>
 
           <div v-for="slot in slots" :key="slot.id" class="mb-6 p-4 bg-white dark:bg-stone-800 rounded-md shadow">
             <h3 class="text-lg font-semibold mb-2">
-              <!-- {{ formatTimeRange(slot.start, slot.end) }} -->
+              {{ formatTimeRangeReadable(slot.start, slot.end) }}
             </h3>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -28,36 +21,39 @@
                 <div v-if="slot.perSlotCosts && slot.perSlotCosts.length > 0">
                   <h4 class="text-sm uppercase font-bold text-primary mb-2">Slot Costs</h4>
                   <div v-for="(cost, costIndex) in slot.perSlotCosts" :key="costIndex">
-                    <InvoiceItem :item="cost" @update="updateInvoiceItem" @remove="removeInvoiceItem" />
+                    <InvoiceItem :item="cost" @remove="removeInvoiceItem('perSlotCosts', slot, $event)"
+                      :removable="!cost.isRequired" />
                   </div>
                 </div>
-
                 <!-- Room Estimates -->
                 <h4 class="text-sm uppercase font-bold text-primary mb-2">Room Costs</h4>
                 <div v-for="(estimate, estimateIndex) in slot.estimates" :key="estimateIndex" class="mb-4">
+                  <div class="flex justify-between items-center mb-2">
+                    <h4 class="text-md font-semibold">{{ store.getRoomName(estimate.roomSlug) }}</h4>
+                    <UButton @click="removeRoom(slot, estimate)" color="red" variant="ghost" icon="i-heroicons-trash"
+                      size="sm" />
 
-                  <h4 class="text-md font-semibold mb-2">{{ store.getRoomName(estimate.roomSlug) }}</h4>
+
+                  </div>
 
                   <template v-if="estimate.fullDayCostItem">
-                    <InvoiceItem :item="estimate.fullDayCostItem" @update="updateInvoiceItem"
-                      @remove="removeInvoiceItem" />
+                    <InvoiceItem :item="estimate.fullDayCostItem" @update="updateInvoiceItem" :removable="false" />
                   </template>
 
                   <template v-if="estimate.daytimeCostItem">
-                    <InvoiceItem :item="estimate.daytimeCostItem" @update="updateInvoiceItem"
-                      @remove="removeInvoiceItem" />
+                    <InvoiceItem :item="estimate.daytimeCostItem" @update="updateInvoiceItem" :removable="false" />
                   </template>
 
                   <template v-if="estimate.eveningCostItem">
-                    <InvoiceItem :item="estimate.eveningCostItem" @update="updateInvoiceItem"
-                      @remove="removeInvoiceItem" />
+                    <InvoiceItem :item="estimate.eveningCostItem" @update="updateInvoiceItem" :removable="false" />
                   </template>
 
                   <!-- Additional Costs -->
                   <div v-if="estimate.additionalCosts && estimate.additionalCosts.length > 0" class="mt-2">
-                    <h5 class="text-sm font-semibold text-gray-600 mb-1">Additional Costs</h5>
+                    <h4 class="text-sm uppercase font-bold text-primary mb-2">Additional Costs</h4>
                     <div v-for="(cost, costIndex) in estimate.additionalCosts" :key="costIndex">
-                      <InvoiceItem :item="cost" @update="updateInvoiceItem" @remove="removeInvoiceItem" />
+                      <InvoiceItem :item="cost" @remove="removeInvoiceItem('additionalCosts', estimate, $event)"
+                        :removable="!cost.isRequired" />
                     </div>
                   </div>
                 </div>
@@ -65,7 +61,23 @@
 
               <div class="bg-stone-100 dark:bg-stone-950 p-4 rounded-md space-y-4">
                 <!-- Custom Line Item Input -->
-                <h4 class="text-sm uppercase font-bold text-primary mb-2">Add Custom Line Item</h4>
+                <div class="space-y-4">
+                  <h4 class="text-sm uppercase font-bold text-primary mb-2">Custom Line Items</h4>
+                  <div v-for="item in slot.customLineItems" :key="item.id">
+                    <button @click="removeInvoiceItem('customLineItems', slot, item.id)">Delete</button>
+
+                    <div class="flex items-center justify-between">
+                      <span>{{ item.description }}</span>
+                      <template v-if="item.description === 'Security' && item.isEditable">
+                        <UInput v-model="item.cost" type="number"
+                          @update:modelValue="(value) => updateSecurityCost(slot.id, value)"
+                          @input="updateCustomLineItemHere(slot.id, item.id, $event.target.value)" />
+
+                      </template>
+                      <span v-else>{{ formatCurrency(item.cost) }}</span>
+                    </div>
+                  </div>
+                </div>
                 <div v-if="slot.newLineItem" class="grid grid-cols-2 gap-4">
                   <USelect v-model="slot.newLineItem.type" :options="[
                     { label: 'Custom', value: 'custom' },
@@ -86,14 +98,8 @@
                   </UButton>
                 </div>
 
-                <!-- Display Custom Line Items -->
-                <div v-if="slot.customLineItems && slot.customLineItems.length > 0">
-                  <h4 class="text-sm uppercase font-bold text-primary mb-2">Custom Line Items</h4>
-                  <div v-for="(item, itemIndex) in slot.customLineItems" :key="itemIndex">
-                    <InvoiceItem :item="item" @update="(updatedItem) => updateCustomLineItem(slot, updatedItem)"
-                      @remove="() => removeCustomLineItem(slot, item)" />
-                  </div>
-                </div>
+
+
               </div>
             </div>
           </div>
@@ -192,7 +198,7 @@ const {
   handleVersionChange,
   recalculateCosts,
   updateInvoiceItem,
-  removeInvoiceItem,
+  updateSecurityCost,
   updateCustomLineItem,
   removeCustomLineItem,
   addLineItem,
@@ -202,7 +208,8 @@ const {
   sendEstimate,
   updateResourceSelection,
   updateRoomSelection,
-  groupCostEstimates
+  groupCostEstimates,
+
 } = store;
 
 const route = useRoute();
@@ -210,7 +217,9 @@ const toast = useToast();
 const { user } = useAuth();
 const userId = computed(() => user.value?._id || null);
 
-
+const updateCustomLineItemHere = (slotId, itemId, newValue) => {
+  store.updateCustomLineItem(slotId, itemId, Number(newValue));
+};
 // CostEstimateEditor.vue
 const handleDateUpdates = async (updatedDates) => {
   addedDates.value = updatedDates;
@@ -241,12 +250,6 @@ const handleDateUpdates = async (updatedDates) => {
   await store.recalculateCosts();
 };
 
-
-
-
-
-
-
 const { resourceOptions } = useResources();
 
 const isSubmitting = ref(false);
@@ -270,6 +273,48 @@ watch(rentalData, (newData) => {
     groupedCostEstimatesData.value = groupCostEstimates(estimates);
   }
 });
+
+const removeInvoiceItem = async (arrayName, parentObject, itemId) => {
+  console.log("Remove invoice item triggered for array:", arrayName);
+  console.log("Parent object:", parentObject);
+  console.log("Cost item ID to remove:", itemId);
+
+  let costsArray;
+
+  // Determine which array (perSlotCosts, additionalCosts, or customLineItems) to target
+  if (arrayName === 'perSlotCosts') {
+    costsArray = parentObject.perSlotCosts;
+  } else if (arrayName === 'additionalCosts') {
+    costsArray = parentObject.additionalCosts;
+  } else if (arrayName === 'customLineItems') {
+    costsArray = parentObject.customLineItems;
+  } else {
+    console.warn('Unknown cost array name:', arrayName);
+    return;
+  }
+
+  // Ensure costsArray is valid
+  if (Array.isArray(costsArray)) {
+    // Find the index of the item to be removed by its ID
+    const index = costsArray.findIndex(c => c.id === itemId);
+    if (index !== -1) {
+      // Remove the item from the array
+      costsArray.splice(index, 1);
+
+      // Recalculate slot and total costs
+      await store.recalculateSlotTotal(parentObject);  // Adjust as per your existing function
+      await recalculateCosts();  // Adjust this to ensure recalculation happens properly
+    } else {
+      console.warn('Cost item with ID not found in', arrayName);
+    }
+  } else {
+    console.warn(`${arrayName} is undefined or not an array`);
+  }
+};
+
+
+
+
 
 
 
@@ -414,6 +459,23 @@ const saveAndSendEstimate = async () => {
     isSubmitting.value = false;
   }
 };
+
+const removeRoom = async (slot, estimate) => {
+  const index = slot.estimates.findIndex(e => e.roomSlug === estimate.roomSlug);
+  if (index !== -1) {
+    slot.estimates.splice(index, 1);
+    await store.recalculateSlotTotal(slot);
+    await store.recalculateCosts();
+    store.updateTotals();
+  }
+};
+
+
+const isRequiredCost = (cost) => {
+  const requiredCosts = ['Early Open Staff', 'Cleaning Fee'];
+  return requiredCosts.includes(cost.description);
+};
+
 
 
 const preparePdfPayload = () => {
