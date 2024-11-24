@@ -35,7 +35,7 @@ watchEffect(() => {
 watch(
   loggedIn,
   (newValue) => {
-    console.log("loggedIn changed:", newValue);
+    // console.log("loggedIn changed:", newValue);
     authStore.showAuthModal = !newValue;
   },
   { immediate: true }

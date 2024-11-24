@@ -23,7 +23,11 @@ const links = [{
   label: 'Rental Requests',
   icon: 'i-heroicons-calendar',
   to: '/rental-requests',
-
+}, {
+  id: 'residencies',
+  label: 'Residencies',
+  icon: 'i-heroicons-microphone',
+  to: '/residencies',
 }
 ]
 

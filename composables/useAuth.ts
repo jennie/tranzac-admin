@@ -159,7 +159,7 @@ export function useAuth() {
         _id: sessionState.value._id || fetchedData._id, // Ensure _id is preserved
       };
 
-      console.log("sessionState.value after me():", sessionState.value);
+      // console.log("sessionState.value after me():", sessionState.value);
     } catch (error) {
       console.error("Error fetching user profile:", error);
       onError(error);
