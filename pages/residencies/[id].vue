@@ -1,19 +1,82 @@
 <template>
-  <div>
-    <h1>Residency Details</h1>
-    <div v-if="isLoading">Loading...</div>
-    <div v-else-if="error">Error: {{ error }}</div>
-    <div v-else-if="residency">
-      <p>ID: {{ residency.id }}</p>
-      <p>Status: {{ residency._status }}</p>
-      <p>Title: {{ residency.title }}</p>
-      <p>Created At: {{ residency._createdAt }}</p>
-    </div>
-  </div>
+  <UDashboardPanel grow>
+    <UDashboardPanelContent class="pb-24">
+      <div v-if="isLoading" class="p-4">
+        <ULoader />
+      </div>
+      <div v-else-if="error" class="text-red-500 p-4">
+        <p>Error: {{ error }}</p>
+      </div>
+      <template v-else-if="residency">
+        <UPageHeader headline="Residency" :title="residency.title" icon="i-heroicons-clipboard"
+          :description="`Last updated: ${formatDate(residency._updatedAt)}`" />
+
+        <UDivider class="mb-4" />
+
+        <UDashboardSection title="Details" class="mb-8">
+          <div class="grid gap-4">
+            <div class="grid grid-cols-2 gap-4">
+              <span class="font-semibold">Status:</span>
+              <span>{{ residency._status }}</span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+              <span class="font-semibold">Description:</span>
+              <p>{{ residency.description }}</p>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+              <span class="font-semibold">Date Range:</span>
+              <span>{{ formatDate(residency.startDate) }} - {{ formatDate(residency.endDate) }}</span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+              <span class="font-semibold">Active Status:</span>
+              <span>{{ residency.activeStatus }}</span>
+            </div>
+
+            <div v-if="residency.photo" class="grid grid-cols-2 gap-4">
+              <span class="font-semibold">Photo:</span>
+              <img :src="residency.photo.url" alt="Residency Photo" class="w-32 h-32 object-cover rounded-lg" />
+            </div>
+          </div>
+        </UDashboardSection>
+
+        <UDashboardSection title="Associated Members" class="mb-8">
+          <div v-if="memberEmailsLoading">
+            <p class="text-gray-500">Loading...</p>
+          </div>
+          <div v-else-if="memberEmailsError" class="text-red-500">
+            Error loading member emails: {{ memberEmailsError }}
+          </div>
+          <div v-else>
+            <div v-if="memberEmails.length" class="space-y-2">
+              <div v-for="member in members" :key="member" class="p-2 bg-gray-50 rounded">
+                <a class="text-flamingo underline" :href="'mailto:' + member.email">{{ member.firstName }} {{
+                  member.lastName }}</a>
+              </div>
+            </div>
+            <p v-else class="text-gray-500">No member emails associated with this residency</p>
+          </div>
+        </UDashboardSection>
+
+        <UDashboardSection title="Request Changes">
+          <ResidenciesRequestChangesForm :title="residency.title" :record-id="residency.id"
+            :recipient-emails="memberEmails" @submit="handleRequestChanges" />
+        </UDashboardSection>
+      </template>
+    </UDashboardPanelContent>
+  </UDashboardPanel>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watchEffect } from 'vue';
+import { formatDate } from '@/utils/formatters';
+import { first } from 'lodash';
+
+definePageMeta({
+  middleware: 'auth'
+});
 
 const route = useRoute();
 const id = computed(() => route.params.id);
@@ -27,18 +90,25 @@ const QUERY = `
       id
       _status
       _createdAt
+      _updatedAt
       title
+      description
+      photo {
+        url
+      }
+      startDate
+      endDate
+      slug
+      activeStatus
     }
   }
 `;
 
-// Use 'useGraphqlQuery' without 'await'
 const { data, error: gqlError } = useGraphqlQuery({
   query: QUERY,
-  variables: { id: id.value }
+  variables: { id: id.value },
 });
 
-// Watch 'data' and 'gqlError' to update local state
 watchEffect(() => {
   if (data.value) {
     residency.value = data.value.residency;
@@ -47,6 +117,82 @@ watchEffect(() => {
   if (gqlError.value) {
     error.value = gqlError.value.message;
     isLoading.value = false;
+  }
+});
+
+// Replace useUser with useAuth
+const { user } = useAuth();
+
+const handleRequestChanges = async ({ recipientEmails, note }) => {
+  if (!recipientEmails?.length || !note) {
+    alert("Please provide both recipient emails and a note.");
+    return;
+  }
+
+  try {
+    const response = await fetch(`/api/residencies/${residency.value.id}/requestChanges`, {
+      method: "PUT", // Changed to PUT to match the endpoint
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        recipientEmails,
+        note,
+        residencyTitle: residency.value.title,
+        commsManagerName: user.value?.name || 'Communications Manager', // Use actual user name
+      }),
+    });
+
+    const result = await response.json();
+
+    if (response.ok && result.success) {
+      alert("Change request email sent successfully!");
+    } else {
+      console.error("Failed to send change request:", result.message);
+      alert("Failed to send change request. Please try again.");
+    }
+  } catch (error) {
+    console.error("Error in handleRequestChanges:", error);
+    alert("An error occurred while sending the change request.");
+  }
+};
+
+const members = ref([]);
+const memberEmails = ref([]);
+const memberEmailsLoading = ref(false);
+const memberEmailsError = ref(null);
+
+const fetchMemberEmails = async () => {
+  memberEmailsLoading.value = true;
+  memberEmailsError.value = null;
+
+  try {
+    console.log('Fetching emails for residency:', residency.value.id);
+    const response = await useFetch(`/api/members/byResidencyId/${residency.value.id}`);
+
+    if (response.error.value) {
+      throw new Error(response.error.value?.message || 'Failed to fetch member emails');
+    }
+
+    const data = response.data.value;
+    console.log('Received response:', data);
+
+    if (!data || !data.emails) {
+      throw new Error('Invalid response format: missing emails array');
+    }
+
+    members.value = data.members;
+    memberEmails.value = data.emails;
+  } catch (error) {
+    console.error('Error fetching member emails:', error);
+    memberEmailsError.value = error.message;
+    memberEmails.value = [];
+  } finally {
+    memberEmailsLoading.value = false;
+  }
+};
+
+watchEffect(() => {
+  if (residency.value) {
+    fetchMemberEmails();
   }
 });
 </script>
