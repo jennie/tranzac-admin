@@ -27,7 +27,7 @@ export default defineEventHandler(async (event) => {
       <p>We have reviewed your residency request titled "<strong>${residencyTitle}</strong>" and have some feedback for you to address before we can proceed:</p>
       <blockquote>${note}</blockquote>
       <p>If you have any questions or require clarification, feel free to reach out.</p>
-      <p>Best regards,<br>${commsManagerName}<br>Communications Manager, Tranzac</p>
+      <p>Thank you!<br>${commsManagerName}<br>Communications Manager, Tranzac</p>
     `;
 
     // Send email to each recipient

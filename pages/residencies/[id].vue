@@ -2,7 +2,7 @@
   <UDashboardPanel grow>
     <UDashboardPanelContent class="pb-24">
       <div v-if="isLoading" class="p-4">
-        <ULoader />
+        Loading…
       </div>
       <div v-else-if="error" class="text-red-500 p-4">
         <p>Error: {{ error }}</p>
@@ -17,7 +17,20 @@
           <div class="grid gap-4">
             <div class="grid grid-cols-2 gap-4">
               <span class="font-semibold">Status:</span>
-              <span>{{ residency._status }}</span>
+              <div>
+                <span class="block">{{ residency._status }}</span>
+                <UCard v-if="canApprove || canRequestChanges">
+                  <div class="flex gap-4">
+                    <UButton v-if="canApprove" @click="handleStatusUpdate('approved')">
+                      Approve Residency
+                    </UButton>
+                    <UButton v-if="canRequestChanges" color="gray" @click="showRequestChangesForm = true">
+                      Request Changes
+                    </UButton>
+                  </div>
+                </UCard>
+
+              </div>
             </div>
 
             <div class="grid grid-cols-2 gap-4">
@@ -44,25 +57,32 @@
 
         <UDashboardSection title="Associated Members" class="mb-8">
           <div v-if="memberEmailsLoading">
-            <p class="text-gray-500">Loading...</p>
+            <p class="text-stone-500">Loading...</p>
           </div>
           <div v-else-if="memberEmailsError" class="text-red-500">
             Error loading member emails: {{ memberEmailsError }}
           </div>
           <div v-else>
             <div v-if="memberEmails.length" class="space-y-2">
-              <div v-for="member in members" :key="member" class="p-2 bg-gray-50 rounded">
+              <div v-for="member in members" :key="member" class="p-2 bg-stone-50 rounded">
                 <a class="text-flamingo underline" :href="'mailto:' + member.email">{{ member.firstName }} {{
                   member.lastName }}</a>
               </div>
             </div>
-            <p v-else class="text-gray-500">No member emails associated with this residency</p>
+            <p v-else class="text-stone-500">No member emails associated with this residency</p>
           </div>
         </UDashboardSection>
 
-        <UDashboardSection title="Request Changes">
-          <ResidenciesRequestChangesForm :title="residency.title" :record-id="residency.id"
-            :recipient-emails="memberEmails" @submit="handleRequestChanges" />
+        <UDashboardSection title="Actions">
+
+          <UButton v-if="canApprove" @click="updateStatus('approved')">
+            Approve
+          </UButton>
+          <ResidenciesRequestChangesForm v-if="shouldShowRequestChangesForm" :title="residency.title"
+            :record-id="residency.id" :recipient-emails="memberEmails" @submit="handleRequestChanges" />
+          <div v-else>
+            <p class="text-stone">No actions available</p>
+          </div>
         </UDashboardSection>
       </template>
     </UDashboardPanelContent>
@@ -73,6 +93,10 @@
 import { ref, computed, watchEffect } from 'vue';
 import { formatDate } from '@/utils/formatters';
 import { first } from 'lodash';
+import type { Residency } from '~/types/residency'
+
+
+const residency = ref<Residency | null>(null)
 
 definePageMeta({
   middleware: 'auth'
@@ -80,10 +104,16 @@ definePageMeta({
 
 const route = useRoute();
 const id = computed(() => route.params.id);
-const residency = ref(null);
+
 const error = ref(null);
 const isLoading = ref(true);
+const { canApprove, canRequestChanges, updateStatus, isLoading: statusUpdateLoading, shouldShowRequestChangesForm } = useResidencyStatus(residency)
+const showRequestChangesForm = ref(false)
 
+const handleStatusUpdate = async (newStatus: string) => {
+  await updateStatus(newStatus)
+  await refresh()
+}
 const QUERY = `
   query Residency($id: ItemId!) {
     residency(filter: { id: { eq: $id } }) {
@@ -165,24 +195,14 @@ const fetchMemberEmails = async () => {
   memberEmailsError.value = null;
 
   try {
-    console.log('Fetching emails for residency:', residency.value.id);
-    const response = await useFetch(`/api/members/byResidencyId/${residency.value.id}`);
+    const { data, error } = await useFetch(`/api/members/byResidencyId/${residency.value.id}`);
 
-    if (response.error.value) {
-      throw new Error(response.error.value?.message || 'Failed to fetch member emails');
-    }
+    if (error.value) throw new Error(error.value.message);
+    if (!data.value?.emails) throw new Error('No emails found');
 
-    const data = response.data.value;
-    console.log('Received response:', data);
-
-    if (!data || !data.emails) {
-      throw new Error('Invalid response format: missing emails array');
-    }
-
-    members.value = data.members;
-    memberEmails.value = data.emails;
+    members.value = data.value.members || [];
+    memberEmails.value = data.value.emails;
   } catch (error) {
-    console.error('Error fetching member emails:', error);
     memberEmailsError.value = error.message;
     memberEmails.value = [];
   } finally {

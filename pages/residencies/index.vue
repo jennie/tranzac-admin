@@ -1,258 +1,92 @@
-<script setup lang="ts">
-import { ref, computed, watch } from 'vue';
-import { format } from 'date-fns';
-import useGraphqlQuery from '~~/composables/useGraphqlQuery'; // Ensure correct import path
-import debounce from 'lodash.debounce'; // For debouncing search input
-
-// Define Items Per Page
-const itemsPerPage = 30;
-
-// Columns Configuration
-const defaultColumns = [
-  { key: "activeStatus", label: "Status", sortable: true },
-  { key: "title", label: "Title", sortable: true },
-  { key: "startDate", label: "Start Date", sortable: true },
-  { key: "endDate", label: "End Date", sortable: true },
-  { key: "_createdAt", label: "Created", sortable: true },
-];
-
-const selectedColumns = ref(defaultColumns);
-const columns = computed(() =>
-  defaultColumns.filter(column =>
-    selectedColumns.value.some(selected => selected.key === column.key)
-  )
-);
-
-// Statuses for Filtering
-const residencyStatuses = [
-  "active",
-  'new',
-  'pending_input',
-  'pending_review',
-  'changes_requested',
-  'approved',
-  'archived'
-];
-
-// Function to get status color
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'new':
-      return 'blue';
-    case 'pending_input':
-      return 'yellow';
-    case 'pending_review':
-      return 'orange';
-    case 'changes_requested':
-      return 'red';
-    case 'approved':
-      return 'green';
-    case 'archived':
-      return 'gray';
-    default:
-      return 'gray';
-  }
-};
-
-// Reactive Variables
-const q = ref('');
-const page = ref(1);
-const sort = ref({
-  column: '_createdAt',
-  direction: 'desc' as const,
-});
-const residencies = ref([]);
-const isLoading = ref(false);
-const selectedStatuses = ref([]); // For filtering
-const errorMessage = ref(''); // For error handling
-
-// Total Pages
-const totalPages = ref(1);
-
-// Define reactive variables for metrics
-const totalNewResidencies = ref(0);
-const pendingInput = ref(0);
-const pendingReview = ref(0);
-const changesRequested = ref(0);
-const approved = ref(0);
-const archived = ref(0);
-
-// GraphQL Query with Pagination and Filters
-const RESIDENCY_QUERY = `
-  query GetResidencies($skip: IntType!, $first: IntType!, $filter: ResidencyModelFilter) {
-    allResidencies(
-      orderBy: _createdAt_ASC
-      skip: $skip
-      first: $first
-      filter: $filter
-    ) {
-      id
-      title
-      activeStatus
-      description
-      startDate
-      endDate
-      _createdAt
-      slug
-      photo {
-        url
-      }
-    }
-    totalCountFiltered: _allResidenciesMeta(filter: $filter) {
-      count
-    }
-    totalNewResidencies: _allResidenciesMeta(filter: { activeStatus: { eq: "new" } }) {
-      count
-    }
-    pendingInput: _allResidenciesMeta(filter: { activeStatus: { eq: "pending_input" } }) {
-      count
-    }
-    pendingReview: _allResidenciesMeta(filter: { activeStatus: { eq: "pending_review" } }) {
-      count
-    }
-    changesRequested: _allResidenciesMeta(filter: { activeStatus: { eq: "changes_requested" } }) {
-      count
-    }
-    approved: _allResidenciesMeta(filter: { activeStatus: { eq: "approved" } }) {
-      count
-    }
-    archived: _allResidenciesMeta(filter: { activeStatus: { eq: "archived" } }) {
-      count
-    }
-  }
-`;
-
-// Fetch Residencies with Server-Side Pagination and Filtering
-const fetchResidencies = async () => {
-  isLoading.value = true;
-  errorMessage.value = ''; // Reset error message
-  const variables: any = {
-    skip: (page.value - 1) * itemsPerPage,
-    first: itemsPerPage,
-    filter: {},
-  };
-
-  if (selectedStatuses.value.length > 0) {
-    variables.filter.activeStatus = { eq: selectedStatuses.value[0] }; // Assuming single selection
-  }
-
-  try {
-    const { data, error } = await useGraphqlQuery({ query: RESIDENCY_QUERY, variables, includeDrafts: true });
-    if (error.value) {
-      console.error('Failed to fetch residencies', error.value);
-      errorMessage.value = 'Failed to load residencies. Please try again later.';
-    } else if (data.value) {
-      residencies.value = data.value.allResidencies;
-
-      const total = data.value.totalCountFiltered.count;
-      totalPages.value = Math.ceil(total / itemsPerPage);
-
-      // Set metrics directly from data
-      totalNewResidencies.value = data.value.totalNewResidencies.count;
-      pendingInput.value = data.value.pendingInput.count;
-      pendingReview.value = data.value.pendingReview.count;
-      changesRequested.value = data.value.changesRequested.count;
-      approved.value = data.value.approved.count;
-      archived.value = data.value.archived.count;
-    }
-  } catch (e) {
-    console.error('Failed to fetch residencies', e);
-    errorMessage.value = 'An unexpected error occurred. Please try again later.';
-  } finally {
-    isLoading.value = false;
-  }
-};
-
-// Fetch residencies immediately during setup (runs on both server and client)
-fetchResidencies();
-
-// Format Dates
-const formatDates = (start: string, end: string) => {
-  const startDate = format(new Date(start), 'MMM d, yyyy');
-  const endDateFormatted = format(new Date(end), 'MMM d, yyyy');
-  return `${startDate} - ${endDateFormatted}`;
-};
-
-const formatCreatedAt = (createdAt: string) => {
-  return format(new Date(createdAt), 'MMM d, yyyy');
-};
-
-// Debounce search input to optimize performance
-const debouncedFetchResidencies = debounce(() => {
-  page.value = 1; // Reset to first page on search
-  fetchResidencies();
-}, 300);
-
-// Watchers to refetch data when page or filters change
-watch([page, selectedStatuses], () => {
-  fetchResidencies();
-});
-
-// Watcher for search input
-watch(q, () => {
-  debouncedFetchResidencies();
-});
-</script>
-
-
-
+<!-- pages/residencies/index.vue -->
 <template>
   <UDashboardPage>
+
     <UDashboardPanel grow>
-      <!-- Wrapper for dashboard content -->
       <UDashboardPanelContent class="pb-24">
         <!-- Section for Key Metrics -->
         <section class="metrics-section mb-8">
-          <h2 class="text-xl font-semibold mb-4">Residency Overview</h2>
-          <p class="text-gray-600 mb-6">Monitor the status of all residencies.</p>
+          <div class="flex items-center justify-between mb-6">
+            <div>
+              <h2 class="text-xl font-semibold">Residency Overview</h2>
+              <p class="text-gray-600">Track and manage residency applications through their workflow stages.</p>
+            </div>
+            <!-- Clear filter button if a status is selected -->
+            <UButton v-if="selectedStatus" color="gray" variant="ghost" icon="i-heroicons-x-mark" @click="clearFilter">
+              Clear filter
+            </UButton>
+          </div>
 
           <div class="dashboard-key-metrics grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <!-- New Residencies Card -->
-            <UDashboardCard title="New" @click="filterByStatus('new')" class="cursor-pointer">
+            <!-- New Applications -->
+            <UDashboardCard title="New Applications" @click="filterByStatus('new')"
+              class="cursor-pointer transition-colors duration-200" :ui="{
+                background: selectedStatus === 'new' ? 'bg-primary-50 dark:bg-primary-950' : '',
+                ring: selectedStatus === 'new' ? 'ring-2 ring-primary-500' : '',
+              }">
               <template #default>
-                <div class="text-3xl font-bold">{{ totalNewResidencies }}</div>
-                <p class="text-sm text-gray-500 mt-2">New residencies awaiting input</p>
+                <div class="text-3xl font-bold">{{ metrics.new }}</div>
+                <p class="text-sm text-gray-500 mt-2">New applications needing review</p>
               </template>
             </UDashboardCard>
 
-            <!-- Pending Input Card -->
-            <UDashboardCard title="Pending Input" @click="filterByStatus('pending_input')" class="cursor-pointer">
+            <!-- Pending Review -->
+            <UDashboardCard title="Pending Review" @click="filterByStatus('pending_review')"
+              class="cursor-pointer transition-colors duration-200" :ui="{
+                background: selectedStatus === 'pending_review' ? 'bg-primary-50 dark:bg-primary-950' : '',
+                ring: selectedStatus === 'pending_review' ? 'ring-2 ring-primary-500' : '',
+              }">
               <template #default>
-                <div class="text-3xl font-bold">{{ pendingInput }}</div>
-                <p class="text-sm text-gray-500 mt-2">Residencies awaiting input from residents</p>
+                <div class="text-3xl font-bold">{{ metrics.pending_review }}</div>
+                <p class="text-sm text-gray-500 mt-2">Applications awaiting your review</p>
               </template>
             </UDashboardCard>
 
-            <!-- Pending Review Card -->
-            <UDashboardCard title="Pending Review" @click="filterByStatus('pending_review')" class="cursor-pointer">
-              <template #default>
-                <div class="text-3xl font-bold">{{ pendingReview }}</div>
-                <p class="text-sm text-gray-500 mt-2">Residencies submitted for review</p>
-              </template>
-            </UDashboardCard>
-
-            <!-- Changes Requested Card -->
+            <!-- Changes Requested -->
             <UDashboardCard title="Changes Requested" @click="filterByStatus('changes_requested')"
-              class="cursor-pointer">
+              class="cursor-pointer transition-colors duration-200" :ui="{
+                background: selectedStatus === 'changes_requested' ? 'bg-primary-50 dark:bg-primary-950' : '',
+                ring: selectedStatus === 'changes_requested' ? 'ring-2 ring-primary-500' : '',
+              }">
               <template #default>
-                <div class="text-3xl font-bold">{{ changesRequested }}</div>
-                <p class="text-sm text-gray-500 mt-2">Residencies needing changes</p>
+                <div class="text-3xl font-bold">{{ metrics.changes_requested }}</div>
+                <p class="text-sm text-gray-500 mt-2">Waiting for resident updates</p>
               </template>
             </UDashboardCard>
 
-            <!-- Approved Card -->
-            <UDashboardCard title="Approved" @click="filterByStatus('approved')" class="cursor-pointer">
+            <!-- Pending Input -->
+            <UDashboardCard title="Pending Input" @click="filterByStatus('pending_input')"
+              class="cursor-pointer transition-colors duration-200" :ui="{
+                background: selectedStatus === 'pending_input' ? 'bg-primary-50 dark:bg-primary-950' : '',
+                ring: selectedStatus === 'pending_input' ? 'ring-2 ring-primary-500' : '',
+              }">
               <template #default>
-                <div class="text-3xl font-bold">{{ approved }}</div>
-                <p class="text-sm text-gray-500 mt-2">Approved residencies</p>
+                <div class="text-3xl font-bold">{{ metrics.pending_input }}</div>
+                <p class="text-sm text-gray-500 mt-2">Awaiting resident input</p>
               </template>
             </UDashboardCard>
 
-            <!-- Archived Card -->
-            <UDashboardCard title="Archived" @click="filterByStatus('archived')" class="cursor-pointer">
+            <!-- Approved -->
+            <UDashboardCard title="Approved" @click="filterByStatus('approved')"
+              class="cursor-pointer transition-colors duration-200" :ui="{
+                background: selectedStatus === 'approved' ? 'bg-primary-50 dark:bg-primary-950' : '',
+                ring: selectedStatus === 'approved' ? 'ring-2 ring-primary-500' : '',
+              }">
               <template #default>
-                <div class="text-3xl font-bold">{{ archived }}</div>
-                <p class="text-sm text-gray-500 mt-2">Archived residencies</p>
+                <div class="text-3xl font-bold">{{ metrics.approved }}</div>
+                <p class="text-sm text-gray-500 mt-2">Ready for publishing</p>
+              </template>
+            </UDashboardCard>
+
+            <!-- Published -->
+            <UDashboardCard title="Published" @click="filterByStatus('published')"
+              class="cursor-pointer transition-colors duration-200" :ui="{
+                background: selectedStatus === 'published' ? 'bg-primary-50 dark:bg-primary-950' : '',
+                ring: selectedStatus === 'published' ? 'ring-2 ring-primary-500' : '',
+              }">
+              <template #default>
+                <div class="text-3xl font-bold">{{ metrics.published }}</div>
+                <p class="text-sm text-gray-500 mt-2">Active residencies</p>
               </template>
             </UDashboardCard>
           </div>
@@ -260,11 +94,11 @@ watch(q, () => {
 
         <!-- Table Section -->
         <section class="table-section">
-          <!-- Filter toolbar and search bar -->
-          <UDashboardNavbar title="Residencies" :badge="residencies.length">
+          <!-- Header with search -->
+          <UDashboardNavbar :title="tableTitle" :badge="filteredResidencies.length">
             <template #right>
-              <UInput v-model="q" icon="i-heroicons-funnel" autocomplete="off" placeholder="Search residencies..."
-                class="hidden lg:block" @keydown.esc="$event.target.blur()">
+              <UInput v-model="searchQuery" icon="i-heroicons-magnifying-glass" autocomplete="off"
+                placeholder="Search residencies..." class="hidden lg:block" @keydown.esc="$event.target.blur()">
                 <template #trailing>
                   <UKbd value="/" />
                 </template>
@@ -273,67 +107,303 @@ watch(q, () => {
           </UDashboardNavbar>
 
           <UCard :ui="{ header: { padding: 'p-4 sm:px-6' }, body: { padding: '' } }" class="min-w-0">
-            <UDashboardToolbar>
-              <template #left>
-                <USelectMenu v-model="selectedStatuses" icon="i-heroicons-check-circle" placeholder="Filter by Status"
-                  multiple :options="residencyStatuses" :ui-menu="{ option: { base: 'capitalize' } }" />
-              </template>
-
-              <template #right>
-                <USelectMenu v-model="selectedColumns" icon="i-heroicons-adjustments-horizontal-solid"
-                  :options="columns" multiple class="hidden lg:block">
-                  <template #label>
-                    Display Columns
-                  </template>
-                </USelectMenu>
-              </template>
-            </UDashboardToolbar>
-
-            <!-- Table and Pagination -->
-            <div v-if="isLoading" class="text-center py-4">Loading...</div>
-            <UTable :rows="residencies" :columns="columns" :sort="sort" v-if="!isLoading">
-              <!-- Custom Cell Templates -->
-              <template #title-data="{ row }">
-                <NuxtLink :to="`/residencies/${row.id}`" class="underline">{{ row.title }}</NuxtLink>
-              </template>
-              <template #activeStatus-data="{ row }">
-                <UBadge :label="row.activeStatus" :color="getStatusColor(row.activeStatus)" variant="subtle"
-                  class="capitalize" />
-              </template>
-              <template #startDate-data="{ row }">
-                {{ format(new Date(row.startDate), 'MMM d, yyyy') }}
-              </template>
-              <template #endDate-data="{ row }">
-                {{ format(new Date(row.endDate), 'MMM d, yyyy') }}
-              </template>
-              <template #_createdAt-data="{ row }">
-                {{ formatCreatedAt(row._createdAt) }}
-              </template>
-            </UTable>
-
-            <!-- No Results Message -->
-            <div v-if="!isLoading && residencies.length === 0" class="text-center py-4 text-gray-500">
-              No residencies found.
+            <!-- Table -->
+            <div v-if="isLoading" class="py-8">
+              <div class="flex items-center justify-center">
+                <div class="text-center">
+                  <UIcon name="i-heroicons-arrow-path" class="animate-spin h-8 w-8 text-gray-400" />
+                  <p class="mt-2 text-sm text-gray-500">Loading residencies...</p>
+                </div>
+              </div>
             </div>
 
-            <!-- Error Message -->
-            <div v-if="errorMessage" class="text-center py-4 text-red-500">
-              {{ errorMessage }}
-            </div>
+            <template v-else>
+              <UTable :rows="paginatedResidencies" :columns="columns" :sort="sort" @update:sort="handleSortUpdate">
+                <!-- Status Column -->
+                <template #activeStatus-data="{ row }">
+                  <UBadge :label="row.activeStatus" :color="getStatusColor(row.activeStatus)" variant="subtle"
+                    class="capitalize" />
+                </template>
 
-            <!-- Pagination Controls -->
-            <div class="flex justify-end px-3 py-3.5 border-t border-gray-200 dark:border-gray-700">
-              <UPagination v-model="page" :page-count="totalPages" :total="totalPages * itemsPerPage" />
-            </div>
+                <!-- Title Column -->
+                <template #title-data="{ row }">
+                  <NuxtLink :to="`/residencies/${row.id}`" class="underline">
+                    {{ row.title }}
+                  </NuxtLink>
+                </template>
+
+                <!-- Date Columns -->
+                <template #startDate-data="{ row }">
+                  {{ formatDate(row.startDate) }}
+                </template>
+                <template #endDate-data="{ row }">
+                  {{ formatDate(row.endDate) }}
+                </template>
+
+                <!-- Actions Column -->
+                <template #actions-data="{ row }">
+                  <div class="flex gap-2">
+                    <UButton v-if="row.activeStatus === 'pending_review'" color="primary" variant="soft" size="xs"
+                      @click="handleApprove(row.id)">
+                      Approve
+                    </UButton>
+                    <UButton v-if="['pending_review', 'approved'].includes(row.activeStatus)" color="gray"
+                      variant="soft" size="xs" @click="handleRequestChanges(row.id)">
+                      Request Changes
+                    </UButton>
+                  </div>
+                </template>
+              </UTable>
+
+              <!-- Empty State -->
+              <div v-if="filteredResidencies.length === 0" class="py-12">
+                <div class="text-center">
+                  <UIcon name="i-heroicons-inbox" class="mx-auto h-12 w-12 text-gray-400" />
+                  <h3 class="mt-2 text-sm font-semibold text-gray-900">No residencies found</h3>
+                  <p class="mt-1 text-sm text-gray-500">No residencies match your current filters.</p>
+                </div>
+              </div>
+
+              <!-- Pagination -->
+              <div v-if="filteredResidencies.length > 0"
+                class="flex justify-between items-center px-4 py-3 border-t border-gray-200 dark:border-gray-700">
+                <p class="text-sm text-gray-500">
+                  Showing {{ paginationStart }} to {{ paginationEnd }} of {{ totalResidencies }} residencies
+                </p>
+                <UPagination v-model="currentPage" :total="totalResidencies" :per-page="perPage" />
+              </div>
+            </template>
           </UCard>
         </section>
+
+        <!-- Request Changes Modal -->
+        <UModal v-model="showRequestChangesModal">
+          <UCard>
+            <template #header>
+              <div class="text-lg font-semibold">
+                Request Changes
+              </div>
+            </template>
+            <ResidenciesRequestChangesForm v-if="selectedResidency" :title="selectedResidency.title"
+              :record-id="selectedResidency.id" :recipient-emails="selectedResidency.recipientEmails"
+              @submit="handleRequestChangesSubmit" />
+          </UCard>
+        </UModal>
       </UDashboardPanelContent>
     </UDashboardPanel>
   </UDashboardPage>
 </template>
 
-<style scoped>
-.contents {
-  display: contents;
-}
-</style>
+
+<script setup lang="ts">
+import { format } from 'date-fns';
+import type { Residency } from '~/types/residency';
+// Page meta
+definePageMeta({
+  layout: 'default'
+});
+
+// Local state
+const currentPage = ref(1);
+const perPage = ref(10);
+const searchQuery = ref('');
+const selectedStatus = ref('');
+const showRequestChangesModal = ref(false);
+const selectedResidency = ref<Residency | null>(null);
+const sort = ref({
+  column: '_createdAt',
+  direction: 'desc' as const
+});
+
+// Table configuration
+const columns = [
+  { key: 'activeStatus', label: 'Status', sortable: true },
+  { key: 'title', label: 'Title', sortable: true },
+  { key: 'startDate', label: 'Start Date', sortable: true },
+  { key: 'endDate', label: 'End Date', sortable: true },
+  { key: 'actions', label: 'Actions', sortable: false }
+];
+
+// Load residencies data
+const { residencies: allResidencies, metrics, isLoading, error, refresh } = useResidenciesData();
+
+// Filter residencies
+const filteredResidencies = computed(() => {
+  let filtered = [...allResidencies.value];
+
+  // Apply status filter
+  if (selectedStatus.value) {
+    filtered = filtered.filter(r => r.activeStatus === selectedStatus.value);
+  }
+
+  // Apply search filter
+  if (searchQuery.value) {
+    const searchLower = searchQuery.value.toLowerCase();
+    filtered = filtered.filter(r =>
+      r.title?.toLowerCase().includes(searchLower) ||
+      r.description?.toLowerCase().includes(searchLower)
+    );
+  }
+
+  // Apply sorting
+  if (sort.value.column) {
+    filtered.sort((a, b) => {
+      const aValue = a[sort.value.column];
+      const bValue = b[sort.value.column];
+      const direction = sort.value.direction === 'desc' ? -1 : 1;
+
+      if (sort.value.column === 'startDate' || sort.value.column === 'endDate') {
+        return (new Date(aValue) > new Date(bValue) ? 1 : -1) * direction;
+      }
+      return aValue > bValue ? direction : -direction;
+    });
+  }
+
+  return filtered;
+});
+
+
+// Update the pagination computed properties in your page
+const paginatedResidencies = computed(() => {
+  console.log('Computing pagination:');
+  console.log('- Current page:', currentPage.value);
+  console.log('- Per page:', perPage.value);
+  console.log('- Total records:', filteredResidencies.value.length);
+
+  const start = (currentPage.value - 1) * perPage.value;
+  const end = start + perPage.value;
+
+  console.log('- Slice from', start, 'to', end);
+  return filteredResidencies.value.slice(start, end);
+});
+
+// Add this right after the useResidenciesData call in your page
+watchEffect(() => {
+  console.log('hot reloading!')
+  console.log('All residencies:', allResidencies.value?.length);
+  console.log('Filtered residencies:', filteredResidencies.value?.length);
+  console.log('Paginated residencies:', paginatedResidencies.value?.length);
+});
+
+const paginationStart = computed(() =>
+  filteredResidencies.value.length === 0 ? 0 : ((currentPage.value - 1) * perPage.value) + 1
+);
+const paginationEnd = computed(() =>
+  Math.min(currentPage.value * perPage.value, filteredResidencies.value.length)
+);
+const totalResidencies = computed(() => filteredResidencies.value.length);
+
+const tableTitle = computed(() => {
+  if (!selectedStatus.value) return 'All Residencies';
+  return `${selectedStatus.value.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')} Residencies`;
+});
+
+// Utility functions and handlers
+const clearFilter = () => {
+  selectedStatus.value = '';
+  currentPage.value = 1;
+};
+
+const filterByStatus = (status: string) => {
+  if (selectedStatus.value === status) {
+    clearFilter();
+  } else {
+    selectedStatus.value = status;
+    currentPage.value = 1;
+  }
+};
+
+const formatDate = (date: string) => {
+  if (!date) return 'No date';
+  try {
+    return format(new Date(date), 'MMM d, yyyy');
+  } catch (e) {
+    return 'Invalid date';
+  }
+};
+
+const getStatusColor = (status: string) => {
+  const colors = {
+    new: 'blue',
+    pending_input: 'yellow',
+    pending_review: 'orange',
+    changes_requested: 'red',
+    approved: 'green',
+    published: 'primary'
+  };
+  return colors[status] || 'gray';
+};
+
+const handleSortUpdate = (newSort: typeof sort.value) => {
+  sort.value = newSort;
+};
+
+const handleApprove = async (id: string) => {
+  isLoading.value = true;
+  try {
+    await $fetch(`/api/residencies/${id}/status`, {
+      method: 'PUT',
+      body: { status: 'approved' }
+    });
+
+    // Refresh data
+    await refresh();
+
+    const toast = useToast();
+    toast.add({
+      title: 'Success',
+      description: 'Residency approved successfully',
+      color: 'green'
+    });
+  } catch (error) {
+    const toast = useToast();
+    toast.add({
+      title: 'Error',
+      description: 'Failed to approve residency',
+      color: 'red'
+    });
+  }
+};
+
+const handleRequestChanges = (id: string) => {
+  selectedResidency.value = allResidencies.value.find(r => r.id === id) || null;
+  showRequestChangesModal.value = true;
+};
+
+const handleRequestChangesSubmit = async ({ note, recipientEmails }: { note: string; recipientEmails: string[] }) => {
+  if (!selectedResidency.value) return;
+
+  try {
+    await $fetch(`/api/residencies/${selectedResidency.value.id}/requestChanges`, {
+      method: 'PUT',
+      body: {
+        note,
+        recipientEmails,
+        residencyTitle: selectedResidency.value.title
+      }
+    });
+
+    showRequestChangesModal.value = false;
+    await refresh();
+
+    const toast = useToast();
+    toast.add({
+      title: 'Success',
+      description: 'Changes requested successfully',
+      color: 'green'
+    });
+  } catch (error) {
+    const toast = useToast();
+    toast.add({
+      title: 'Error',
+      description: 'Failed to request changes',
+      color: 'red'
+    });
+  }
+};
+
+// Reset pagination when filters change
+watch([searchQuery, selectedStatus], () => {
+  currentPage.value = 1;
+});
+</script>
