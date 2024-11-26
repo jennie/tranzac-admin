@@ -1,4 +1,3 @@
-// components/dashboard/ResidencyMetrics.vue
 <template>
   <section class="metrics-section mb-8">
     <h2 class="text-xl font-semibold mb-4">Residency Overview</h2>

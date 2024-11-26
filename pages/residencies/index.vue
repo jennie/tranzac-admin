@@ -67,7 +67,7 @@
             </UDashboardCard>
 
             <!-- Approved -->
-            <UDashboardCard title="Approved" @click="filterByStatus('approved')"
+            <UDashboardCard title="Approved Drafts" @click="filterByStatus('approved')"
               class="cursor-pointer transition-colors duration-200" :ui="{
                 background: selectedStatus === 'approved' ? 'bg-primary-50 dark:bg-primary-950' : '',
                 ring: selectedStatus === 'approved' ? 'ring-2 ring-primary-500' : '',
@@ -118,15 +118,8 @@
             </div>
 
             <template v-else>
+
               <UTable :rows="paginatedResidencies" :columns="columns" :sort="sort" @update:sort="handleSortUpdate">
-                <template #members-data="{ row }">
-                  <span v-if="residenciesWithoutMembers.some(r => r.id === row.id)" class="text-red-500">
-                    No members
-                  </span>
-                  <span v-else class="text-green-500">
-                    Members assigned
-                  </span>
-                </template>
 
                 <!-- Status Column -->
                 <template #activeStatus-data="{ row }">
@@ -206,7 +199,10 @@
 
 <script setup lang="ts">
 import { format } from 'date-fns';
+import { ref, computed, watch } from 'vue';
 import type { Residency } from '~/types/residency';
+import { useResidenciesData } from '~/composables/useResidenciesData';
+
 // Page meta
 definePageMeta({
   layout: 'default'
@@ -226,7 +222,6 @@ const sort = ref({
 
 // Table configuration
 const columns = [
-  { key: "members", label: "Members", sortable: false },
   { key: 'activeStatus', label: 'Status', sortable: true },
   { key: 'title', label: 'Title', sortable: true },
   { key: 'startDate', label: 'Start Date', sortable: true },
@@ -234,19 +229,19 @@ const columns = [
   { key: 'actions', label: 'Actions', sortable: false }
 ];
 
-
-const { residencies, residenciesWithoutMembers } = useResidenciesData();
-
-
-// Load residencies data
-const { residencies: allResidencies, metrics, isLoading, error, refresh } = useResidenciesData();
+// Load residencies data (Removed redundant call)
+const { residencies: allResidencies, isLoading, error, refresh } = useResidenciesData();
 
 // Filter residencies
 const filteredResidencies = computed(() => {
   let filtered = [...allResidencies.value];
 
-  // Apply status filter
-  if (selectedStatus.value) {
+  // Apply status filter with refined criteria
+  if (selectedStatus.value === 'approved') {
+    filtered = filtered.filter(r => r.activeStatus === 'approved' && r._status !== 'published');
+  } else if (selectedStatus.value === 'published') {
+    filtered = filtered.filter(r => r._status === 'published');
+  } else if (selectedStatus.value) {
     filtered = filtered.filter(r => r.activeStatus === selectedStatus.value);
   }
 
@@ -276,6 +271,15 @@ const filteredResidencies = computed(() => {
   return filtered;
 });
 
+// Compute metrics based on allResidencies with refined criteria
+const metrics = computed(() => ({
+  new: allResidencies.value.filter(r => r.activeStatus === 'new').length,
+  pending_review: allResidencies.value.filter(r => r.activeStatus === 'pending_review').length,
+  changes_requested: allResidencies.value.filter(r => r.activeStatus === 'changes_requested').length,
+  pending_input: allResidencies.value.filter(r => r.activeStatus === 'pending_input').length,
+  approved: allResidencies.value.filter(r => r.activeStatus === 'approved' && r._status !== 'published').length,
+  published: allResidencies.value.filter(r => r._status === 'published').length,
+}));
 
 // Update the pagination computed properties in your page
 const paginatedResidencies = computed(() => {
@@ -412,7 +416,4 @@ const handleRequestChangesSubmit = async ({ note, recipientEmails }: { note: str
 watch([searchQuery, selectedStatus], () => {
   currentPage.value = 1;
 });
-
-
-
 </script>

@@ -11,6 +11,15 @@ export const useResidencyDashboard = () => {
   const isLoading = ref(false);
   const error = ref<string | null>(null);
 
+  const metrics = ref({
+    new: 0,
+    pending_input: 0,
+    pending_review: 0,
+    changes_requested: 0,
+    approved: 0,
+    published: 0,
+  });
+
   // GraphQL query with filtering, search, and pagination
   const DASHBOARD_QUERY = `
     query ResidencyDashboard(
@@ -36,12 +45,23 @@ export const useResidencyDashboard = () => {
         startDate
         endDate
       }
-      stats: {
-        new: _allResidenciesMeta(filter: { activeStatus: { eq: "new" } }) { count }
-        pendingInput: _allResidenciesMeta(filter: { activeStatus: { eq: "pending_input" } }) { count }
-        pendingReview: _allResidenciesMeta(filter: { activeStatus: { eq: "pending_review" } }) { count }
-        changesRequested: _allResidenciesMeta(filter: { activeStatus: { eq: "changes_requested" } }) { count }
-        approved: _allResidenciesMeta(filter: { activeStatus: { eq: "approved" } }) { count }
+      newCount: _allResidenciesMeta(filter: { activeStatus: { eq: "new" } }) {
+        count
+      }
+      pendingInputCount: _allResidenciesMeta(filter: { activeStatus: { eq: "pending_input" } }) {
+        count
+      }
+      pendingReviewCount: _allResidenciesMeta(filter: { activeStatus: { eq: "pending_review" } }) {
+        count
+      }
+      changesRequestedCount: _allResidenciesMeta(filter: { activeStatus: { eq: "changes_requested" } }) {
+        count
+      }
+      approvedCount: _allResidenciesMeta(filter: { activeStatus: { eq: "approved" } }) {
+        count
+      }
+      publishedCount: _allResidenciesMeta(filter: { activeStatus: { eq: "published" } }) {
+        count
       }
     }
   `;
@@ -63,6 +83,16 @@ export const useResidencyDashboard = () => {
         variables,
       });
 
+      if (data) {
+        metrics.value = {
+          new: data.newCount?.count || 0,
+          pending_input: data.pendingInputCount?.count || 0,
+          pending_review: data.pendingReviewCount?.count || 0,
+          changes_requested: data.changesRequestedCount?.count || 0,
+          approved: data.approvedCount?.count || 0,
+          published: data.publishedCount?.count || 0,
+        };
+      }
       return data;
     } catch (e) {
       error.value = e.message;
@@ -158,6 +188,7 @@ export const useResidencyDashboard = () => {
     itemsPerPage,
     isLoading,
     error,
+    metrics,
 
     // Actions
     fetchDashboardData,

@@ -1,29 +1,13 @@
-import { ref, readonly, computed, onMounted } from "vue";
+// useResidenciesData.ts
+import { ref, readonly, watchEffect, onMounted } from "vue";
+import useServerGraphQlQuery from "@/composables/useServerGraphQlQuery";
 
 export const useResidenciesData = () => {
   const residencies = ref([]);
-  const residenciesWithoutMembers = ref([]); // Add this here
   const totalResidencies = ref(0);
-  const metrics = ref({
-    new: 0,
-    pending_input: 0,
-    pending_review: 0,
-    changes_requested: 0,
-    approved: 0,
-    published: 0,
-  });
   const isLoading = ref(true);
   const error = ref<string | null>(null);
 
-  const fetchResidenciesWithoutMembers = async () => {
-    try {
-      const { data }: { data: { residenciesWithoutMembers: any[] } } =
-        await $fetch("/api/members/withoutMembers");
-      residenciesWithoutMembers.value = data?.residenciesWithoutMembers || [];
-    } catch (error) {
-      console.error("Error fetching residencies without members:", error);
-    }
-  };
   let isDataLoaded = false;
 
   const fetchAllResidencies = async () => {
@@ -34,6 +18,7 @@ export const useResidenciesData = () => {
     console.log("Fetching all residencies...");
     error.value = null;
 
+    const runtimeConfig = useRuntimeConfig();
     let hasMore = true;
     let skip = 0;
     const first = 100;
@@ -49,6 +34,7 @@ export const useResidenciesData = () => {
               startDate
               endDate
               activeStatus
+              _status
               _createdAt
             }
             _allResidenciesMeta {
@@ -59,11 +45,17 @@ export const useResidenciesData = () => {
 
         const variables = { first, skip };
 
-        const { data } = await useGraphqlQuery({ query, variables });
-        if (data.value?.allResidencies?.length) {
-          residencies.value.push(...data.value.allResidencies);
-          skip += data.value.allResidencies.length;
-          hasMore = data.value.allResidencies.length === first;
+        const data = await useServerGraphQlQuery({
+          query,
+          variables,
+          includeDrafts: true,
+          token: runtimeConfig.public.datoCmsToken,
+        });
+
+        if (data?.allResidencies?.length) {
+          residencies.value.push(...data.allResidencies);
+          skip += data.allResidencies.length;
+          hasMore = data.allResidencies.length === first;
         } else {
           hasMore = false;
         }
@@ -77,42 +69,20 @@ export const useResidenciesData = () => {
       isLoading.value = false;
     }
   };
+
   watchEffect(() => {
     fetchAllResidencies();
   });
-  const calculateMetrics = () => {
-    metrics.value = {
-      new: residencies.value.filter((r) => r.activeStatus === "new").length,
-      pending_input: residencies.value.filter(
-        (r) => r.activeStatus === "pending_input"
-      ).length,
-      pending_review: residencies.value.filter(
-        (r) => r.activeStatus === "pending_review"
-      ).length,
-      changes_requested: residencies.value.filter(
-        (r) => r.activeStatus === "changes_requested"
-      ).length,
-      approved: residencies.value.filter((r) => r.activeStatus === "approved")
-        .length,
-      published: residencies.value.filter((r) => r.activeStatus === "published")
-        .length,
-    };
-  };
 
   onMounted(async () => {
     await fetchAllResidencies();
-    await fetchResidenciesWithoutMembers();
-    calculateMetrics();
   });
 
   return {
     residencies: readonly(residencies),
     totalResidencies: readonly(totalResidencies),
-    residenciesWithoutMembers: readonly(residenciesWithoutMembers),
-    metrics: readonly(metrics),
     isLoading: readonly(isLoading),
     error: readonly(error),
     fetchAllResidencies,
-    calculateMetrics,
   };
 };

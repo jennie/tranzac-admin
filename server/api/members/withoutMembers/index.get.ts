@@ -1,12 +1,10 @@
-import { defineEventHandler, createError } from "h3";
-import { ensureConnection } from "~/server/utils/mongoose";
-import { MemberSchema } from "~/server/models/member.schema";
-import mongoose from "mongoose";
+import useServerGraphQlQuery from "@/composables/useServerGraphQlQuery";
 
 export default defineEventHandler(async () => {
+  const runtimeConfig = useRuntimeConfig(); // Fetch runtime config here
+
   const mongooseInstance = await ensureConnection();
 
-  // Safe model registration
   let Member;
   try {
     Member = mongooseInstance.model("Member");
@@ -14,43 +12,67 @@ export default defineEventHandler(async () => {
     Member = mongooseInstance.model("Member", MemberSchema);
   }
 
-  try {
-    // Fetch all residencies from DatoCMS
-    const residenciesQuery = `
-      {
-        allResidencies {
-          id
-          title
+  const fetchAllResidencies = async () => {
+    const allResidencies = [];
+    let skip = 0;
+    const limit = 100;
+
+    while (true) {
+      const query = `
+        query FetchResidencies($skip: IntType!, $limit: IntType!) {
+          allResidencies(skip: $skip, first: $limit) {
+            id
+          }
         }
-      }
-    `;
-    const { data } = await $fetch("https://graphql.datocms.com", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.DATO_API_TOKEN}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ query: residenciesQuery }),
-    });
+      `;
+      const variables = { skip, limit };
 
-    const residencies = data?.data?.allResidencies || [];
+      const result = await useServerGraphQlQuery(
+        {
+          query,
+          variables,
+          includeDrafts: true,
+        },
+        {
+          datoCmsToken: runtimeConfig.public.datoCmsToken,
+        }
+      );
 
-    // Fetch residency IDs with members
+      const residencies = result?.allResidencies || [];
+      allResidencies.push(...residencies);
+
+      if (residencies.length < limit) break;
+      skip += limit;
+    }
+
+    return allResidencies;
+  };
+
+  try {
+    const residencies = await fetchAllResidencies();
+    console.log("Fetched residencies from DatoCMS:", residencies);
+
     const residencyIdsWithMembers = await Member.distinct(
       "roles.datoRecordId",
       {
         "roles.role": "resident",
+        "roles.datoRecordId": { $exists: true, $ne: null },
       }
     );
 
-    // Identify residencies without members
-    const residenciesWithoutMembers = residencies.filter(
-      (residency) => !residencyIdsWithMembers.includes(residency.id)
+    console.log("Residency IDs with members:", residencyIdsWithMembers);
+
+    const validResidencyIdsWithMembers = residencyIdsWithMembers.filter(
+      (id) => id != null
+    );
+
+    console.log(
+      "Valid Residency IDs with members:",
+      validResidencyIdsWithMembers
     );
 
     return {
       success: true,
-      residenciesWithoutMembers,
     };
   } catch (error) {
     console.error("Error fetching residencies without members:", error);
