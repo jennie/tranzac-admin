@@ -13,9 +13,8 @@ export const useResidencyDashboard = () => {
 
   const metrics = ref({
     new: 0,
-    pending_input: 0,
+    resident_action_required: 0,
     pending_review: 0,
-    changes_requested: 0,
     approved: 0,
     published: 0,
   });
@@ -48,13 +47,13 @@ export const useResidencyDashboard = () => {
       newCount: _allResidenciesMeta(filter: { activeStatus: { eq: "new" } }) {
         count
       }
-      pendingInputCount: _allResidenciesMeta(filter: { activeStatus: { eq: "pending_input" } }) {
+      pendingInputCount: _allResidenciesMeta(filter: { activeStatus: { eq: "resident_action_required" } }) {
         count
       }
       pendingReviewCount: _allResidenciesMeta(filter: { activeStatus: { eq: "pending_review" } }) {
         count
       }
-      changesRequestedCount: _allResidenciesMeta(filter: { activeStatus: { eq: "changes_requested" } }) {
+      changesRequestedCount: _allResidenciesMeta(filter: { activeStatus: { eq: "resident_action_required" } }) {
         count
       }
       approvedCount: _allResidenciesMeta(filter: { activeStatus: { eq: "approved" } }) {
@@ -86,9 +85,9 @@ export const useResidencyDashboard = () => {
       if (data) {
         metrics.value = {
           new: data.newCount?.count || 0,
-          pending_input: data.pendingInputCount?.count || 0,
+          resident_action_required: data.pendingInputCount?.count || 0,
           pending_review: data.pendingReviewCount?.count || 0,
-          changes_requested: data.changesRequestedCount?.count || 0,
+          resident_action_required: data.changesRequestedCount?.count || 0,
           approved: data.approvedCount?.count || 0,
           published: data.publishedCount?.count || 0,
         };
@@ -137,7 +136,7 @@ export const useResidencyDashboard = () => {
         body: {
           recipientEmails: memberData.value?.emails || [],
           note,
-          status: "changes_requested",
+          status: "resident_action_required",
         },
       });
     });

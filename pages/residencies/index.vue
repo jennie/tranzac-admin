@@ -40,15 +40,16 @@
                         <span
                           :class="[getStatusColorClass(selectedStatusOption.value), 'inline-block h-2 w-2 flex-shrink-0 rounded-full']"
                           aria-hidden="true" />
-                        <span class="truncate">{{ selectedStatusOption.label }} ({{ selectedStatusOption.count
-                          }})</span>
+                        <span class="truncate">{{ prettyStatus(selectedStatusOption.label) }} ({{
+                          selectedStatusOption.count
+                        }})</span>
                       </template>
 
                       <template #option="{ option: status }">
                         <span
                           :class="[getStatusColorClass(status.value), 'inline-block h-2 w-2 flex-shrink-0 rounded-full']"
                           aria-hidden="true" />
-                        <span class="truncate">{{ status.label }} ({{ status.count }})</span>
+                        <span class="truncate">{{ prettyStatus(status.label) }} ({{ status.count }})</span>
                       </template>
                     </USelectMenu>
                   </div>
@@ -69,8 +70,8 @@
 
                   <!-- Status Column -->
                   <template #activeStatus-data="{ row }">
-                    <UBadge :label="row.activeStatus" :color="getStatusColor(row.activeStatus)" variant="subtle"
-                      class="capitalize" />
+                    <UBadge :label="prettyStatus(row.activeStatus)" :color="getStatusColor(row.activeStatus)"
+                      variant="subtle" class="capitalize" />
                   </template>
 
                   <!-- Title Column -->
@@ -92,12 +93,16 @@
                   <template #actions-data="{ row }">
                     <div class="flex gap-2">
                       <UButton v-if="row.activeStatus === 'pending_review'" color="primary" variant="soft" size="xs"
-                        @click="handleApprove(row.id)">
-                        Approve
+                        @click="handleApproveAndPublish(row.id)">
+                        Approve and Publish
                       </UButton>
                       <UButton v-if="['pending_review', 'approved'].includes(row.activeStatus)" color="gray"
                         variant="soft" size="xs" @click="handleRequestChanges(row.id)">
                         Request Changes
+                      </UButton>
+                      <UButton v-if="row.activeStatus === 'approved'" color="primary" variant="soft" size="xs"
+                        @click="handlePublish(row.id)">
+                        Publish
                       </UButton>
                     </div>
                   </template>
@@ -336,8 +341,7 @@ const residenciesForMetrics = computed(() => {
 const metrics = computed(() => ({
   new: residenciesForMetrics.value.filter(r => r.activeStatus === 'new').length,
   pending_review: residenciesForMetrics.value.filter(r => r.activeStatus === 'pending_review').length,
-  changes_requested: residenciesForMetrics.value.filter(r => r.activeStatus === 'changes_requested').length,
-  pending_input: residenciesForMetrics.value.filter(r => r.activeStatus === 'pending_input').length,
+  resident_action_required: residenciesForMetrics.value.filter(r => r.activeStatus === 'resident_action_required').length,
   approved: residenciesForMetrics.value.filter(r => r.activeStatus === 'approved' && r._status !== 'published').length,
   published: residenciesForMetrics.value.filter(r => r._status === 'published').length,
 }))
@@ -378,9 +382,8 @@ const tableTitle = computed(() => {
 const getStatusTitle = (status: string) => {
   const titles = {
     new: 'New',
-    pending_input: 'Pending Input',
     pending_review: 'Pending Review',
-    changes_requested: 'Changes Requested',
+    resident_action_required: 'Pending Input',
     approved: 'Approved Drafts',
     published: 'Published'
   }
@@ -390,9 +393,8 @@ const getStatusTitle = (status: string) => {
 const getStatusDescription = (status: string) => {
   const descriptions = {
     new: 'New residencies needing review',
-    pending_input: 'Waiting for resident input',
     pending_review: 'Applications awaiting your review',
-    changes_requested: 'Waiting for resident updates',
+    resident_action_required: 'Waiting for resident input',
     approved: 'Ready for publishing',
     published: 'Active residencies'
   }
@@ -402,9 +404,8 @@ const getStatusDescription = (status: string) => {
 const getStatusColor = (status: string) => {
   const colors = {
     new: 'blue',
-    pending_input: 'yellow',
+    resident_action_required: 'yellow',
     pending_review: 'orange',
-    changes_requested: 'red',
     approved: 'green',
     published: 'primary'
   }
@@ -415,13 +416,16 @@ const getStatusColorClass = (status: string) => {
   const colorClasses = {
     '': 'bg-gray-400', // For "All Statuses"
     new: 'bg-blue-400',
-    pending_input: 'bg-yellow-400',
+    resident_action_required: 'bg-yellow-400',
     pending_review: 'bg-orange-400',
-    changes_requested: 'bg-red-400',
     approved: 'bg-green-400',
     published: 'bg-primary-400'
   }
   return colorClasses[status as keyof typeof colorClasses] || 'bg-gray-200'
+}
+
+const prettyStatus = (status: string) => {
+  return status.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
 }
 
 // Action handlers
@@ -445,6 +449,26 @@ const handleApprove = async (id: string) => {
     toast.add({
       title: 'Error',
       description: 'Failed to approve residency',
+      color: 'red'
+    })
+  }
+}
+
+const handleApproveAndPublish = async (id: string) => {
+  try {
+    await $fetch(`/api/residencies/${id}/approveAndPublish`, {
+      method: 'PUT'
+    })
+    await refresh()
+    toast.add({
+      title: 'Success',
+      description: 'Residency approved and published successfully',
+      color: 'green'
+    })
+  } catch (e) {
+    toast.add({
+      title: 'Error',
+      description: 'Failed to approve and publish residency',
       color: 'red'
     })
   }
@@ -507,10 +531,8 @@ const filterByStatus = (status: string) => {
 const statusOptions = computed(() => [
   { label: 'All Statuses', value: '', count: residenciesForMetrics.value.length },
   { label: 'New', value: 'new', count: metrics.value.new },
-  { label: 'Pending Input', value: 'pending_input', count: metrics.value.pending_input },
+  { label: 'Pending Input', value: 'resident_action_required', count: metrics.value.resident_action_required },
   { label: 'Pending Review', value: 'pending_review', count: metrics.value.pending_review },
-  { label: 'Changes Requested', value: 'changes_requested', count: metrics.value.changes_requested },
-  { label: 'Approved Drafts', value: 'approved', count: metrics.value.approved },
   { label: 'Published', value: 'published', count: metrics.value.published }
 ])
 

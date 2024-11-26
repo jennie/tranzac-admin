@@ -15,8 +15,8 @@ export interface Residency {
   slug: string;
   activeStatus:
     | "new"
-    | "pending_input"
+    | "resident_action_required"
     | "pending_review"
-    | "changes_requested"
+    | "resident_action_required"
     | "approved";
 }

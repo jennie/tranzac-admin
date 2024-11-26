@@ -13,18 +13,23 @@ export const useWorkflowActions = (residency: Ref<Residency>) => {
     switch (residency.value.activeStatus) {
       case "new":
         return ["associate_member"];
-      case "pending_input":
+      case "resident_action_required":
         return ["submit_for_review"];
       case "pending_review":
-        return ["approve", "request_changes"];
-      case "changes_requested":
-        return ["submit_for_review"];
+        return ["request_changes", "approve_and_publish"];
       case "approved":
-        return ["publish", "request_changes"];
+        return ["publish"];
       default:
         return [];
     }
   });
+
+  const prettyStatus = (status: string) => {
+    return status
+      .split("_")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
+  };
 
   // Action handlers
   const associateMember = async (memberIds: string[]) => {
@@ -74,7 +79,7 @@ export const useWorkflowActions = (residency: Ref<Residency>) => {
 
     try {
       // First update the status
-      await updateStatus("pending_input");
+      await updateStatus("resident_action_required");
 
       // Then send notifications to all associated members
       const response = await $fetch(
@@ -138,7 +143,7 @@ export const useWorkflowActions = (residency: Ref<Residency>) => {
             note,
             recipientEmails,
             residencyTitle: residency.value.title,
-            status: "changes_requested",
+            status: "resident_action_required",
           },
         }
       );
@@ -150,7 +155,7 @@ export const useWorkflowActions = (residency: Ref<Residency>) => {
       // Update local state
       residency.value = {
         ...residency.value,
-        activeStatus: "changes_requested",
+        activeStatus: "resident_action_required",
       };
 
       return response;
@@ -185,6 +190,21 @@ export const useWorkflowActions = (residency: Ref<Residency>) => {
       };
 
       return response;
+    } catch (e) {
+      error.value = e.message;
+      throw e;
+    } finally {
+      isLoading.value = false;
+    }
+  };
+
+  const approveAndPublish = async () => {
+    isLoading.value = true;
+    error.value = null;
+
+    try {
+      await approve();
+      await publish();
     } catch (e) {
       error.value = e.message;
       throw e;
@@ -229,5 +249,6 @@ export const useWorkflowActions = (residency: Ref<Residency>) => {
     approve,
     requestChanges,
     publish,
+    approveAndPublish,
   };
 };

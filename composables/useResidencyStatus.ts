@@ -35,7 +35,7 @@ export const useResidencyStatus = (residency: Ref<Residency>) => {
   const canEdit = computed(() => {
     if (user.value?.role === "comms_manager") return true;
     if (user.value?.role === "resident") {
-      return ["pending_input", "changes_requested"].includes(
+      return ["resident_action_required", "resident_action_required"].includes(
         residency.value?.activeStatus
       );
     }

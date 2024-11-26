@@ -27,9 +27,9 @@ export default defineEventHandler(async (event) => {
         residencyId: id,
         recipientEmails,
       });
-    } else if (status === "changes_requested" && note) {
+    } else if (status === "resident_action_required" && note) {
       await sendNotificationEmail({
-        type: "changes_requested",
+        type: "resident_action_required",
         residencyId: id,
         recipientEmails,
         note,

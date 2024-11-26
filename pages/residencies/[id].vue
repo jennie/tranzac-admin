@@ -9,7 +9,7 @@
         <p>Error: {{ error }}</p>
       </div>
       <template v-else-if="residency">
-        <UPageHeader :headline="'Residency Status: ' + residency.activeStatus" :title="residency.title"
+        <UPageHeader :headline="'Residency Status: ' + prettyStatus(residency.activeStatus)" :title="residency.title"
           icon="i-heroicons-clipboard" :description="getStatusDescription(residency.activeStatus)" />
 
         <UDivider class="mb-4" />
@@ -60,46 +60,23 @@
               </div>
             </div>
 
-            <!-- Pending Input Status Actions -->
-            <div v-if="residency.activeStatus === 'pending_input'" class="space-y-4">
-              <UAlert title="Ready to Submit?" color="info" icon="i-heroicons-information-circle">
-                Once you submit, your residency will be reviewed by our team.
-              </UAlert>
-              <UButton color="primary" @click="handleSubmitForReview" :loading="isLoading">
-                Submit for Review
-              </UButton>
-            </div>
-
             <!-- Pending Review Status Actions -->
             <div v-if="residency.activeStatus === 'pending_review'" class="space-y-4">
               <div class="flex gap-4">
-                <UButton color="primary" @click="handleApprove" :loading="isLoading">
-                  Approve Residency
-                </UButton>
                 <UButton color="gray" @click="showRequestChangesModal = true">
                   Request Changes
+                </UButton>
+                <UButton color="primary" @click="handleApproveAndPublish" :loading="isLoading">
+                  Approve and Publish
                 </UButton>
               </div>
             </div>
 
-            <!-- Changes Requested Status Actions -->
-            <div v-if="residency.activeStatus === 'changes_requested'" class="space-y-4">
-              <UAlert title="Changes Requested" color="warning" icon="i-heroicons-exclamation-triangle">
-                Please review the requested changes and update your residency details.
-              </UAlert>
-              <UButton color="primary" @click="handleSubmitForReview" :loading="isLoading">
-                Resubmit for Review
-              </UButton>
-            </div>
-
             <!-- Approved Status Actions -->
             <div v-if="residency.activeStatus === 'approved'" class="space-y-4">
-              <div class="flex gap-4">
+              <div v-if="residency._status === 'draft'" class="flex gap-4">
                 <UButton color="primary" @click="handlePublish" :loading="isLoading">
                   Publish Residency
-                </UButton>
-                <UButton color="gray" @click="showRequestChangesModal = true">
-                  Request Changes
                 </UButton>
               </div>
             </div>
@@ -111,8 +88,14 @@
           <div class="grid gap-4">
             <div class="grid grid-cols-2 gap-4">
               <span class="font-semibold">Status:</span>
-              <UBadge :label="residency.activeStatus" :color="getStatusColor(residency.activeStatus)" variant="subtle"
-                class="capitalize" />
+              <UBadge :label="prettyStatus(residency.activeStatus)" :color="getStatusColor(residency.activeStatus)"
+                variant="subtle" class="capitalize" />
+            </div>
+
+            <div v-if="residency.activeStatus === 'approved'" class="grid grid-cols-2 gap-4">
+              <span class="font-semibold">Dato Status:</span>
+              <UBadge :label="prettyStatus(residency._status)"
+                :color="residency._status === 'published' ? 'primary' : 'gray'" variant="subtle" class="capitalize" />
             </div>
 
             <div class="grid grid-cols-2 gap-4">
@@ -201,7 +184,8 @@ const {
   submitForReview,
   approve,
   requestChanges,
-  publish
+  publish,
+  approveAndPublish
 } = useWorkflowActions(residency)
 
 const handleRemoveMember = async (memberId: string) => {
@@ -247,9 +231,8 @@ const handleNotifyAndProgress = async () => {
 const getStatusDescription = (status: string) => {
   const descriptions = {
     new: 'Please associate members with this residency to begin.',
-    pending_input: 'Waiting for resident to provide details.',
+    resident_action_required: 'Waiting for resident to provide details.',
     pending_review: 'Residency is ready for review.',
-    changes_requested: 'Changes have been requested from the resident.',
     approved: 'Residency is approved and ready to publish.',
     published: 'Residency is live on the website.'
   }
@@ -259,13 +242,16 @@ const getStatusDescription = (status: string) => {
 const getStatusColor = (status: string) => {
   const colors = {
     new: 'blue',
-    pending_input: 'yellow',
+    resident_action_required: 'yellow',
     pending_review: 'orange',
-    changes_requested: 'red',
     approved: 'green',
     published: 'primary'
   }
   return colors[status] || 'gray'
+}
+
+const prettyStatus = (status: string) => {
+  return status.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
 }
 
 // Action handlers
@@ -365,6 +351,25 @@ const handlePublish = async () => {
   }
 }
 
+const handleApproveAndPublish = async () => {
+  try {
+    await approveAndPublish()
+    const toast = useToast()
+    toast.add({
+      title: 'Success',
+      description: 'Residency approved and published successfully',
+      color: 'green'
+    })
+  } catch (e) {
+    const toast = useToast()
+    toast.add({
+      title: 'Error',
+      description: e.message,
+      color: 'red'
+    })
+  }
+}
+
 // Data fetching
 const route = useRoute()
 const id = computed(() => route.params.id)
@@ -440,6 +445,12 @@ onMounted(async () => {
 
 // Refresh data after status changes
 watch(() => residency.value?.activeStatus, async () => {
+  await fetchResidencyData()
+  await fetchMemberData()
+})
+
+// Watch for route changes to reload data
+watch(() => route.params.id, async () => {
   await fetchResidencyData()
   await fetchMemberData()
 })

@@ -106,9 +106,9 @@ const columns = [
 const statusOptions = [
   { value: '', label: 'All Statuses' },
   { value: 'new', label: 'New' },
-  { value: 'pending_input', label: 'Pending Input' },
+  { value: 'resident_action_required', label: 'Pending Input' },
   { value: 'pending_review', label: 'Pending Review' },
-  { value: 'changes_requested', label: 'Changes Requested' },
+  { value: 'resident_action_required', label: 'Changes Requested' },
   { value: 'approved', label: 'Approved' },
 ];
 
@@ -120,9 +120,9 @@ const formatStatus = (status: string) => status.replace(/_/g, ' ');
 const getStatusColor = (status: string) => {
   const colors = {
     new: 'blue',
-    pending_input: 'yellow',
+    resident_action_required: 'yellow',
     pending_review: 'orange',
-    changes_requested: 'red',
+    resident_action_required: 'red',
     approved: 'green',
     published: 'primary',
   };

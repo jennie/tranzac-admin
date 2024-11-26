@@ -2,7 +2,7 @@
 import type { Residency } from "~/types/residency";
 
 interface EmailNotificationOptions {
-  type: "residency_approved" | "changes_requested" | "status_update";
+  type: "residency_approved" | "resident_action_required" | "status_update";
   residencyId: string;
   recipientEmails?: string[];
   note?: string;
@@ -64,7 +64,7 @@ export const sendNotificationEmail = async (
       `;
       break;
 
-    case "changes_requested":
+    case "resident_action_required":
       subject = `Changes Requested: ${residency.title}`;
       emailContent = `
         <p>Your residency "${residency.title}" requires some changes:</p>

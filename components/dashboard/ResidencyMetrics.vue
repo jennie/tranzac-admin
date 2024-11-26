@@ -31,17 +31,18 @@
       </UDashboardCard>
 
       <!-- Changes Requested -->
-      <UDashboardCard title="Changes Requested" class="cursor-pointer" @click="$emit('filter', 'changes_requested')">
+      <UDashboardCard title="Changes Requested" class="cursor-pointer"
+        @click="$emit('filter', 'resident_action_required')">
         <template #default>
-          <div class="text-3xl font-bold">{{ metrics.changes_requested }}</div>
+          <div class="text-3xl font-bold">{{ metrics.resident_action_required }}</div>
           <p class="text-sm text-gray-500 mt-2">Waiting for resident updates</p>
         </template>
       </UDashboardCard>
 
       <!-- Pending Input -->
-      <UDashboardCard title="Pending Input" class="cursor-pointer" @click="$emit('filter', 'pending_input')">
+      <UDashboardCard title="Pending Input" class="cursor-pointer" @click="$emit('filter', 'resident_action_required')">
         <template #default>
-          <div class="text-3xl font-bold">{{ metrics.pending_input }}</div>
+          <div class="text-3xl font-bold">{{ metrics.resident_action_required }}</div>
           <p class="text-sm text-gray-500 mt-2">Awaiting resident input</p>
         </template>
       </UDashboardCard>
@@ -73,9 +74,8 @@
 <script setup lang="ts">
 interface Metrics {
   new: number;
-  pending_input: number;
+  resident_action_required: number;
   pending_review: number;
-  changes_requested: number;
   approved: number;
   published: number;
 }
