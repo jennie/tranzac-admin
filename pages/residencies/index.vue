@@ -1,113 +1,16 @@
 <!-- pages/residencies/index.vue -->
 <template>
   <UDashboardPage>
-
     <UDashboardPanel grow>
       <UDashboardPanelContent class="pb-24">
-        <!-- Section for Key Metrics -->
-        <section class="metrics-section mb-8">
-          <div class="flex items-center justify-between mb-6">
-            <div>
-              <h2 class="text-xl font-semibold">Residency Overview</h2>
-              <p class="text-gray-600">Track and manage residency applications through their workflow stages.</p>
-            </div>
-            <!-- Clear filter button if a status is selected -->
-            <UButton v-if="selectedStatus" color="gray" variant="ghost" icon="i-heroicons-x-mark" @click="clearFilter">
-              Clear filter
-            </UButton>
-          </div>
-
-          <div class="dashboard-key-metrics grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <!-- New Applications -->
-            <UDashboardCard title="New Applications" @click="filterByStatus('new')"
-              class="cursor-pointer transition-colors duration-200" :ui="{
-                background: selectedStatus === 'new' ? 'bg-primary-50 dark:bg-primary-950' : '',
-                ring: selectedStatus === 'new' ? 'ring-2 ring-primary-500' : '',
-              }">
-              <template #default>
-                <div class="text-3xl font-bold">{{ metrics.new }}</div>
-                <p class="text-sm text-gray-500 mt-2">New applications needing review</p>
-              </template>
-            </UDashboardCard>
-
-            <!-- Pending Review -->
-            <UDashboardCard title="Pending Review" @click="filterByStatus('pending_review')"
-              class="cursor-pointer transition-colors duration-200" :ui="{
-                background: selectedStatus === 'pending_review' ? 'bg-primary-50 dark:bg-primary-950' : '',
-                ring: selectedStatus === 'pending_review' ? 'ring-2 ring-primary-500' : '',
-              }">
-              <template #default>
-                <div class="text-3xl font-bold">{{ metrics.pending_review }}</div>
-                <p class="text-sm text-gray-500 mt-2">Applications awaiting your review</p>
-              </template>
-            </UDashboardCard>
-
-            <!-- Changes Requested -->
-            <UDashboardCard title="Changes Requested" @click="filterByStatus('changes_requested')"
-              class="cursor-pointer transition-colors duration-200" :ui="{
-                background: selectedStatus === 'changes_requested' ? 'bg-primary-50 dark:bg-primary-950' : '',
-                ring: selectedStatus === 'changes_requested' ? 'ring-2 ring-primary-500' : '',
-              }">
-              <template #default>
-                <div class="text-3xl font-bold">{{ metrics.changes_requested }}</div>
-                <p class="text-sm text-gray-500 mt-2">Waiting for resident updates</p>
-              </template>
-            </UDashboardCard>
-
-            <!-- Pending Input -->
-            <UDashboardCard title="Pending Input" @click="filterByStatus('pending_input')"
-              class="cursor-pointer transition-colors duration-200" :ui="{
-                background: selectedStatus === 'pending_input' ? 'bg-primary-50 dark:bg-primary-950' : '',
-                ring: selectedStatus === 'pending_input' ? 'ring-2 ring-primary-500' : '',
-              }">
-              <template #default>
-                <div class="text-3xl font-bold">{{ metrics.pending_input }}</div>
-                <p class="text-sm text-gray-500 mt-2">Awaiting resident input</p>
-              </template>
-            </UDashboardCard>
-
-            <!-- Approved -->
-            <UDashboardCard title="Approved Drafts" @click="filterByStatus('approved')"
-              class="cursor-pointer transition-colors duration-200" :ui="{
-                background: selectedStatus === 'approved' ? 'bg-primary-50 dark:bg-primary-950' : '',
-                ring: selectedStatus === 'approved' ? 'ring-2 ring-primary-500' : '',
-              }">
-              <template #default>
-                <div class="text-3xl font-bold">{{ metrics.approved }}</div>
-                <p class="text-sm text-gray-500 mt-2">Ready for publishing</p>
-              </template>
-            </UDashboardCard>
-
-            <!-- Published -->
-            <UDashboardCard title="Published" @click="filterByStatus('published')"
-              class="cursor-pointer transition-colors duration-200" :ui="{
-                background: selectedStatus === 'published' ? 'bg-primary-50 dark:bg-primary-950' : '',
-                ring: selectedStatus === 'published' ? 'ring-2 ring-primary-500' : '',
-              }">
-              <template #default>
-                <div class="text-3xl font-bold">{{ metrics.published }}</div>
-                <p class="text-sm text-gray-500 mt-2">Active residencies</p>
-              </template>
-            </UDashboardCard>
-          </div>
-        </section>
-
+        <UPageHeader title="Residencies" icon="i-heroicons-microphone" />
         <!-- Table Section -->
         <section class="table-section">
           <!-- Header with search -->
-          <UDashboardNavbar :title="tableTitle" :badge="filteredResidencies.length">
-            <template #right>
-              <UInput v-model="searchQuery" icon="i-heroicons-magnifying-glass" autocomplete="off"
-                placeholder="Search residencies..." class="hidden lg:block" @keydown.esc="$event.target.blur()">
-                <template #trailing>
-                  <UKbd value="/" />
-                </template>
-              </UInput>
-            </template>
-          </UDashboardNavbar>
+
 
           <UCard :ui="{ header: { padding: 'p-4 sm:px-6' }, body: { padding: '' } }" class="min-w-0">
-            <!-- Table -->
+            <!-- Loading State -->
             <div v-if="isLoading" class="py-8">
               <div class="flex items-center justify-center">
                 <div class="text-center">
@@ -118,61 +21,105 @@
             </div>
 
             <template v-else>
+              <div>
+                <div class="flex justify-between px-3 py-3.5 border-b border-gray-200 dark:border-gray-700">
+                  <div class="flex justify-start mb-4 items-center">
+                    <USelect v-model="viewMode" :options="[
+                      { label: 'Current Residencies', value: 'current' },
+                      { label: 'Past Residencies', value: 'past' },
+                      { label: 'All Residencies', value: 'all' }
+                    ]" class="w-48 pr-2" />
+                    <!-- Hide the count badge -->
+                    <!-- <UBadge :label="filteredResidencies.length" class="h-6" /> -->
 
-              <UTable :rows="paginatedResidencies" :columns="columns" :sort="sort" @update:sort="handleSortUpdate">
-
-                <!-- Status Column -->
-                <template #activeStatus-data="{ row }">
-                  <UBadge :label="row.activeStatus" :color="getStatusColor(row.activeStatus)" variant="subtle"
-                    class="capitalize" />
-                </template>
-
-                <!-- Title Column -->
-                <template #title-data="{ row }">
-                  <NuxtLink :to="`/residencies/${row.id}`" class="underline">
-                    {{ row.title }}
-                  </NuxtLink>
-                </template>
-
-                <!-- Date Columns -->
-                <template #startDate-data="{ row }">
-                  {{ formatDate(row.startDate) }}
-                </template>
-                <template #endDate-data="{ row }">
-                  {{ formatDate(row.endDate) }}
-                </template>
-
-                <!-- Actions Column -->
-                <template #actions-data="{ row }">
-                  <div class="flex gap-2">
-                    <UButton v-if="row.activeStatus === 'pending_review'" color="primary" variant="soft" size="xs"
-                      @click="handleApprove(row.id)">
-                      Approve
-                    </UButton>
-                    <UButton v-if="['pending_review', 'approved'].includes(row.activeStatus)" color="gray"
-                      variant="soft" size="xs" @click="handleRequestChanges(row.id)">
-                      Request Changes
-                    </UButton>
                   </div>
-                </template>
-              </UTable>
+                  <div v-if="viewMode === 'current'" class="flex justify-center mb-4 items-center">
+                    <USelectMenu v-model="selectedStatusOption" :options="statusOptions" option-attribute="label"
+                      class="min-w-48">
+                      <template #label>
+                        <span
+                          :class="[getStatusColorClass(selectedStatusOption.value), 'inline-block h-2 w-2 flex-shrink-0 rounded-full']"
+                          aria-hidden="true" />
+                        <span class="truncate">{{ selectedStatusOption.label }} ({{ selectedStatusOption.count
+                          }})</span>
+                      </template>
 
-              <!-- Empty State -->
-              <div v-if="filteredResidencies.length === 0" class="py-12">
-                <div class="text-center">
-                  <UIcon name="i-heroicons-inbox" class="mx-auto h-12 w-12 text-gray-400" />
-                  <h3 class="mt-2 text-sm font-semibold text-gray-900">No residencies found</h3>
-                  <p class="mt-1 text-sm text-gray-500">No residencies match your current filters.</p>
+                      <template #option="{ option: status }">
+                        <span
+                          :class="[getStatusColorClass(status.value), 'inline-block h-2 w-2 flex-shrink-0 rounded-full']"
+                          aria-hidden="true" />
+                        <span class="truncate">{{ status.label }} ({{ status.count }})</span>
+                      </template>
+                    </USelectMenu>
+                  </div>
+                  <div class="flex justify-end mb-4">
+
+                    <UInput v-model="searchQuery" icon="i-heroicons-magnifying-glass" autocomplete="off"
+                      placeholder="Search residencies..." class="hidden lg:block" @keydown.esc="$event.target.blur()">
+                      <template #trailing>
+                        <UKbd value="/" />
+                      </template>
+                    </UInput>
+
+
+                  </div>
                 </div>
-              </div>
+                <!-- Table -->
+                <UTable :rows="paginatedResidencies" :columns="columns" :sort="sort" @update:sort="handleSortUpdate">
 
-              <!-- Pagination -->
-              <div v-if="filteredResidencies.length > 0"
-                class="flex justify-between items-center px-4 py-3 border-t border-gray-200 dark:border-gray-700">
-                <p class="text-sm text-gray-500">
-                  Showing {{ paginationStart }} to {{ paginationEnd }} of {{ totalResidencies }} residencies
-                </p>
-                <UPagination v-model="currentPage" :total="totalResidencies" :per-page="perPage" />
+                  <!-- Status Column -->
+                  <template #activeStatus-data="{ row }">
+                    <UBadge :label="row.activeStatus" :color="getStatusColor(row.activeStatus)" variant="subtle"
+                      class="capitalize" />
+                  </template>
+
+                  <!-- Title Column -->
+                  <template #title-data="{ row }">
+                    <NuxtLink :to="`/residencies/${row.id}`" class="underline hover:text-primary-600">
+                      {{ row.title }}
+                    </NuxtLink>
+                  </template>
+
+                  <!-- Date Columns -->
+                  <template #startDate-data="{ row }">
+                    <span :title="row.startDate">{{ formatDate(row.startDate) }}</span>
+                  </template>
+                  <template #endDate-data="{ row }">
+                    <span :title="row.endDate">{{ formatDate(row.endDate) }}</span>
+                  </template>
+
+                  <!-- Actions Column -->
+                  <template #actions-data="{ row }">
+                    <div class="flex gap-2">
+                      <UButton v-if="row.activeStatus === 'pending_review'" color="primary" variant="soft" size="xs"
+                        @click="handleApprove(row.id)">
+                        Approve
+                      </UButton>
+                      <UButton v-if="['pending_review', 'approved'].includes(row.activeStatus)" color="gray"
+                        variant="soft" size="xs" @click="handleRequestChanges(row.id)">
+                        Request Changes
+                      </UButton>
+                    </div>
+                  </template>
+                </UTable>
+
+                <!-- Empty State -->
+                <div v-if="filteredResidencies.length === 0" class="py-12">
+                  <div class="text-center">
+                    <UIcon name="i-heroicons-inbox" class="mx-auto h-12 w-12 text-gray-400" />
+                    <h3 class="mt-2 text-sm font-semibold text-gray-900">No residencies found</h3>
+                    <p class="mt-1 text-sm text-gray-500">No residencies match your current filters.</p>
+                  </div>
+                </div>
+
+                <!-- Pagination -->
+                <div v-if="filteredResidencies.length > 0"
+                  class="flex justify-between items-center px-4 py-3 border-t border-gray-200 dark:border-gray-700">
+                  <p class="text-sm text-gray-500">
+                    Showing {{ paginationStart }} to {{ paginationEnd }} of {{ totalResidencies }} residencies
+                  </p>
+                  <UPagination v-model="currentPage" :total="totalResidencies" :per-page="perPage" />
+                </div>
               </div>
             </template>
           </UCard>
@@ -182,155 +129,275 @@
         <UModal v-model="showRequestChangesModal">
           <UCard>
             <template #header>
-              <div class="text-lg font-semibold">
-                Request Changes
-              </div>
+              <div class="text-lg font-semibold">Request Changes</div>
             </template>
             <ResidenciesRequestChangesForm v-if="selectedResidency" :title="selectedResidency.title"
               :record-id="selectedResidency.id" :recipient-emails="selectedResidency.recipientEmails"
               @submit="handleRequestChangesSubmit" />
           </UCard>
         </UModal>
+
       </UDashboardPanelContent>
     </UDashboardPanel>
   </UDashboardPage>
 </template>
 
-
 <script setup lang="ts">
-import { format } from 'date-fns';
-import { ref, computed, watch } from 'vue';
-import type { Residency } from '~/types/residency';
-import { useResidenciesData } from '~/composables/useResidenciesData';
+// script setup section for pages/residencies/index.vue
+import { ref, computed, watch } from 'vue'
+import { startOfToday, isBefore, parseISO, isValid, format } from 'date-fns'
+import type { Residency } from '~/types/residency'
+import { useResidenciesData } from '~/composables/useResidenciesData'
+
+const toast = useToast()
 
 // Page meta
 definePageMeta({
   layout: 'default'
-});
+})
 
 // Local state
-const currentPage = ref(1);
-const perPage = ref(10);
-const searchQuery = ref('');
-const selectedStatus = ref('');
-const showRequestChangesModal = ref(false);
-const selectedResidency = ref<Residency | null>(null);
+const currentPage = ref(1)
+const perPage = ref(10)
+const searchQuery = ref('')
+const selectedStatus = ref('')
+const showRequestChangesModal = ref(false)
+const selectedResidency = ref<Residency | null>(null)
+const viewMode = ref('current')
 const sort = ref({
   column: '_createdAt',
   direction: 'desc' as const
-});
+})
 
 // Table configuration
 const columns = [
-  { key: 'activeStatus', label: 'Status', sortable: true },
-  { key: 'title', label: 'Title', sortable: true },
-  { key: 'startDate', label: 'Start Date', sortable: true },
-  { key: 'endDate', label: 'End Date', sortable: true },
-  { key: 'actions', label: 'Actions', sortable: false }
-];
+  {
+    key: 'activeStatus',
+    label: 'Status',
+    sortable: true
+  },
+  {
+    key: 'title',
+    label: 'Title',
+    sortable: true
+  },
+  {
+    key: 'startDate',
+    label: 'Start Date',
+    sortable: true,
+    render: (date: string) => formatDate(date)
+  },
+  {
+    key: 'endDate',
+    label: 'End Date',
+    sortable: true,
+    render: (date: string) => formatDate(date)
+  },
+  {
+    key: 'actions',
+    label: 'Actions',
+    sortable: false
+  }
+]
 
-// Load residencies data (Removed redundant call)
-const { residencies: allResidencies, isLoading, error, refresh } = useResidenciesData();
+// Load residencies data
+const { residencies: allResidencies, isLoading, error, refresh } = useResidenciesData()
+
+// Helper function to safely parse date
+const safeParseDate = (dateString: string | null | undefined) => {
+  if (!dateString) return null
+  try {
+    const date = parseISO(dateString)
+    return isValid(date) ? date : null
+  } catch (e) {
+    console.error(`Error parsing date: ${dateString}`, e)
+    return null
+  }
+}
+
+// Format dates for display
+const formatDate = (date: string | null | undefined) => {
+  if (!date) return '—'
+  try {
+    const parsedDate = parseISO(date)
+    if (!isValid(parsedDate)) {
+      return '—'
+    }
+    return format(parsedDate, 'MMM d, yyyy')
+  } catch (e) {
+    console.error(`Error formatting date: ${date}`, e)
+    return '—'
+  }
+}
 
 // Filter residencies
 const filteredResidencies = computed(() => {
-  let filtered = [...allResidencies.value];
+  let filtered = [...allResidencies.value]
+  const today = startOfToday()
 
-  // Apply status filter with refined criteria
+  // First apply time-based filtering
+  if (viewMode.value !== 'all') {
+    filtered = filtered.filter(r => {
+      // If no end date is set, consider it as current/ongoing
+      if (!r.endDate) {
+        return viewMode.value === 'current'
+      }
+
+      const endDate = safeParseDate(r.endDate)
+      if (!endDate) {
+        console.warn(`Invalid end date for residency: ${r.id}`)
+        return viewMode.value === 'current' // Consider residencies with invalid dates as current
+      }
+
+      const isCurrent = !isBefore(endDate, today)
+      return viewMode.value === 'current' ? isCurrent : !isCurrent
+    })
+  }
+
+  // Apply status filter
   if (selectedStatus.value === 'approved') {
-    filtered = filtered.filter(r => r.activeStatus === 'approved' && r._status !== 'published');
+    filtered = filtered.filter(r => r.activeStatus === 'approved' && r._status !== 'published')
   } else if (selectedStatus.value === 'published') {
-    filtered = filtered.filter(r => r._status === 'published');
+    filtered = filtered.filter(r => r._status === 'published')
   } else if (selectedStatus.value) {
-    filtered = filtered.filter(r => r.activeStatus === selectedStatus.value);
+    filtered = filtered.filter(r => r.activeStatus === selectedStatus.value)
   }
 
   // Apply search filter
   if (searchQuery.value) {
-    const searchLower = searchQuery.value.toLowerCase();
+    const searchLower = searchQuery.value.toLowerCase()
     filtered = filtered.filter(r =>
       r.title?.toLowerCase().includes(searchLower) ||
       r.description?.toLowerCase().includes(searchLower)
-    );
+    )
   }
 
   // Apply sorting
   if (sort.value.column) {
     filtered.sort((a, b) => {
-      const aValue = a[sort.value.column];
-      const bValue = b[sort.value.column];
-      const direction = sort.value.direction === 'desc' ? -1 : 1;
+      const aValue = a[sort.value.column]
+      const bValue = b[sort.value.column]
+      const direction = sort.value.direction === 'desc' ? -1 : 1
 
       if (sort.value.column === 'startDate' || sort.value.column === 'endDate') {
-        return (new Date(aValue) > new Date(bValue) ? 1 : -1) * direction;
+        // Handle null dates in sorting
+        if (!aValue && !bValue) return 0
+        if (!aValue) return direction
+        if (!bValue) return -direction
+
+        const aDate = safeParseDate(aValue)
+        const bDate = safeParseDate(bValue)
+
+        if (!aDate && !bDate) return 0
+        if (!aDate) return direction
+        if (!bDate) return -direction
+
+        return (aDate > bDate ? 1 : -1) * direction
       }
-      return aValue > bValue ? direction : -direction;
-    });
+
+      return ((aValue ?? '') > (bValue ?? '') ? 1 : -1) * direction
+    })
   }
 
-  return filtered;
-});
+  return filtered
+})
 
-// Compute metrics based on allResidencies with refined criteria
+// Filter residencies for metrics, excluding selectedStatus filter
+const residenciesForMetrics = computed(() => {
+  let filtered = [...allResidencies.value]
+  const today = startOfToday()
+
+  // Apply time-based filtering based on viewMode
+  if (viewMode.value !== 'all') {
+    filtered = filtered.filter(r => {
+      if (!r.endDate) {
+        return viewMode.value === 'current'
+      }
+      const endDate = safeParseDate(r.endDate)
+      if (!endDate) return viewMode.value === 'current'
+      const isCurrent = !isBefore(endDate, today)
+      return viewMode.value === 'current' ? isCurrent : !isCurrent
+    })
+  }
+
+  // Apply search filter
+  if (searchQuery.value) {
+    const searchLower = searchQuery.value.toLowerCase()
+    filtered = filtered.filter(r =>
+      r.title?.toLowerCase().includes(searchLower) ||
+      r.description?.toLowerCase().includes(searchLower)
+    )
+  }
+
+  return filtered
+})
+
+// Compute metrics based on residenciesForMetrics
 const metrics = computed(() => ({
-  new: allResidencies.value.filter(r => r.activeStatus === 'new').length,
-  pending_review: allResidencies.value.filter(r => r.activeStatus === 'pending_review').length,
-  changes_requested: allResidencies.value.filter(r => r.activeStatus === 'changes_requested').length,
-  pending_input: allResidencies.value.filter(r => r.activeStatus === 'pending_input').length,
-  approved: allResidencies.value.filter(r => r.activeStatus === 'approved' && r._status !== 'published').length,
-  published: allResidencies.value.filter(r => r._status === 'published').length,
-}));
+  new: residenciesForMetrics.value.filter(r => r.activeStatus === 'new').length,
+  pending_review: residenciesForMetrics.value.filter(r => r.activeStatus === 'pending_review').length,
+  changes_requested: residenciesForMetrics.value.filter(r => r.activeStatus === 'changes_requested').length,
+  pending_input: residenciesForMetrics.value.filter(r => r.activeStatus === 'pending_input').length,
+  approved: residenciesForMetrics.value.filter(r => r.activeStatus === 'approved' && r._status !== 'published').length,
+  published: residenciesForMetrics.value.filter(r => r._status === 'published').length,
+}))
 
-// Update the pagination computed properties in your page
+// Pagination
 const paginatedResidencies = computed(() => {
-  console.log('Computing pagination:');
-  console.log('- Current page:', currentPage.value);
-  console.log('- Per page:', perPage.value);
-  console.log('- Total records:', filteredResidencies.value.length);
-
-  const start = (currentPage.value - 1) * perPage.value;
-  const end = start + perPage.value;
-
-  console.log('- Slice from', start, 'to', end);
-  return filteredResidencies.value.slice(start, end);
-});
+  const start = (currentPage.value - 1) * perPage.value
+  const end = start + perPage.value
+  return filteredResidencies.value.slice(start, end)
+})
 
 const paginationStart = computed(() =>
   filteredResidencies.value.length === 0 ? 0 : ((currentPage.value - 1) * perPage.value) + 1
-);
+)
+
 const paginationEnd = computed(() =>
   Math.min(currentPage.value * perPage.value, filteredResidencies.value.length)
-);
-const totalResidencies = computed(() => filteredResidencies.value.length);
+)
 
+const totalResidencies = computed(() => filteredResidencies.value.length)
+
+// Table title
 const tableTitle = computed(() => {
-  if (!selectedStatus.value) return 'All Residencies';
-  return `${selectedStatus.value.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')} Residencies`;
-});
+  let title = selectedStatus.value
+    ? `${selectedStatus.value.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')} Residencies`
+    : 'All Residencies'
 
-// Utility functions and handlers
-const clearFilter = () => {
-  selectedStatus.value = '';
-  currentPage.value = 1;
-};
-
-const filterByStatus = (status: string) => {
-  if (selectedStatus.value === status) {
-    clearFilter();
-  } else {
-    selectedStatus.value = status;
-    currentPage.value = 1;
+  if (viewMode.value === 'current') {
+    title = `Current ${title}`
+  } else if (viewMode.value === 'past') {
+    title = `Past ${title}`
   }
-};
 
-const formatDate = (date: string) => {
-  if (!date) return 'No date';
-  try {
-    return format(new Date(date), 'MMM d, yyyy');
-  } catch (e) {
-    return 'Invalid date';
+  return title
+})
+
+// Status helpers
+const getStatusTitle = (status: string) => {
+  const titles = {
+    new: 'New',
+    pending_input: 'Pending Input',
+    pending_review: 'Pending Review',
+    changes_requested: 'Changes Requested',
+    approved: 'Approved Drafts',
+    published: 'Published'
   }
-};
+  return titles[status as keyof typeof titles] || status
+}
+
+const getStatusDescription = (status: string) => {
+  const descriptions = {
+    new: 'New residencies needing review',
+    pending_input: 'Waiting for resident input',
+    pending_review: 'Applications awaiting your review',
+    changes_requested: 'Waiting for resident updates',
+    approved: 'Ready for publishing',
+    published: 'Active residencies'
+  }
+  return descriptions[status as keyof typeof descriptions] || ''
+}
 
 const getStatusColor = (status: string) => {
   const colors = {
@@ -340,48 +407,56 @@ const getStatusColor = (status: string) => {
     changes_requested: 'red',
     approved: 'green',
     published: 'primary'
-  };
-  return colors[status] || 'gray';
-};
+  }
+  return colors[status as keyof typeof colors] || 'gray'
+}
 
+const getStatusColorClass = (status: string) => {
+  const colorClasses = {
+    '': 'bg-gray-400', // For "All Statuses"
+    new: 'bg-blue-400',
+    pending_input: 'bg-yellow-400',
+    pending_review: 'bg-orange-400',
+    changes_requested: 'bg-red-400',
+    approved: 'bg-green-400',
+    published: 'bg-primary-400'
+  }
+  return colorClasses[status as keyof typeof colorClasses] || 'bg-gray-200'
+}
+
+// Action handlers
 const handleSortUpdate = (newSort: typeof sort.value) => {
-  sort.value = newSort;
-};
+  sort.value = newSort
+}
 
 const handleApprove = async (id: string) => {
-  isLoading.value = true;
   try {
     await $fetch(`/api/residencies/${id}/status`, {
       method: 'PUT',
       body: { status: 'approved' }
-    });
-
-    // Refresh data
-    // await refresh();
-
-    const toast = useToast();
+    })
+    await refresh()
     toast.add({
       title: 'Success',
       description: 'Residency approved successfully',
       color: 'green'
-    });
-  } catch (error) {
-    const toast = useToast();
+    })
+  } catch (e) {
     toast.add({
       title: 'Error',
       description: 'Failed to approve residency',
       color: 'red'
-    });
+    })
   }
-};
+}
 
 const handleRequestChanges = (id: string) => {
-  selectedResidency.value = allResidencies.value.find(r => r.id === id) || null;
-  showRequestChangesModal.value = true;
-};
+  selectedResidency.value = allResidencies.value.find(r => r.id === id) || null
+  showRequestChangesModal.value = true
+}
 
 const handleRequestChangesSubmit = async ({ note, recipientEmails }: { note: string; recipientEmails: string[] }) => {
-  if (!selectedResidency.value) return;
+  if (!selectedResidency.value) return
 
   try {
     await $fetch(`/api/residencies/${selectedResidency.value.id}/requestChanges`, {
@@ -391,29 +466,77 @@ const handleRequestChangesSubmit = async ({ note, recipientEmails }: { note: str
         recipientEmails,
         residencyTitle: selectedResidency.value.title
       }
-    });
-
-    showRequestChangesModal.value = false;
-    // await refresh();
-
-    const toast = useToast();
+    })
+    showRequestChangesModal.value = false
+    await refresh()
     toast.add({
       title: 'Success',
       description: 'Changes requested successfully',
       color: 'green'
-    });
-  } catch (error) {
-    const toast = useToast();
+    })
+  } catch (e) {
     toast.add({
       title: 'Error',
       description: 'Failed to request changes',
       color: 'red'
-    });
+    })
   }
-};
+}
 
 // Reset pagination when filters change
-watch([searchQuery, selectedStatus], () => {
-  currentPage.value = 1;
-});
+watch([searchQuery, selectedStatus, viewMode], () => {
+  currentPage.value = 1
+})
+
+// Utility functions
+const clearFilter = () => {
+  selectedStatus.value = ''
+  currentPage.value = 1
+}
+
+const filterByStatus = (status: string) => {
+  if (selectedStatus.value === status) {
+    clearFilter()
+  } else {
+    selectedStatus.value = status
+    currentPage.value = 1
+  }
+}
+
+// statusOptions remains a computed property that updates with metrics
+const statusOptions = computed(() => [
+  { label: 'All Statuses', value: '', count: residenciesForMetrics.value.length },
+  { label: 'New', value: 'new', count: metrics.value.new },
+  { label: 'Pending Input', value: 'pending_input', count: metrics.value.pending_input },
+  { label: 'Pending Review', value: 'pending_review', count: metrics.value.pending_review },
+  { label: 'Changes Requested', value: 'changes_requested', count: metrics.value.changes_requested },
+  { label: 'Approved Drafts', value: 'approved', count: metrics.value.approved },
+  { label: 'Published', value: 'published', count: metrics.value.published }
+])
+
+// Initialize selectedStatusOption based on selectedStatus or default to first option
+const selectedStatusOption = ref(
+  statusOptions.value.find(option => option.value === selectedStatus.value) || statusOptions.value[0]
+)
+
+// Watch for changes in selectedStatusOption and update selectedStatus
+watch(selectedStatusOption, (newOption) => {
+  selectedStatus.value = newOption.value
+})
+
+// Watch for changes in selectedStatus and update selectedStatusOption
+watch(selectedStatus, (newStatus) => {
+  const matchingOption = statusOptions.value.find(option => option.value === newStatus)
+  if (matchingOption) {
+    selectedStatusOption.value = matchingOption
+  } else {
+    selectedStatusOption.value = statusOptions.value[0]
+  }
+})
+
+// Watch for changes in viewMode and reset status filters
+watch(viewMode, () => {
+  selectedStatus.value = ''
+  selectedStatusOption.value = statusOptions.value[0]
+})
 </script>

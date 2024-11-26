@@ -1,4 +1,4 @@
-// useResidenciesData.ts
+// composables/useResidenciesData.ts
 import { ref, readonly, watchEffect, onMounted } from "vue";
 import useServerGraphQlQuery from "@/composables/useServerGraphQlQuery";
 
@@ -11,7 +11,7 @@ export const useResidenciesData = () => {
   let isDataLoaded = false;
 
   const fetchAllResidencies = async () => {
-    if (isDataLoaded) return; // Skip fetch if data is already loaded
+    if (isDataLoaded) return;
     isDataLoaded = true;
     isLoading.value = true;
     residencies.value = [];

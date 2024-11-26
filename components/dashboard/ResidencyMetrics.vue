@@ -4,11 +4,11 @@
     <p class="text-gray-600 mb-6">Track and manage residency applications through their workflow stages.</p>
 
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      <!-- New Applications -->
-      <UDashboardCard title="New Applications" class="cursor-pointer" @click="$emit('filter', 'new')">
+      <!-- New -->
+      <UDashboardCard title="New" class="cursor-pointer" @click="$emit('filter', 'new')">
         <template #default>
           <div class="text-3xl font-bold">{{ metrics.new }}</div>
-          <p class="text-sm text-gray-500 mt-2">New applications needing review</p>
+          <p class="text-sm text-gray-500 mt-2">New residencies needing review</p>
           <div v-if="metrics.new > 0" class="mt-4">
             <UButton size="sm" color="primary" @click.stop="$emit('review-new')">
               Review New
