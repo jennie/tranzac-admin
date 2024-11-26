@@ -1,9 +1,15 @@
 // server/api/residencies/[id]/status.put.ts
-import { updateDatoRecord } from "~/utils/datoCmsClient";
+import { updateDatoRecord } from "~/server/utils/datoCmsClient";
 import { sendNotificationEmail } from "~/server/utils/emailService";
 
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, "id");
+  if (!id) {
+    throw createError({
+      statusCode: 400,
+      message: "Residency ID is required",
+    });
+  }
   const { status, note, recipientEmails, commsManagerName } = await readBody(
     event
   );

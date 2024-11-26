@@ -432,7 +432,6 @@ const approveRental = async () => {
     // Refresh the rental data after approval
     await fetchRental();
 
-    // Show a success message (you can replace this with your preferred notification method)
     alert('Rental approved successfully');
   } catch (err) {
     console.error('Error approving rental:', err);

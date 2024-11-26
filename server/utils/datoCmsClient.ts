@@ -9,8 +9,6 @@ export const getDatoClient = () => {
     const config = useRuntimeConfig();
     client = buildClient({
       apiToken: config.public.datoCmsToken,
-      environment:
-        process.env.NODE_ENV === "production" ? "main" : "development",
     });
   }
   return client;

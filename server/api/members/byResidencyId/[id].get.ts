@@ -1,3 +1,5 @@
+// /server/api/members/byResidencyId/[id].get.ts
+
 import { defineEventHandler, createError } from "h3";
 import { ensureConnection } from "~/server/utils/mongoose";
 import { MemberSchema } from "~/server/models/member.schema";

@@ -2,6 +2,7 @@ import { ref, readonly, computed, onMounted } from "vue";
 
 export const useResidenciesData = () => {
   const residencies = ref([]);
+  const residenciesWithoutMembers = ref([]); // Add this here
   const totalResidencies = ref(0);
   const metrics = ref({
     new: 0,
@@ -12,13 +13,27 @@ export const useResidenciesData = () => {
     published: 0,
   });
   const isLoading = ref(true);
-  const error = ref(null);
+  const error = ref<string | null>(null);
+
+  const fetchResidenciesWithoutMembers = async () => {
+    try {
+      const { data }: { data: { residenciesWithoutMembers: any[] } } =
+        await $fetch("/api/members/withoutMembers");
+      residenciesWithoutMembers.value = data?.residenciesWithoutMembers || [];
+    } catch (error) {
+      console.error("Error fetching residencies without members:", error);
+    }
+  };
+  let isDataLoaded = false;
 
   const fetchAllResidencies = async () => {
+    if (isDataLoaded) return; // Skip fetch if data is already loaded
+    isDataLoaded = true;
     isLoading.value = true;
+    residencies.value = [];
+    console.log("Fetching all residencies...");
     error.value = null;
 
-    residencies.value = [];
     let hasMore = true;
     let skip = 0;
     const first = 100;
@@ -45,7 +60,6 @@ export const useResidenciesData = () => {
         const variables = { first, skip };
 
         const { data } = await useGraphqlQuery({ query, variables });
-
         if (data.value?.allResidencies?.length) {
           residencies.value.push(...data.value.allResidencies);
           skip += data.value.allResidencies.length;
@@ -63,7 +77,9 @@ export const useResidenciesData = () => {
       isLoading.value = false;
     }
   };
-
+  watchEffect(() => {
+    fetchAllResidencies();
+  });
   const calculateMetrics = () => {
     metrics.value = {
       new: residencies.value.filter((r) => r.activeStatus === "new").length,
@@ -85,12 +101,14 @@ export const useResidenciesData = () => {
 
   onMounted(async () => {
     await fetchAllResidencies();
+    await fetchResidenciesWithoutMembers();
     calculateMetrics();
   });
 
   return {
     residencies: readonly(residencies),
     totalResidencies: readonly(totalResidencies),
+    residenciesWithoutMembers: readonly(residenciesWithoutMembers),
     metrics: readonly(metrics),
     isLoading: readonly(isLoading),
     error: readonly(error),

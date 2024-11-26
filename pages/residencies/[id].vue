@@ -112,7 +112,7 @@ const showRequestChangesForm = ref(false)
 
 const handleStatusUpdate = async (newStatus: string) => {
   await updateStatus(newStatus)
-  await refresh()
+  // await refresh()
 }
 const QUERY = `
   query Residency($id: ItemId!) {

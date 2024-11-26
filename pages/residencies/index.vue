@@ -119,6 +119,15 @@
 
             <template v-else>
               <UTable :rows="paginatedResidencies" :columns="columns" :sort="sort" @update:sort="handleSortUpdate">
+                <template #members-data="{ row }">
+                  <span v-if="residenciesWithoutMembers.some(r => r.id === row.id)" class="text-red-500">
+                    No members
+                  </span>
+                  <span v-else class="text-green-500">
+                    Members assigned
+                  </span>
+                </template>
+
                 <!-- Status Column -->
                 <template #activeStatus-data="{ row }">
                   <UBadge :label="row.activeStatus" :color="getStatusColor(row.activeStatus)" variant="subtle"
@@ -217,12 +226,17 @@ const sort = ref({
 
 // Table configuration
 const columns = [
+  { key: "members", label: "Members", sortable: false },
   { key: 'activeStatus', label: 'Status', sortable: true },
   { key: 'title', label: 'Title', sortable: true },
   { key: 'startDate', label: 'Start Date', sortable: true },
   { key: 'endDate', label: 'End Date', sortable: true },
   { key: 'actions', label: 'Actions', sortable: false }
 ];
+
+
+const { residencies, residenciesWithoutMembers } = useResidenciesData();
+
 
 // Load residencies data
 const { residencies: allResidencies, metrics, isLoading, error, refresh } = useResidenciesData();
@@ -275,14 +289,6 @@ const paginatedResidencies = computed(() => {
 
   console.log('- Slice from', start, 'to', end);
   return filteredResidencies.value.slice(start, end);
-});
-
-// Add this right after the useResidenciesData call in your page
-watchEffect(() => {
-  console.log('hot reloading!')
-  console.log('All residencies:', allResidencies.value?.length);
-  console.log('Filtered residencies:', filteredResidencies.value?.length);
-  console.log('Paginated residencies:', paginatedResidencies.value?.length);
 });
 
 const paginationStart = computed(() =>
@@ -347,7 +353,7 @@ const handleApprove = async (id: string) => {
     });
 
     // Refresh data
-    await refresh();
+    // await refresh();
 
     const toast = useToast();
     toast.add({
@@ -384,7 +390,7 @@ const handleRequestChangesSubmit = async ({ note, recipientEmails }: { note: str
     });
 
     showRequestChangesModal.value = false;
-    await refresh();
+    // await refresh();
 
     const toast = useToast();
     toast.add({
@@ -406,4 +412,7 @@ const handleRequestChangesSubmit = async ({ note, recipientEmails }: { note: str
 watch([searchQuery, selectedStatus], () => {
   currentPage.value = 1;
 });
+
+
+
 </script>
