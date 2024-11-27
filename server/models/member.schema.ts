@@ -3,56 +3,29 @@ import { defineMongooseModel } from "#nuxt/mongoose";
 export const MemberSchema = defineMongooseModel<Member>({
   name: "Member",
   schema: {
-    firstName: {
-      type: String,
-      required: true,
-    },
-    lastName: {
-      type: String,
-      required: true,
-    },
-    email: {
-      type: String,
-      required: true,
-      unique: true,
-    },
-    phone: {
-      type: String,
-    },
-    loginToken: {
-      type: String,
-    },
-    loginTokenExpires: {
-      type: Date,
-    },
+    firstName: { type: String, required: true },
+    lastName: { type: String, required: true },
+    email: { type: String, required: true, unique: true },
+    phone: { type: String },
+    loginToken: { type: String },
+    loginTokenExpires: { type: Date },
     membership: {
       status: {
         type: String,
         enum: ["active", "inactive", "pending"],
         default: "pending",
       },
-      type: {
-        type: String,
-      },
-      startDate: {
-        type: Date,
-      },
-      endDate: {
-        type: Date,
-      },
+      type: { type: String },
+      startDate: { type: Date },
+      endDate: { type: Date },
       paymentMethod: {
         type: String,
-        enum: ["stripe", "paypal", "other"],
+        enum: ["stripe", "paypal", "other", "none"],
+        default: "none",
       },
-      stripeCustomerId: {
-        type: String,
-      },
-      paypalCustomerId: {
-        type: String,
-      },
-      paypalSubscriptionId: {
-        type: String,
-      },
+      stripeCustomerId: { type: String },
+      paypalCustomerId: { type: String },
+      paypalSubscriptionId: { type: String },
     },
     address: {
       street: String,
@@ -60,9 +33,7 @@ export const MemberSchema = defineMongooseModel<Member>({
       province: String,
       postalCode: String,
     },
-    notes: {
-      type: String,
-    },
+    notes: { type: String },
     roles: [
       {
         role: String,

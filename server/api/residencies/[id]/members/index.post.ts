@@ -6,7 +6,7 @@ import { MemberSchema } from "~/server/models/member.schema";
 export default defineEventHandler(async (event) => {
   const residencyId = event.context.params.id;
   const { memberId } = await readBody(event);
-
+  console.log("Member ID", memberId);
   if (!residencyId || !memberId) {
     throw createError({
       statusCode: 400,

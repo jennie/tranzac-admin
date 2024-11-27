@@ -239,6 +239,7 @@ export const useWorkflowActions = (residency: Ref<Residency>) => {
     submitForReview,
     approve,
     requestChanges,
+    removeMember,
     publish,
     approveAndPublish,
   };

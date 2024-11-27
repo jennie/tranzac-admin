@@ -22,14 +22,14 @@
               <!-- Current Members Display -->
               <div v-if="members.length > 0" class="mb-4">
                 <div class="space-y-2">
-                  <div v-for="member in members" :key="member.id"
+                  <div v-for="member in members" :key="member._id"
                     class="flex justify-between items-center p-2 bg-gray-50 rounded">
                     <div>
                       {{ member.firstName }} {{ member.lastName }}
                       <span class="text-gray-500">({{ member.email }})</span>
                     </div>
                     <UButton color="red" variant="ghost" icon="i-heroicons-x-mark" size="xs"
-                      @click="handleRemoveMember(member.id)">
+                      @click="handleRemoveMember(member)">
                       Remove
                     </UButton>
                   </div>
@@ -132,7 +132,7 @@
           </div>
           <div v-else>
             <div v-if="members.length" class="space-y-2">
-              <div v-for="member in members" :key="member.id" class="p-2 bg-gray-50 rounded">
+              <div v-for="member in members" :key="member._id" class="p-2 bg-gray-50 rounded">
                 {{ member.firstName }} {{ member.lastName }}
                 <a :href="'mailto:' + member.email" class="text-blue-500 underline">
                   {{ member.email }}
@@ -170,7 +170,7 @@ import type { Residency } from '~/types/residency'
 import { useWorkflowActions } from '~/composables/useWorkflowActions'
 
 interface Member {
-  id: string
+  _id: string
   firstName: string
   lastName: string
   email: string
@@ -215,23 +215,25 @@ const handleMemberSelection = async (member) => {
   }
 };
 
-const handleRemoveMember = async (memberId: string) => {
+// Update handleRemoveMember in [id].vue
+const handleRemoveMember = async (member: Member) => {
   try {
-    await removeMember(memberId)
-    await fetchMemberData() // Refresh member list
-    const toast = useToast()
+    console.log("Member object:", member); // Add this log
+    console.log("Removing member with ID:", member._id); // Change to _id
+    const response = await removeMember(member._id); // Change to _id
+    console.log("Remove member response:", response); // Add this log
+    await fetchMemberData();
     toast.add({
       title: 'Success',
       description: 'Member removed successfully',
       color: 'green'
-    })
+    });
   } catch (e) {
-    const toast = useToast()
     toast.add({
       title: 'Error',
       description: e instanceof Error ? e.message : 'Failed to remove member',
       color: 'red'
-    })
+    });
   }
 }
 
@@ -281,16 +283,21 @@ const prettyStatus = (status: string) => {
   return status.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
 }
 
+
 const handleMemberAssociation = async (member) => {
+  if (!member?.value) {
+    console.error('No member ID received:', member);
+    return;
+  }
+
   try {
     await $fetch(`/api/residencies/${residency.value.id}/members`, {
       method: 'POST',
-      body: { memberId: member.value } // This is correct since resident.value contains the _id
+      body: { memberId: member.value }
     });
     await fetchMemberData();
-    toast.add({ title: 'Success', description: 'Member associated successfully', color: 'green' });
   } catch (e) {
-    toast.add({ title: 'Error', description: e.message, color: 'red' });
+    throw new Error(e.message);
   }
 };
 
