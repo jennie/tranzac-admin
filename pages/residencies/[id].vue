@@ -41,6 +41,7 @@
 
               <!-- Member Selection -->
               <div class="border-t pt-4">
+                <ResidenciesResidentSelect @select="handleMemberAssociation" />
                 <!-- <ResidencyMemberSelect :residency-id="residency.id" @selected="handleMemberAssociation" /> -->
               </div>
             </UDashboardSection>
@@ -178,8 +179,8 @@ interface Member {
 const toast = useToast();
 const residency = ref<Residency | null>(null)
 const showRequestChangesModal = ref(false)
+const selectedResident = ref(null);
 
-// Use our workflow actions composable
 const {
   actions,
   isLoading,
@@ -193,6 +194,26 @@ const {
   publish,
   approveAndPublish
 } = useWorkflowActions(residency)
+
+
+const handleMemberSelection = async (member) => {
+  try {
+    await handleMemberAssociation(member);
+    const toast = useToast();
+    toast.add({
+      title: 'Success',
+      description: 'Member associated successfully',
+      color: 'green'
+    });
+  } catch (error) {
+    const toast = useToast();
+    toast.add({
+      title: 'Error',
+      description: error.message,
+      color: 'red'
+    });
+  }
+};
 
 const handleRemoveMember = async (memberId: string) => {
   try {
@@ -260,25 +281,18 @@ const prettyStatus = (status: string) => {
   return status.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
 }
 
-// Action handlers
-const handleMemberAssociation = async (memberIds: string[]) => {
+const handleMemberAssociation = async (member) => {
   try {
-    await associateMember(memberIds)
-    const toast = useToast()
-    toast.add({
-      title: 'Success',
-      description: 'Members associated successfully',
-      color: 'green'
-    })
+    await $fetch(`/api/residencies/${residency.value.id}/members`, {
+      method: 'POST',
+      body: { memberId: member.value } // This is correct since resident.value contains the _id
+    });
+    await fetchMemberData();
+    toast.add({ title: 'Success', description: 'Member associated successfully', color: 'green' });
   } catch (e) {
-    const toast = useToast()
-    toast.add({
-      title: 'Error',
-      description: e.message,
-      color: 'red'
-    })
+    toast.add({ title: 'Error', description: e.message, color: 'red' });
   }
-}
+};
 
 const handleSubmitForReview = async () => {
   try {
@@ -421,42 +435,38 @@ const fetchResidencyData = async () => {
 }
 
 const fetchMemberData = async () => {
-  if (!residency.value?.id) return
+  if (!residency.value?.id) return;
 
-  memberEmailsLoading.value = true
-  memberEmailsError.value = null
-
+  memberEmailsLoading.value = true;
   try {
-    const { data, error } = await useFetch(`/api/members/byResidencyId/${residency.value.id}`)
-
-    if (error.value) throw new Error(error.value.message)
-    if (!data.value?.members) throw new Error('No member data found')
-
-    members.value = data.value.members
-    memberEmails.value = data.value.members.map(m => m.email)
+    const { data } = await useFetch(`/api/members/byResidencyId/${residency.value.id}`);
+    if (!data.value?.members) throw new Error('No member data found');
+    members.value = data.value.members;
   } catch (e) {
-    memberEmailsError.value = e instanceof Error ? e.message : 'An error occurred'
-    members.value = []
-    memberEmails.value = []
+    console.error(e);
+    members.value = [];
   } finally {
-    memberEmailsLoading.value = false
+    memberEmailsLoading.value = false;
   }
-}
+};
 
 // Initial data load
 onMounted(async () => {
+  console.log('Component mounted'); // Debugging log
   await fetchResidencyData()
   await fetchMemberData()
 })
 
 // Refresh data after status changes
 watch(() => residency.value?.activeStatus, async () => {
+  console.log('Residency status changed'); // Debugging log
   await fetchResidencyData()
   await fetchMemberData()
 })
 
 // Watch for route changes to reload data
 watch(() => route.params.id, async () => {
+  console.log('Route ID changed'); // Debugging log
   await fetchResidencyData()
   await fetchMemberData()
 })

@@ -63,6 +63,12 @@ export const MemberSchema = defineMongooseModel<Member>({
     notes: {
       type: String,
     },
+    roles: [
+      {
+        role: String,
+        datoRecordId: String,
+      },
+    ],
   },
   options: {
     timestamps: true,

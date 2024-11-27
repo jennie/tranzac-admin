@@ -29,25 +29,18 @@ export const useWorkflowActions = (residency: Ref<Residency>) => {
       .join(" ");
   };
 
-  // Action handlers
-  const associateMember = async (memberIds: string[]) => {
-    isLoading.value = true;
-    error.value = null;
-
+  // composables/useWorkflowActions.ts
+  // Add to existing file:
+  const associateMember = async (member) => {
     try {
-      const response = await $fetch(
-        `/api/residencies/${residency.value.id}/members`,
-        {
-          method: "POST",
-          body: { memberIds },
-        }
-      );
-      return response;
-    } catch (e) {
-      error.value = e.message;
-      throw e;
-    } finally {
-      isLoading.value = false;
+      await $fetch(`/api/residencies/${residency.value.id}/members`, {
+        method: "POST",
+        body: { memberId: member.value },
+      });
+      await fetchMemberData();
+      return true;
+    } catch (error) {
+      throw new Error(error.data?.message || "Failed to associate member");
     }
   };
 

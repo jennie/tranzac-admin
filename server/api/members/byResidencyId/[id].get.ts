@@ -30,8 +30,6 @@ export default defineEventHandler(async (event) => {
       .select("firstName lastName email")
       .lean();
 
-    console.log("Found members:", members);
-
     return {
       success: true,
       members,
