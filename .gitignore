@@ -27,3 +27,4 @@ logs
 .history
 sendgrid.env
 *.env
+scripts/*

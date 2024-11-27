@@ -79,6 +79,12 @@
                   Publish Residency
                 </UButton>
               </div>
+              <div>
+                <a :href="`https://your-dato-cms-url.com/editor/item/${residency.id}`" target="_blank"
+                  class="text-blue-500 underline">
+                  Open in DatoCMS
+                </a>
+              </div>
             </div>
           </div>
         </UDashboardSection>

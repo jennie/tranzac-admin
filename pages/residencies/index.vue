@@ -96,13 +96,9 @@
                         @click="handleApproveAndPublish(row.id)">
                         Approve and Publish
                       </UButton>
-                      <UButton v-if="['pending_review', 'approved'].includes(row.activeStatus)" color="gray"
-                        variant="soft" size="xs" @click="handleRequestChanges(row.id)">
+                      <UButton v-if="row.activeStatus === 'pending_review'" color="gray" variant="soft" size="xs"
+                        @click="handleRequestChanges(row.id)">
                         Request Changes
-                      </UButton>
-                      <UButton v-if="row.activeStatus === 'approved'" color="primary" variant="soft" size="xs"
-                        @click="handlePublish(row.id)">
-                        Publish
                       </UButton>
                     </div>
                   </template>

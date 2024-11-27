@@ -17,8 +17,6 @@ export const useWorkflowActions = (residency: Ref<Residency>) => {
         return ["submit_for_review"];
       case "pending_review":
         return ["request_changes", "approve_and_publish"];
-      case "approved":
-        return ["publish"];
       default:
         return [];
     }
