@@ -44,10 +44,11 @@ export const useResidencyStatus = (residency: Ref<Residency>) => {
 
   const updateStatus = async (
     newStatus: string,
-    options?: {
+    data?: {
       note?: string;
       recipientEmails?: string[];
       commsManagerName?: string;
+      residencyTitle?: string;
     }
   ) => {
     isLoading.value = true;

@@ -1,3 +1,4 @@
+// /server/api/residencies/[id]/requestChanges.post.ts
 import { defineEventHandler, readBody } from "h3";
 import sgMail from "@sendgrid/mail";
 
@@ -9,16 +10,20 @@ export default defineEventHandler(async (event) => {
     const { recipientEmails, note, residencyTitle, commsManagerName } =
       await readBody(event);
 
-    if (
-      !id ||
-      !recipientEmails?.length ||
-      !note ||
-      !residencyTitle ||
-      !commsManagerName
-    ) {
+    const missingParams = [];
+    if (!id) missingParams.push("id");
+    if (!recipientEmails?.length) missingParams.push("recipientEmails");
+    if (!note) missingParams.push("note");
+    if (!residencyTitle) missingParams.push("residencyTitle");
+    if (!commsManagerName) missingParams.push("commsManagerName");
+
+    if (missingParams.length > 0) {
       return {
         statusCode: 400,
-        body: { error: "Missing required parameters" },
+        body: {
+          success: false,
+          message: `Missing required parameters: ${missingParams.join(", ")}`,
+        },
       };
     }
 

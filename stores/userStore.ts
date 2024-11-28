@@ -9,6 +9,7 @@ export default { store: setActivePinia(pinia) };
 export const useUserStore = defineStore("userStore", {
   state: () => ({
     userInfo: {},
+    commsManagerName: "Jane Doe", // Set the default or fetch dynamically
   }),
   actions: {
     setUser(userData) {

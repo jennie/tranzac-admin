@@ -1,61 +1,69 @@
+import { fi } from "date-fns/locale";
 import mongoose from "mongoose";
 
 // server/api/residencies/[id]/members/[memberId]/index.delete.ts
 export default defineEventHandler(async (event) => {
   const { id: residencyId, memberId } = event.context.params;
 
-  console.log("Residency ID:", residencyId); // Add this log
-  console.log("Member ID:", memberId); // Add this log
-
-  if (!residencyId || !memberId) {
-    throw createError({
-      statusCode: 400,
-      message: "Residency ID and Member ID are required",
-    });
-  }
-
   try {
-    const mongooseInstance = await ensureConnection();
-    const Member = mongooseInstance.models.Member;
+    console.log("Residency ID:", residencyId); // Add this log
+    console.log("Member ID:", memberId); // Add this log
 
-    // Log the state of the roles array before the update
-    const memberBeforeUpdate = await Member.findById(memberId).lean();
-    console.log("Member roles before update:", memberBeforeUpdate.roles);
-
-    const result = await Member.updateOne(
-      { _id: new mongoose.Types.ObjectId(memberId) },
-      {
-        $pull: {
-          roles: {
-            role: "resident",
-            datoRecordId: residencyId,
-          },
-        },
-      }
-    );
-
-    console.log("Update result:", result); // Add this log
-
-    if (result.modifiedCount === 0) {
+    if (!residencyId || !memberId) {
       throw createError({
-        statusCode: 404,
-        message: "Member not found or residency not associated with member",
+        statusCode: 400,
+        message: "Residency ID and Member ID are required",
       });
     }
 
-    // Verify the roles array after update
-    const updatedMember = await Member.findById(memberId).lean();
-    console.log("Updated member roles:", updatedMember.roles);
+    try {
+      const mongooseInstance = await ensureConnection();
+      const Member = mongooseInstance.models.Member;
 
-    return {
-      success: true,
-      message: "Member removed from residency successfully",
-    });
+      // Log the state of the roles array before the update
+      const memberBeforeUpdate = await Member.findById(memberId).lean();
+      console.log("Member roles before update:", memberBeforeUpdate.roles);
+
+      const result = await Member.updateOne(
+        { _id: new mongoose.Types.ObjectId(memberId) },
+        {
+          $pull: {
+            roles: {
+              role: "resident",
+              datoRecordId: residencyId,
+            },
+          },
+        }
+      );
+
+      console.log("Update result:", result); // Add this log
+
+      if (result.modifiedCount === 0) {
+        throw createError({
+          statusCode: 404,
+          message: "Member not found or residency not associated with member",
+        });
+      }
+
+      // Verify the roles array after update
+      const updatedMember = await Member.findById(memberId).lean();
+      console.log("Updated member roles:", updatedMember.roles);
+
+      return {
+        success: true,
+      };
+    } catch (error) {
+      console.error("Error removing member from residency:", error);
+      throw createError({
+        statusCode: 500,
+        message: "Failed to remove member from residency",
+      });
+    }
   } catch (error) {
-    console.error("Error removing member from residency:", error);
+    console.error("Error in main try block:", error);
     throw createError({
       statusCode: 500,
-      message: "Failed to remove member from residency",
+      message: "An unexpected error occurred",
     });
   }
 });

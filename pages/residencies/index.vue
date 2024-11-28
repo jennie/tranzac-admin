@@ -74,11 +74,20 @@
                       variant="subtle" class="capitalize" />
                   </template>
 
+                  <!-- Published Column -->
+                  <template #published-data="{ row }">
+                    <span v-if="row._status === 'published'" class="text-green-500 flex items-center">
+                      <UIcon name="i-heroicons-check" class="mr-1" />
+                    </span>
+                  </template>
+
                   <!-- Title Column -->
                   <template #title-data="{ row }">
-                    <NuxtLink :to="`/residencies/${row.id}`" class="underline hover:text-primary-600">
-                      {{ row.title }}
-                    </NuxtLink>
+                    <span class="flex flex-row">
+                      <NuxtLink :to="`/residencies/${row.id}`" class="underline hover:text-primary-600">
+                        {{ row.title }}
+                      </NuxtLink>
+                    </span>
                   </template>
 
                   <!-- Date Columns -->
@@ -89,19 +98,6 @@
                     <span :title="row.endDate">{{ formatDate(row.endDate) }}</span>
                   </template>
 
-                  <!-- Actions Column -->
-                  <template #actions-data="{ row }">
-                    <div class="flex gap-2">
-                      <UButton v-if="row.activeStatus === 'pending_review'" color="primary" variant="soft" size="xs"
-                        @click="handleApproveAndPublish(row.id)">
-                        Approve and Publish
-                      </UButton>
-                      <UButton v-if="row.activeStatus === 'pending_review'" color="gray" variant="soft" size="xs"
-                        @click="handleRequestChanges(row.id)">
-                        Request Changes
-                      </UButton>
-                    </div>
-                  </template>
                 </UTable>
 
                 <!-- Empty State -->
@@ -133,7 +129,7 @@
               <div class="text-lg font-semibold">Request Changes</div>
             </template>
             <ResidenciesRequestChangesForm v-if="selectedResidency" :title="selectedResidency.title"
-              :record-id="selectedResidency.id" :recipient-emails="selectedResidency.recipientEmails"
+              :record-id="selectedResidency.id" :recipient-emails="selectedResidency.recipientEmails.value"
               @submit="handleRequestChangesSubmit" />
           </UCard>
         </UModal>
@@ -183,6 +179,12 @@ const columns = [
     sortable: true
   },
   {
+    key: 'published',
+    label: 'Published',
+    sortable: true,
+    width: '50px'
+  },
+  {
     key: 'startDate',
     label: 'Start Date',
     sortable: true,
@@ -193,12 +195,8 @@ const columns = [
     label: 'End Date',
     sortable: true,
     render: (date: string) => formatDate(date)
-  },
-  {
-    key: 'actions',
-    label: 'Actions',
-    sortable: false
   }
+  // Removed actions column
 ]
 
 // Load residencies data
@@ -471,30 +469,49 @@ const handleApproveAndPublish = async (id: string) => {
 }
 
 const handleRequestChanges = (id: string) => {
-  selectedResidency.value = allResidencies.value.find(r => r.id === id) || null
+  const residency = allResidencies.value.find(r => r.id === id) || null
+  if (residency) {
+    selectedResidency.value = {
+      ...residency,
+      recipientEmails: residency.recipientEmails ? [...residency.recipientEmails] : []
+    }
+  } else {
+    selectedResidency.value = null
+  }
   showRequestChangesModal.value = true
 }
 
-const handleRequestChangesSubmit = async ({ note, recipientEmails }: { note: string; recipientEmails: string[] }) => {
+const handleRequestChangesSubmit = async ({ note, recipientEmails, commsManagerName }) => {
   if (!selectedResidency.value) return
 
   try {
-    await $fetch(`/api/residencies/${selectedResidency.value.id}/requestChanges`, {
-      method: 'PUT',
+    const response = await $fetch(`/api/residencies/${selectedResidency.value.id}/requestChanges`, {
+      method: 'POST',
       body: {
         note,
         recipientEmails,
-        residencyTitle: selectedResidency.value.title
+        residencyTitle: selectedResidency.value.title,
+        commsManagerName,
+        status: 'resident_action_required'
       }
     })
-    showRequestChangesModal.value = false
-    await refresh()
-    toast.add({
-      title: 'Success',
-      description: 'Changes requested successfully',
-      color: 'green'
-    })
+    console.log("Request changes response:", response); // Log the response
+
+    if (response.success) {
+      selectedResidency.value.activeStatus = 'resident_action_required';
+      console.log("Updated selectedResidency status to:", selectedResidency.value.activeStatus); // Log the updated status
+      showRequestChangesModal.value = false
+      await refresh()
+      toast.add({
+        title: 'Success',
+        description: 'Changes requested successfully',
+        color: 'green'
+      })
+    } else {
+      throw new Error(response.message || 'Failed to request changes')
+    }
   } catch (e) {
+    console.error("Error in handleRequestChangesSubmit:", e); // Log the error
     toast.add({
       title: 'Error',
       description: 'Failed to request changes',

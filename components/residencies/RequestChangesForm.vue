@@ -50,9 +50,12 @@ const emit = defineEmits(['submit']);
 const handleSubmit = async () => {
   isSubmitting.value = true;
   try {
+    const commsManagerName = 'Blair Macmillan'; // Hardcoded comms manager name
     await emit('submit', {
+      note: note.value,
       recipientEmails: props.recipientEmails,
-      note: note.value
+      commsManagerName, // Pass commsManagerName
+      status: 'resident_action_required'
     });
     note.value = ''; // Reset form after successful submission
   } finally {

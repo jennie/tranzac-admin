@@ -11,7 +11,15 @@
       <template v-else-if="residency">
         <UPageHeader :headline="'Residency Status: ' + prettyStatus(residency.activeStatus)" :title="residency.title"
           icon="i-heroicons-clipboard" :description="getStatusDescription(residency.activeStatus)" />
-
+        <div v-if="residency._status === 'published'" class="mt-2 text-green-500 flex items-center">
+          <UIcon name="i-heroicons-check" class="mr-2" />
+          <span>Published</span>
+        </div>
+        <div>
+          <a :href="datoEditLink" target="_blank" class="text-blue-500 underline">
+            Open in DatoCMS
+          </a>
+        </div>
         <UDivider class="mb-4" />
 
         <!-- Workflow Actions Section -->
@@ -67,7 +75,7 @@
                 <UButton color="gray" @click="showRequestChangesModal = true">
                   Request Changes
                 </UButton>
-                <UButton color="primary" @click="handleApproveAndPublish" :loading="isLoading">
+                <UButton color="primary" @click="showApprovePublishModal = true" :loading="isLoading">
                   Approve and Publish
                 </UButton>
               </div>
@@ -80,12 +88,7 @@
                   Publish Residency
                 </UButton>
               </div>
-              <div>
-                <a :href="`https://your-dato-cms-url.com/editor/item/${residency.id}`" target="_blank"
-                  class="text-blue-500 underline">
-                  Open in DatoCMS
-                </a>
-              </div>
+
             </div>
           </div>
         </UDashboardSection>
@@ -159,6 +162,9 @@
           :recipient-emails="memberEmails" @submit="handleRequestChangesSubmit" />
       </UCard>
     </UModal>
+
+    <ResidenciesApprovePublishModal v-model="showApprovePublishModal" :residency-id="residency?.id"
+      :initial-generate-events="residency?.generateEvents" @confirm="handleApproveAndPublish" />
   </UDashboardPanel>
 </template>
 
@@ -180,6 +186,26 @@ const toast = useToast();
 const residency = ref<Residency | null>(null)
 const showRequestChangesModal = ref(false)
 const selectedResident = ref(null);
+const showApprovePublishModal = ref(false);
+
+// Define fetchMemberData before using it in the composable
+const fetchMemberData = async () => {
+  if (!residency.value?.id) return;
+
+  memberEmailsLoading.value = true;
+  try {
+    const { data } = await useFetch(`/api/members/byResidencyId/${residency.value.id}`);
+    if (!data.value?.members) throw new Error('No member data found');
+    members.value = data.value.members;
+    memberEmails.value = data.value.members.map(member => member.email); // Restore memberEmails assignment
+  } catch (e) {
+    console.error(e);
+    members.value = [];
+    memberEmails.value = []; // Clear memberEmails on error
+  } finally {
+    memberEmailsLoading.value = false;
+  }
+};
 
 const {
   actions,
@@ -193,8 +219,14 @@ const {
   requestChanges,
   publish,
   approveAndPublish
-} = useWorkflowActions(residency)
+} = useWorkflowActions(residency, fetchMemberData) // Pass fetchMemberData to composable
 
+const baseDatoUrl = 'https://tranzac.admin.datocms.com';
+const itemTypeId = 'QjDbKyD5S0awBx6jliPMOA'; // Replace with your actual item type ID
+
+const datoEditLink = computed(() => {
+  return `${baseDatoUrl}/editor/item_types/${itemTypeId}/items/${residency.value?.id}/edit`;
+});
 
 const handleMemberSelection = async (member) => {
   try {
@@ -339,21 +371,28 @@ const handleApprove = async () => {
   }
 }
 
-const handleRequestChangesSubmit = async ({ note, recipientEmails }: { note: string; recipientEmails: string[] }) => {
+const handleRequestChangesSubmit = async ({ note, recipientEmails, commsManagerName }) => {
+  if (!residency.value) return
+
   try {
-    await requestChanges(note, recipientEmails)
+    await requestChanges({
+      note,
+      recipientEmails,
+      residencyTitle: residency.value.title,
+      commsManagerName,
+      status: 'resident_action_required'
+    })
+    residency.value.activeStatus = 'resident_action_required';
     showRequestChangesModal.value = false
-    const toast = useToast()
     toast.add({
       title: 'Success',
       description: 'Changes requested successfully',
       color: 'green'
     })
   } catch (e) {
-    const toast = useToast()
     toast.add({
       title: 'Error',
-      description: e.message,
+      description: e instanceof Error ? e.message : 'Failed to request changes',
       color: 'red'
     })
   }
@@ -380,22 +419,23 @@ const handlePublish = async () => {
 
 const handleApproveAndPublish = async () => {
   try {
-    await approveAndPublish()
-    const toast = useToast()
+    await approveAndPublish();
     toast.add({
       title: 'Success',
       description: 'Residency approved and published successfully',
       color: 'green'
-    })
+    });
   } catch (e) {
-    const toast = useToast()
     toast.add({
       title: 'Error',
       description: e.message,
       color: 'red'
-    })
+    });
+    if (e.message.includes('Publishing failed')) {
+      await fetchResidencyData();
+    }
   }
-}
+};
 
 // Data fetching
 const route = useRoute()
@@ -424,6 +464,7 @@ const fetchResidencyData = async () => {
         endDate
         slug
         activeStatus
+        generateEvents
       }
     }
   `
@@ -441,21 +482,21 @@ const fetchResidencyData = async () => {
   }
 }
 
-const fetchMemberData = async () => {
-  if (!residency.value?.id) return;
+// const fetchMemberData = async () => {
+//   if (!residency.value?.id) return;
 
-  memberEmailsLoading.value = true;
-  try {
-    const { data } = await useFetch(`/api/members/byResidencyId/${residency.value.id}`);
-    if (!data.value?.members) throw new Error('No member data found');
-    members.value = data.value.members;
-  } catch (e) {
-    console.error(e);
-    members.value = [];
-  } finally {
-    memberEmailsLoading.value = false;
-  }
-};
+//   memberEmailsLoading.value = true;
+//   try {
+//     const { data } = await useFetch(`/api/members/byResidencyId/${residency.value.id}`);
+//     if (!data.value?.members) throw new Error('No member data found');
+//     members.value = data.value.members;
+//   } catch (e) {
+//     console.error(e);
+//     members.value = [];
+//   } finally {
+//     memberEmailsLoading.value = false;
+//   }
+// };
 
 // Initial data load
 onMounted(async () => {

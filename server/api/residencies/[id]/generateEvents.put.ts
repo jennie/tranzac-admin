@@ -1,4 +1,4 @@
-// server/api/residencies/[id]/status.put.ts
+// server/api/residencies/[id]/generateEvents.put.ts
 import { updateDatoRecord } from "~/server/utils/datoCmsClient";
 
 export default defineEventHandler(async (event) => {
@@ -9,23 +9,24 @@ export default defineEventHandler(async (event) => {
       message: "Residency ID is required",
     });
   }
-  const { status } = await readBody(event);
+
+  const { generateEvents } = await readBody(event);
 
   try {
-    // Update status in DatoCMS
+    // Use snake_case for the CMA API
     await updateDatoRecord("residency", id, {
-      active_status: status,
+      generate_events: generateEvents,
     });
 
     return {
       success: true,
-      message: "Status updated successfully",
+      message: "Generate events setting updated successfully",
     };
   } catch (error) {
-    console.error("Error updating status:", error);
+    console.error("Error updating generate_events:", error);
     throw createError({
       statusCode: 500,
-      message: error.message || "Failed to update status",
+      message: error.message || "Failed to update generate events setting",
     });
   }
 });

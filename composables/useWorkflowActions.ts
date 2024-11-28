@@ -2,7 +2,11 @@
 import { ref, computed } from "vue";
 import type { Residency } from "~/types/residency";
 
-export const useWorkflowActions = (residency: Ref<Residency>) => {
+export const useWorkflowActions = (
+  residency: Ref<Residency>,
+  fetchMemberData: () => Promise<void>
+) => {
+  // Added fetchMemberData as a parameter
   const isLoading = ref(false);
   const error = ref<string | null>(null);
 
@@ -37,7 +41,7 @@ export const useWorkflowActions = (residency: Ref<Residency>) => {
         method: "POST",
         body: { memberId: member.value },
       });
-      await fetchMemberData();
+      await fetchMemberData(); // Now accessible
       return true;
     } catch (error) {
       throw new Error(error.data?.message || "Failed to associate member");
@@ -121,33 +125,36 @@ export const useWorkflowActions = (residency: Ref<Residency>) => {
     }
   };
 
-  const requestChanges = async (note: string, recipientEmails: string[]) => {
+  const requestChanges = async ({
+    note,
+    recipientEmails,
+    commsManagerName,
+    residencyTitle,
+  }) => {
     isLoading.value = true;
     error.value = null;
 
     try {
+      // Send the change request first
       const response = await $fetch(
         `/api/residencies/${residency.value.id}/requestChanges`,
         {
-          method: "PUT",
+          method: "POST",
           body: {
             note,
             recipientEmails,
-            residencyTitle: residency.value.title,
-            status: "resident_action_required",
+            residencyTitle,
+            commsManagerName,
           },
         }
       );
 
-      if (!response.success) {
-        throw new Error(response.message || "Failed to request changes");
-      }
-
-      // Update local state
-      residency.value = {
-        ...residency.value,
-        activeStatus: "resident_action_required",
-      };
+      // Then update status with the same recipient info
+      await updateStatus("resident_action_required", {
+        note,
+        recipientEmails,
+        commsManagerName,
+      });
 
       return response;
     } catch (e) {
@@ -194,8 +201,25 @@ export const useWorkflowActions = (residency: Ref<Residency>) => {
     error.value = null;
 
     try {
-      await approve();
-      await publish();
+      const response = await $fetch(
+        `/api/residencies/${residency.value.id}/approveAndPublish`,
+        {
+          method: "PUT",
+        }
+      );
+
+      if (!response.success) {
+        throw new Error(response.message || "Failed to approve and publish");
+      }
+
+      // Update local state
+      residency.value = {
+        ...residency.value,
+        activeStatus: "approved",
+        _status: "published",
+      };
+
+      return response;
     } catch (e) {
       error.value = e.message;
       throw e;

@@ -132,9 +132,9 @@ export const useResidencyDashboard = () => {
       );
 
       return $fetch(`/api/residencies/${id}/requestChanges`, {
-        method: "PUT",
+        method: "POST",
         body: {
-          recipientEmails: memberData.value?.emails || [],
+          recipientEmails: memberData.value?.emails ?? [],
           note,
           status: "resident_action_required",
         },
