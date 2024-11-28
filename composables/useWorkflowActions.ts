@@ -1,16 +1,26 @@
-// composables/useWorkflowActions.ts
 import { ref, computed } from "vue";
 import type { Residency } from "~/types/residency";
 
 export const useWorkflowActions = (
   residency: Ref<Residency>,
-  fetchMemberData: () => Promise<void>
+  refreshData: () => Promise<void>
 ) => {
-  // Added fetchMemberData as a parameter
   const isLoading = ref(false);
   const error = ref<string | null>(null);
 
-  // Available actions based on current status
+  const wrapAction = async (action: () => Promise<any>) => {
+    isLoading.value = true;
+    try {
+      await action();
+      await refreshData();
+    } catch (e) {
+      error.value = e.message;
+      throw e;
+    } finally {
+      isLoading.value = false;
+    }
+  };
+
   const actions = computed(() => {
     if (!residency.value) return [];
 
@@ -33,50 +43,30 @@ export const useWorkflowActions = (
       .join(" ");
   };
 
-  // composables/useWorkflowActions.ts
-  // Add to existing file:
-  const associateMember = async (member) => {
-    try {
-      await $fetch(`/api/residencies/${residency.value.id}/members`, {
-        method: "POST",
-        body: { memberId: member.value },
-      });
-      await fetchMemberData(); // Now accessible
-      return true;
-    } catch (error) {
-      throw new Error(error.data?.message || "Failed to associate member");
-    }
-  };
-
-  const removeMember = async (memberId: string) => {
-    isLoading.value = true;
-    error.value = null;
-
-    try {
+  const associateMember = (member) =>
+    wrapAction(async () => {
       const response = await $fetch(
-        `/api/residencies/${residency.value.id}/members/${memberId}`,
+        `/api/residencies/${residency.value.id}/members`,
         {
-          method: "DELETE",
+          method: "POST",
+          body: { memberId: member.value },
         }
       );
       return response;
-    } catch (e) {
-      error.value = e.message;
-      throw e;
-    } finally {
-      isLoading.value = false;
-    }
-  };
+    });
 
-  const notifyAndProgress = async () => {
-    isLoading.value = true;
-    error.value = null;
+  const removeMember = (memberId: string) =>
+    wrapAction(async () => {
+      const response = await $fetch(
+        `/api/residencies/${residency.value.id}/members/${memberId}`,
+        { method: "DELETE" }
+      );
+      return response;
+    });
 
-    try {
-      // First update the status
+  const notifyAndProgress = () =>
+    wrapAction(async () => {
       await updateStatus("resident_action_required");
-
-      // Then send notifications to all associated members
       const response = await $fetch(
         `/api/residencies/${residency.value.id}/notify-members`,
         {
@@ -87,172 +77,81 @@ export const useWorkflowActions = (
           },
         }
       );
-
       return response;
-    } catch (e) {
-      error.value = e.message;
-      throw e;
-    } finally {
-      isLoading.value = false;
-    }
-  };
+    });
 
-  const submitForReview = async () => {
-    isLoading.value = true;
-    error.value = null;
-
-    try {
+  const submitForReview = () =>
+    wrapAction(async () => {
       await updateStatus("pending_review");
-    } catch (e) {
-      error.value = e.message;
-      throw e;
-    } finally {
-      isLoading.value = false;
-    }
-  };
+    });
 
-  const approve = async () => {
-    isLoading.value = true;
-    error.value = null;
-
-    try {
+  const approve = () =>
+    wrapAction(async () => {
       await updateStatus("approved");
-    } catch (e) {
-      error.value = e.message;
-      throw e;
-    } finally {
-      isLoading.value = false;
-    }
-  };
+    });
 
-  const requestChanges = async ({
-    note,
-    recipientEmails,
-    commsManagerName,
-    residencyTitle,
-  }) => {
-    isLoading.value = true;
-    error.value = null;
-
-    try {
-      // Send the change request first
+  const requestChanges = (payload) =>
+    wrapAction(async () => {
       const response = await $fetch(
         `/api/residencies/${residency.value.id}/requestChanges`,
         {
           method: "POST",
-          body: {
-            note,
-            recipientEmails,
-            residencyTitle,
-            commsManagerName,
-          },
+          body: payload,
         }
       );
-
-      // Then update status with the same recipient info
-      await updateStatus("resident_action_required", {
-        note,
-        recipientEmails,
-        commsManagerName,
-      });
-
+      await updateStatus("resident_action_required", payload);
       return response;
-    } catch (e) {
-      error.value = e.message;
-      throw e;
-    } finally {
-      isLoading.value = false;
-    }
-  };
+    });
 
-  const publish = async () => {
-    isLoading.value = true;
-    error.value = null;
-
-    try {
+  const publish = () =>
+    wrapAction(async () => {
       const response = await $fetch(
         `/api/residencies/${residency.value.id}/publish`,
-        {
-          method: "PUT",
-        }
+        { method: "PUT" }
       );
-
       if (!response.success) {
         throw new Error(response.message || "Failed to publish");
       }
-
-      // Update local state
       residency.value = {
         ...residency.value,
         _status: "published",
       };
-
       return response;
-    } catch (e) {
-      error.value = e.message;
-      throw e;
-    } finally {
-      isLoading.value = false;
-    }
-  };
+    });
 
-  const approveAndPublish = async () => {
-    isLoading.value = true;
-    error.value = null;
-
-    try {
+  const approveAndPublish = () =>
+    wrapAction(async () => {
       const response = await $fetch(
         `/api/residencies/${residency.value.id}/approveAndPublish`,
-        {
-          method: "PUT",
-        }
+        { method: "PUT" }
       );
-
       if (!response.success) {
         throw new Error(response.message || "Failed to approve and publish");
       }
-
-      // Update local state
       residency.value = {
         ...residency.value,
         activeStatus: "approved",
         _status: "published",
       };
-
       return response;
-    } catch (e) {
-      error.value = e.message;
-      throw e;
-    } finally {
-      isLoading.value = false;
-    }
-  };
+    });
 
-  const updateStatus = async (newStatus: string) => {
-    try {
-      const response = await $fetch(
-        `/api/residencies/${residency.value.id}/status`,
-        {
-          method: "PUT",
-          body: { status: newStatus },
-        }
-      );
-
-      if (!response.success) {
-        throw new Error(response.message || "Failed to update status");
+  const updateStatus = async (newStatus: string, payload?: any) => {
+    const response = await $fetch(
+      `/api/residencies/${residency.value.id}/status`,
+      {
+        method: "PUT",
+        body: { status: newStatus, ...payload },
       }
-
-      // Update local state
-      residency.value = {
-        ...residency.value,
-        activeStatus: newStatus,
-      };
-
-      return response;
-    } catch (e) {
-      error.value = e.message;
-      throw e;
+    );
+    if (!response.success) {
+      throw new Error(response.message || "Failed to update status");
     }
+    residency.value = {
+      ...residency.value,
+      activeStatus: newStatus,
+    };
+    return response;
   };
 
   return {

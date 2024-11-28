@@ -9,32 +9,57 @@
         <p>Error: {{ error }}</p>
       </div>
       <template v-else-if="residency">
-        <UPageHeader :headline="'Residency Status: ' + prettyStatus(residency.activeStatus)" :title="residency.title"
-          icon="i-heroicons-clipboard" :description="getStatusDescription(residency.activeStatus)" />
-        <div v-if="residency._status === 'published'" class="mt-2 text-green-500 flex items-center">
-          <UIcon name="i-heroicons-check" class="mr-2" />
-          <span>Published</span>
-        </div>
-        <div>
-          <a :href="datoEditLink" target="_blank" class="text-blue-500 underline">
-            Open in DatoCMS
-          </a>
-        </div>
+        <UPageHeader :title="residency.title" :links="pageHeaderLinks">
+          <!-- Left slot for the title -->
+          <template #title>
+            <span class="font-bold text-3xl">{{ residency.title }}</span>
+          </template>
+
+          <!-- Center slot for status badges -->
+          <template #headline>
+            <div class="flex gap-4">
+              <div class="flex items-center">
+                <UBadge :label="prettyStatus(residency.activeStatus)" :color="getStatusColor(residency.activeStatus)"
+                  variant="subtle" class="capitalize" />
+              </div>
+              <template v-if="residency.activeStatus === 'approved'">
+                <div v-if="residency._status === 'published'" class="flex items-center gap-1 text-green-600">
+                  <UIcon name="i-heroicons-check-circle" />
+                  <span>Published</span>
+                </div>
+                <div v-else class="flex items-center gap-1 text-gray-500">
+                  <UIcon name="i-heroicons-clock" />
+                  <span>Not published</span>
+                </div>
+              </template>
+            </div>
+          </template>
+
+          <template #description>
+            <div class="text-stone-500">
+              {{ formatDate(residency.startDate) }} - {{ formatDate(residency.endDate) }}
+            </div>
+          </template>
+        </UPageHeader>
+
         <UDivider class="mb-4" />
 
-        <!-- Workflow Actions Section -->
-        <UDashboardSection title="Actions" class="mb-8">
-          <div class="space-y-4">
-            <!-- Member Management (Available at all stages) -->
-            <UDashboardSection title="Member Management" class="mb-8">
+        <div class="grid grid-cols-2 gap-8">
+          <!-- Left Column -->
+          <div class="space-y-8">
+            <UDashboardSection>
+              <div class="flex flex-row justify-between items-center">
+                <h2 class="text-2xl font-bold">Resident Information</h2>
+              </div>
+
               <!-- Current Members Display -->
               <div v-if="members.length > 0" class="mb-4">
                 <div class="space-y-2">
                   <div v-for="member in members" :key="member._id"
-                    class="flex justify-between items-center p-2 bg-gray-50 rounded">
+                    class="flex justify-between items-center p-2 bg-stone-50 rounded">
                     <div>
                       {{ member.firstName }} {{ member.lastName }}
-                      <span class="text-gray-500">({{ member.email }})</span>
+                      <span class="text-stone-500">({{ member.email }})</span>
                     </div>
                     <UButton color="red" variant="ghost" icon="i-heroicons-x-mark" size="xs"
                       @click="handleRemoveMember(member)">
@@ -44,109 +69,43 @@
                 </div>
               </div>
               <div v-else>
-                <p class="text-gray-500 mb-4">No members associated with this residency</p>
+                <p class="text-stone-500 mb-4">No members associated with this residency</p>
               </div>
 
               <!-- Member Selection -->
               <div class="border-t pt-4">
                 <ResidenciesResidentSelect @select="handleMemberAssociation" />
-                <!-- <ResidencyMemberSelect :residency-id="residency.id" @selected="handleMemberAssociation" /> -->
               </div>
             </UDashboardSection>
+          </div>
 
-            <!-- New Status Actions -->
-            <div v-if="residency.activeStatus === 'new'" class="space-y-4">
-              <!-- Notification Action -->
-              <div v-if="members.length > 0">
-                <UAlert title="Ready to Proceed?" color="info" icon="i-heroicons-information-circle">
-                  When you're ready, notify the members and allow them to start providing residency details.
-                </UAlert>
-                <div class="mt-4">
-                  <UButton color="primary" :loading="isLoading" @click="handleNotifyAndProgress">
-                    Notify Members & Progress Status
-                  </UButton>
-                </div>
-              </div>
-            </div>
-
-            <!-- Pending Review Status Actions -->
-            <div v-if="residency.activeStatus === 'pending_review'" class="space-y-4">
-              <div class="flex gap-4">
-                <UButton color="gray" @click="showRequestChangesModal = true">
+          <!-- Right Column -->
+          <div class="space-y-8">
+            <UDashboardSection>
+              <div class="flex flex-row justify-between items-center">
+                <h2 class="text-2xl font-bold">Details</h2>
+                <UButton v-if="residency.activeStatus === 'pending_review'" color="gray"
+                  @click="showRequestChangesModal = true" :loading="isLoading">
                   Request Changes
                 </UButton>
-                <UButton color="primary" @click="showApprovePublishModal = true" :loading="isLoading">
-                  Approve and Publish
-                </UButton>
-              </div>
-            </div>
-
-            <!-- Approved Status Actions -->
-            <div v-if="residency.activeStatus === 'approved'" class="space-y-4">
-              <div v-if="residency._status === 'draft'" class="flex gap-4">
-                <UButton color="primary" @click="handlePublish" :loading="isLoading">
-                  Publish Residency
-                </UButton>
               </div>
 
-            </div>
-          </div>
-        </UDashboardSection>
 
-        <!-- Residency Details Section -->
-        <UDashboardSection title="Details" class="mb-8">
-          <div class="grid gap-4">
-            <div class="grid grid-cols-2 gap-4">
-              <span class="font-semibold">Status:</span>
-              <UBadge :label="prettyStatus(residency.activeStatus)" :color="getStatusColor(residency.activeStatus)"
-                variant="subtle" class="capitalize" />
-            </div>
+              <div class="space-y-4">
+                <div v-if="residency.description" class="prose max-w-none">
+                  <div class="font-semibold mb-2">Description</div>
+                  <div class="text-stone-600" v-html="residency.description"></div>
+                </div>
 
-            <div v-if="residency.activeStatus === 'approved'" class="grid grid-cols-2 gap-4">
-              <span class="font-semibold">Dato Status:</span>
-              <UBadge :label="prettyStatus(residency._status)"
-                :color="residency._status === 'published' ? 'primary' : 'gray'" variant="subtle" class="capitalize" />
-            </div>
-
-            <div class="grid grid-cols-2 gap-4">
-              <span class="font-semibold">Description:</span>
-              <p>{{ residency.description }}</p>
-            </div>
-
-            <div class="grid grid-cols-2 gap-4">
-              <span class="font-semibold">Date Range:</span>
-              <span>{{ formatDate(residency.startDate) }} - {{ formatDate(residency.endDate) }}</span>
-            </div>
-
-            <div v-if="residency.photo" class="grid grid-cols-2 gap-4">
-              <span class="font-semibold">Photo:</span>
-              <img :src="residency.photo.url" alt="Residency Photo" class="w-32 h-32 object-cover rounded-lg" />
-            </div>
-          </div>
-        </UDashboardSection>
-
-        <!-- Associated Members Section -->
-        <UDashboardSection title="Associated Members" class="mb-8">
-          <div v-if="memberEmailsLoading">
-            Loading...
-          </div>
-          <div v-else-if="memberEmailsError" class="text-red-500">
-            Error loading member emails: {{ memberEmailsError }}
-          </div>
-          <div v-else>
-            <div v-if="members.length" class="space-y-2">
-              <div v-for="member in members" :key="member._id" class="p-2 bg-gray-50 rounded">
-                {{ member.firstName }} {{ member.lastName }}
-                <a :href="'mailto:' + member.email" class="text-blue-500 underline">
-                  {{ member.email }}
-                </a>
+                <div v-if="residency.photo" class="mt-4">
+                  <div class="font-semibold mb-2">Photo</div>
+                  <img :src="residency.photo.url" alt="Residency Photo"
+                    class="w-full max-w-md object-cover rounded-lg" />
+                </div>
               </div>
-            </div>
-            <p v-else class="text-gray-500">
-              No members associated with this residency
-            </p>
+            </UDashboardSection>
           </div>
-        </UDashboardSection>
+        </div>
       </template>
     </UDashboardPanelContent>
 
@@ -188,7 +147,58 @@ const showRequestChangesModal = ref(false)
 const selectedResident = ref(null);
 const showApprovePublishModal = ref(false);
 
-// Define fetchMemberData before using it in the composable
+const baseDatoUrl = 'https://tranzac.admin.datocms.com';
+const itemTypeId = 'QjDbKyD5S0awBx6jliPMOA'; // Replace with your actual item type ID
+
+const datoEditLink = computed(() => {
+  return `${baseDatoUrl}/editor/item_types/${itemTypeId}/items/${residency.value?.id}/edit`;
+});
+
+const pageHeaderLinks = computed(() => {
+  const links = [
+    {
+      label: 'Edit in DatoCMS',
+      to: datoEditLink.value,
+      target: '_blank',
+      icon: 'i-mdi-pencil',
+      color: 'gray',
+      size: 'sm',
+    },
+  ];
+
+  if (residency.value?.activeStatus === 'new' && members.value.length > 0) {
+    links.push({
+      label: 'Notify Members & Progress Status',
+      click: handleNotifyAndProgress,
+      color: 'primary',
+      size: 'sm',
+      loading: isLoading.value, // Fix: add .value
+    });
+  }
+
+  if (residency.value?.activeStatus === 'pending_review') {
+    links.push({
+      label: 'Approve and Publish',
+      click: () => showApprovePublishModal.value = true,
+      color: 'primary',
+      size: 'sm',
+      loading: isLoading.value // Fix: add .value
+    });
+  }
+
+  if (residency.value?.activeStatus === 'approved' && residency.value._status === 'draft') {
+    links.push({
+      label: 'Publish Residency',
+      click: handlePublish,
+      color: 'primary',
+      size: 'sm',
+      loading: isLoading.value, // Fix: add .value
+    });
+  }
+
+  return links;
+});
+
 const fetchMemberData = async () => {
   if (!residency.value?.id) return;
 
@@ -220,13 +230,6 @@ const {
   publish,
   approveAndPublish
 } = useWorkflowActions(residency, fetchMemberData) // Pass fetchMemberData to composable
-
-const baseDatoUrl = 'https://tranzac.admin.datocms.com';
-const itemTypeId = 'QjDbKyD5S0awBx6jliPMOA'; // Replace with your actual item type ID
-
-const datoEditLink = computed(() => {
-  return `${baseDatoUrl}/editor/item_types/${itemTypeId}/items/${residency.value?.id}/edit`;
-});
 
 const handleMemberSelection = async (member) => {
   try {
@@ -289,17 +292,6 @@ const handleNotifyAndProgress = async () => {
 }
 
 // Status helpers
-const getStatusDescription = (status: string) => {
-  const descriptions = {
-    new: 'Please associate members with this residency to begin.',
-    resident_action_required: 'Waiting for resident to provide details.',
-    pending_review: 'Residency is ready for review.',
-    approved: 'Residency is approved and ready to publish.',
-    published: 'Residency is live on the website.'
-  }
-  return descriptions[status] || ''
-}
-
 const getStatusColor = (status: string) => {
   const colors = {
     new: 'blue',
@@ -399,25 +391,27 @@ const handleRequestChangesSubmit = async ({ note, recipientEmails, commsManagerN
 }
 
 const handlePublish = async () => {
+  isLoading.value = true;
   try {
-    await publish()
-    const toast = useToast()
+    await publish();
     toast.add({
       title: 'Success',
       description: 'Residency published successfully',
       color: 'green'
-    })
+    });
   } catch (e) {
-    const toast = useToast()
     toast.add({
       title: 'Error',
       description: e.message,
       color: 'red'
-    })
+    });
+  } finally {
+    isLoading.value = false;
   }
 }
 
 const handleApproveAndPublish = async () => {
+  isLoading.value = true;
   try {
     await approveAndPublish();
     toast.add({
@@ -434,6 +428,8 @@ const handleApproveAndPublish = async () => {
     if (e.message.includes('Publishing failed')) {
       await fetchResidencyData();
     }
+  } finally {
+    isLoading.value = false;
   }
 };
 
