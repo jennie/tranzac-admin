@@ -36,180 +36,157 @@
           </template>
 
           <template #description>
-            <div class="text-stone-500">
-              {{ formatDate(residency.startDate) }} - {{ formatDate(residency.endDate) }}
+            <div class="space-y-4">
+              <div class="text-stone-500">
+                {{ formatDate(residency.startDate) }} - {{ formatDate(residency.endDate) }}
+              </div>
+              <div class="w-[500px]">
+                <ResidenciesResidentSelect :residency-id="route.params.id" @select="handleMemberSelection"
+                  @create="handleCreateMember" @close="handleResidentSelectClose" />
+              </div>
             </div>
           </template>
         </UPageHeader>
 
         <UDivider class="mb-4" />
 
-        <div class="grid grid-cols-2 gap-8">
-          <!-- Left Column -->
-          <div class="space-y-8">
-            <UDashboardSection>
-              <div class="flex flex-row justify-between items-center">
-                <h2 class="text-2xl font-bold">Resident Information</h2>
-              </div>
+        <UDashboardSection title="Details" description="Residency information and media assets.">
+          <template #links>
+            <UButton v-if="residency.activeStatus === 'pending_review'" color="gray"
+              @click="showRequestChangesModal = true" :loading="isLoading">
+              Request Changes
+            </UButton>
+          </template>
 
-              <!-- Current Members Display -->
-              <div v-if="members.length > 0" class="mb-4">
-                <div class="space-y-2">
-                  <div v-for="member in members" :key="member._id"
-                    class="flex justify-between items-center p-2 bg-stone-50 rounded">
-                    <div>
-                      {{ member.firstName }} {{ member.lastName }}
-                      <span class="text-stone-500">({{ member.email }})</span>
-                    </div>
-                    <UTooltip v-if="members.length <= 1" text="A residency must have at least one member">
-                      <UButton color="red" variant="ghost" icon="i-heroicons-x-mark" size="xs" disabled
-                        @click="handleRemoveMember(member)">
-                        Remove
-                      </UButton>
-                    </UTooltip>
-                    <UButton v-else color="red" variant="ghost" icon="i-heroicons-x-mark" size="xs"
-                      @click="handleRemoveMember(member)">
-                      Remove
-                    </UButton>
+          <UFormGroup label="Description" class="grid grid-cols-[300px_1fr] gap-4 items-start" :ui="{ container: '' }">
+            <div v-if="residency.description" class="prose max-w-none text-stone-600" v-html="residency.description">
+            </div>
+            <div v-else class="p-4 bg-stone-50 rounded border border-stone-200 text-stone-500">
+              <div class="flex items-center gap-2">
+                <UIcon name="i-heroicons-information-circle" />
+                <span>No description provided</span>
+              </div>
+            </div>
+          </UFormGroup>
+
+          <UFormGroup label="Photo" class="grid grid-cols-[300px_1fr] gap-4 items-start" :ui="{ container: '' }">
+            <div v-if="residency.photo">
+              <img :src="residency.photo.url" alt="Residency Photo" class="w-full max-w-md object-cover rounded-lg" />
+            </div>
+            <div v-else class="p-4 bg-stone-50 rounded border border-stone-200 text-stone-500">
+              <div class="flex items-center gap-2">
+                <UIcon name="i-heroicons-photo" />
+                <span>No photo uploaded</span>
+              </div>
+            </div>
+          </UFormGroup>
+
+          <UFormGroup label="Social Media Assets" class="grid grid-cols-[300px_1fr] gap-4 items-start"
+            :ui="{ container: '' }">
+            <div v-if="residency.socialMediaAssets && residency.socialMediaAssets.length > 0" class="space-y-4">
+              <!-- Grid of thumbnails -->
+              <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                <div v-for="(asset, index) in residency.socialMediaAssets" :key="index"
+                  class="relative group cursor-pointer" @click="openLightbox(index)">
+                  <img :src="asset.url" :alt="asset.title || 'Social media asset'"
+                    class="w-full h-32 object-cover rounded-lg transition-transform duration-200 group-hover:scale-105" />
+
+                  <!-- Hover overlay with asset type icon -->
+                  <div
+                    class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-opacity duration-200 rounded-lg flex items-center justify-center">
+                    <UIcon :name="getAssetTypeIcon(asset.type)"
+                      class="text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200" size="lg" />
                   </div>
                 </div>
               </div>
-              <div v-else>
-                <p class="text-stone-500 mb-4">No members associated with this residency</p>
-              </div>
 
-              <!-- Member Selection -->
-              <div class="border-t pt-4">
-                <ResidenciesResidentSelect @select="handleMemberAssociation" />
-              </div>
-            </UDashboardSection>
-          </div>
+              <!-- Single Lightbox Modal -->
+              <UModal v-model="showLightbox" size="xl">
+                <UCard>
+                  <template #header>
+                    <div class="flex justify-between items-center">
+                      <span class="text-lg font-semibold">
+                        {{ currentAsset?.title || 'Social Media Asset' }}
+                      </span>
+                      <UButton color="gray" variant="ghost" icon="i-heroicons-x-mark" @click="closeLightbox" />
+                    </div>
+                  </template>
 
-          <!-- Right Column -->
-          <div class="space-y-8">
-            <UDashboardSection>
-              <div class="flex flex-row justify-between items-center">
-                <h2 class="text-2xl font-bold">Details</h2>
-                <UButton v-if="residency.activeStatus === 'pending_review'" color="gray"
-                  @click="showRequestChangesModal = true" :loading="isLoading">
-                  Request Changes
+                  <div class="relative">
+                    <img v-if="currentAsset" :src="currentAsset.url" :alt="currentAsset.title || 'Social media asset'"
+                      class="w-full rounded-lg" />
+
+                    <!-- Navigation buttons -->
+                    <UButton v-if="currentAssetIndex > 0" class="absolute left-2 top-1/2 -translate-y-1/2" color="white"
+                      variant="solid" icon="i-heroicons-chevron-left" @click="previousAsset" />
+
+                    <UButton v-if="currentAssetIndex < residency.socialMediaAssets.length - 1"
+                      class="absolute right-2 top-1/2 -translate-y-1/2" color="white" variant="solid"
+                      icon="i-heroicons-chevron-right" @click="nextAsset" />
+                  </div>
+
+                  <template #footer>
+                    <div class="text-sm text-stone-500">
+                      {{ currentAssetIndex + 1 }} of {{ residency.socialMediaAssets.length }}
+                    </div>
+                  </template>
+                </UCard>
+              </UModal>
+            </div>
+            <div v-else class="p-4 bg-stone-50 rounded border border-stone-200 text-stone-500">
+              <div class="flex items-center gap-2">
+                <UIcon name="i-heroicons-photo" />
+                <span>No social media assets provided</span>
+              </div>
+            </div>
+          </UFormGroup>
+        </UDashboardSection>
+
+        <UDivider class="mb-4" />
+
+        <UDashboardSection title="Resident Information" description="Manage members associated with this residency.">
+          <UFormGroup label="Members" class="grid grid-cols-[300px_1fr] gap-4 items-start" :ui="{ container: '' }">
+            <div v-if="members.length > 0" class="space-y-2 mt-4">
+              <div v-for="member in members" :key="member._id"
+                class="flex justify-between items-center p-2 bg-stone-50 rounded">
+                <div>
+                  {{ member.firstName }} {{ member.lastName }}
+                  <span class="text-stone-500">({{ member.email }})</span>
+                </div>
+                <UTooltip v-if="members.length <= 1" text="A residency must have at least one member">
+                  <UButton color="red" variant="ghost" icon="i-heroicons-x-mark" size="xs" disabled
+                    @click="handleRemoveMember(member)">
+                    Remove
+                  </UButton>
+                </UTooltip>
+                <UButton v-else color="red" variant="ghost" icon="i-heroicons-x-mark" size="xs"
+                  @click="handleRemoveMember(member)">
+                  Remove
                 </UButton>
               </div>
+            </div>
+            <div v-else class="text-stone-500">
+              No members associated with this residency
+            </div>
+          </UFormGroup>
+        </UDashboardSection>
 
-              <div class="space-y-6">
-                <!-- Description Section -->
-                <div>
-                  <div class="font-semibold mb-2">Description</div>
-                  <div v-if="residency.description" class="prose max-w-none text-stone-600"
-                    v-html="residency.description">
-                  </div>
-                  <div v-else class="p-4 bg-stone-50 rounded border border-stone-200 text-stone-500">
-                    <div class="flex items-center gap-2">
-                      <UIcon name="i-heroicons-information-circle" />
-                      <span>No description provided</span>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Photo Section -->
-                <div>
-                  <div class="font-semibold mb-2">Photo</div>
-                  <div v-if="residency.photo" class="mt-2">
-                    <img :src="residency.photo.url" alt="Residency Photo"
-                      class="w-full max-w-md object-cover rounded-lg" />
-                  </div>
-                  <div v-else class="p-4 bg-stone-50 rounded border border-stone-200 text-stone-500">
-                    <div class="flex items-center gap-2">
-                      <UIcon name="i-heroicons-photo" />
-                      <span>No photo uploaded</span>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Social Media Assets Section -->
-                <div>
-                  <div class="font-semibold mb-2">Social Media Assets</div>
-                  <div v-if="residency.socialMediaAssets && residency.socialMediaAssets.length > 0" class="space-y-4">
-                    <!-- Grid of thumbnails -->
-                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                      <div v-for="(asset, index) in residency.socialMediaAssets" :key="index"
-                        class="relative group cursor-pointer" @click="openLightbox(index)">
-                        <img :src="asset.url" :alt="asset.title || 'Social media asset'"
-                          class="w-full h-32 object-cover rounded-lg transition-transform duration-200 group-hover:scale-105" />
-
-                        <!-- Hover overlay with asset type icon -->
-                        <div
-                          class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-opacity duration-200 rounded-lg flex items-center justify-center">
-                          <UIcon :name="getAssetTypeIcon(asset.type)"
-                            class="text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                            size="lg" />
-                        </div>
-                      </div>
-                    </div>
-
-                    <!-- Lightbox Modal -->
-                    <UModal v-model="showLightbox" size="xl">
-                      <UCard>
-                        <template #header>
-                          <div class="flex justify-between items-center">
-                            <span class="text-lg font-semibold">
-                              {{ currentAsset?.title || 'Social Media Asset' }}
-                            </span>
-                            <UButton color="gray" variant="ghost" icon="i-heroicons-x-mark" @click="closeLightbox" />
-                          </div>
-                        </template>
-
-                        <div class="relative">
-                          <img v-if="currentAsset" :src="currentAsset.url"
-                            :alt="currentAsset.title || 'Social media asset'" class="w-full rounded-lg" />
-
-                          <!-- Navigation buttons -->
-                          <UButton v-if="currentAssetIndex > 0" class="absolute left-2 top-1/2 -translate-y-1/2"
-                            color="white" variant="solid" icon="i-heroicons-chevron-left" @click="previousAsset" />
-
-                          <UButton v-if="currentAssetIndex < residency.socialMediaAssets.length - 1"
-                            class="absolute right-2 top-1/2 -translate-y-1/2" color="white" variant="solid"
-                            icon="i-heroicons-chevron-right" @click="nextAsset" />
-                        </div>
-
-                        <template #footer>
-                          <div class="text-sm text-stone-500">
-                            {{ currentAssetIndex + 1 }} of {{ residency.socialMediaAssets.length }}
-                          </div>
-                        </template>
-                      </UCard>
-                    </UModal>
-                  </div>
-                  <div v-else class="p-4 bg-stone-50 rounded border border-stone-200 text-stone-500">
-                    <div class="flex items-center gap-2">
-                      <UIcon name="i-heroicons-photo" />
-                      <span>No social media assets provided</span>
-                    </div>
-                  </div>
-                </div>
+        <UModal v-model="showRequestChangesModal">
+          <UCard>
+            <template #header>
+              <div class="text-lg font-semibold">
+                Request Changes
               </div>
-            </UDashboardSection>
+            </template>
+            <ResidenciesRequestChangesForm :title="residency?.title" :record-id="residency?.id"
+              :recipient-emails="memberEmails" @submit="handleRequestChangesSubmit" />
+          </UCard>
+        </UModal>
 
-          </div>
-        </div>
+        <ResidenciesApprovePublishModal v-model="showApprovePublishModal" :residency-id="residency?.id"
+          :initial-generate-events="residency?.generateEvents" @confirm="handleApproveAndPublish" />
       </template>
     </UDashboardPanelContent>
-
-    <!-- Request Changes Modal -->
-    <UModal v-model="showRequestChangesModal">
-      <UCard>
-        <template #header>
-          <div class="text-lg font-semibold">
-            Request Changes
-          </div>
-        </template>
-        <ResidenciesRequestChangesForm :title="residency?.title" :record-id="residency?.id"
-          :recipient-emails="memberEmails" @submit="handleRequestChangesSubmit" />
-      </UCard>
-    </UModal>
-
-    <ResidenciesApprovePublishModal v-model="showApprovePublishModal" :residency-id="residency?.id"
-      :initial-generate-events="residency?.generateEvents" @confirm="handleApproveAndPublish" />
   </UDashboardPanel>
 </template>
 
@@ -295,15 +272,19 @@ const fetchMemberData = async () => {
   if (!residency.value?.id) return;
 
   memberEmailsLoading.value = true;
+  memberEmailsError.value = null;
+
   try {
     const { data } = await useFetch(`/api/members/byResidencyId/${residency.value.id}`);
     if (!data.value?.members) throw new Error('No member data found');
+
     members.value = data.value.members;
-    memberEmails.value = data.value.members.map(member => member.email); // Restore memberEmails assignment
+    memberEmails.value = data.value.members.map(member => member.email);
   } catch (e) {
-    console.error(e);
+    console.error('Failed to fetch member data:', e);
     members.value = [];
-    memberEmails.value = []; // Clear memberEmails on error
+    memberEmails.value = [];
+    memberEmailsError.value = e instanceof Error ? e.message : 'Failed to fetch member data';
   } finally {
     memberEmailsLoading.value = false;
   }
@@ -315,7 +296,6 @@ const {
   error,
   associateMember,
   removeMember,
-  notifyAndProgress,
   submitForReview,
   approve,
   requestChanges,
@@ -323,24 +303,23 @@ const {
   approveAndPublish
 } = useWorkflowActions(residency, fetchMemberData) // Pass fetchMemberData to composable
 
+
 const handleMemberSelection = async (member) => {
   try {
-    await handleMemberAssociation(member);
-    const toast = useToast();
+    await handleMemberAssociation(member)
     toast.add({
       title: 'Success',
       description: 'Member associated successfully',
       color: 'green'
-    });
+    })
   } catch (error) {
-    const toast = useToast();
     toast.add({
       title: 'Error',
       description: error.message,
       color: 'red'
-    });
+    })
   }
-};
+}
 
 const handleRemoveMember = async (member: Member) => {
   try {
@@ -606,19 +585,16 @@ onMounted(async () => {
   await fetchMemberData()
 })
 
-// Refresh data after status changes
-watch(() => residency.value?.activeStatus, async () => {
-  console.log('Residency status changed'); // Debugging log
-  await fetchResidencyData()
-  await fetchMemberData()
-})
-
 // Watch for route changes to reload data
-watch(() => route.params.id, async () => {
-  console.log('Route ID changed'); // Debugging log
-  await fetchResidencyData()
-  await fetchMemberData()
-})
+watch(
+  () => route.params.id,
+  async (newId, oldId) => {
+    if (newId && newId !== oldId) {
+      await fetchResidencyData();
+    }
+  },
+  { immediate: true }
+)
 
 definePageMeta({
   middleware: 'auth'
@@ -636,23 +612,42 @@ const getAssetTypeIcon = (type: string) => {
 
 // Lightbox controls
 const openLightbox = (index: number) => {
-  currentAssetIndex.value = index
-  showLightbox.value = true
+  currentAssetIndex.value = index;
+  showLightbox.value = true;
 }
 
 const closeLightbox = () => {
-  showLightbox.value = false
+  showLightbox.value = false;
 }
 
 const previousAsset = () => {
   if (currentAssetIndex.value > 0) {
-    currentAssetIndex.value--
+    currentAssetIndex.value--;
   }
 }
 
 const nextAsset = () => {
   if (currentAssetIndex.value < (residency.value?.socialMediaAssets?.length || 0) - 1) {
-    currentAssetIndex.value++
+    currentAssetIndex.value++;
   }
+}
+
+const notifyAndProgress = async () => {
+  if (!residency.value?.id) return;
+
+  try {
+    await submitForReview();
+    return true;
+  } catch (e) {
+    throw new Error(e instanceof Error ? e.message : 'Failed to notify members');
+  }
+}
+
+const createNewMemberModal = ref(false)
+const newMemberName = ref('')
+
+const handleCreateMember = (name: string) => {
+  newMemberName.value = name
+  createNewMemberModal.value = true
 }
 </script>

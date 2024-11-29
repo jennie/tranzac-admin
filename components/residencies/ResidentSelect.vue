@@ -1,115 +1,151 @@
 <!-- // components/residencies/ResidentSelect.vue -->
 <template>
-  <div>
-    <div class="relative">
-      <UInput v-model="search" placeholder="Search residents..." :loading="isLoading" />
-      <div v-if="residents.length"
-        class="absolute w-full bg-white border mt-1 rounded-md shadow-lg max-h-60 overflow-y-auto">
-        <div v-if="!matchingResident" class="p-2 hover:bg-gray-100 cursor-pointer" @click="handleCreate(search)">
-          <div>Create new member: "{{ search }}"</div>
+  <div class="relative" ref="containerRef">
+    <UInput v-model="searchQuery" :loading="isLoading" placeholder="Search for a resident..." class="w-full"
+      @focus="handleFocus" @input="debouncedSearch">
+      <template #append>
+        <UButton v-if="searchQuery" color="gray" variant="ghost" icon="i-heroicons-x-mark" @click.stop="clearSearch" />
+      </template>
+    </UInput>
+
+    <div v-if="isOpen" class="absolute left-0 right-0 mt-1 bg-white rounded-lg border shadow-lg z-50">
+      <div class="p-2 max-h-[300px] overflow-y-auto">
+        <!-- Loading state -->
+        <div v-if="isLoading" class="p-2 text-sm text-gray-500">
+          Searching...
         </div>
-        <div v-for="resident in residents" :key="resident.value" class="p-2 hover:bg-gray-100 cursor-pointer"
-          @click="selectResident(resident)">
-          <div>{{ resident.label }}</div>
-          <div class="text-sm text-gray-500">{{ resident.email }}</div>
+
+        <!-- No results -->
+        <div v-else-if="searchQuery && !members.length" class="p-2">
+          <div class="text-sm text-gray-500 mb-2">
+            No members found
+          </div>
+          <UButton color="primary" variant="soft" class="w-full justify-start" @click="createNewMember">
+            <template #leading>
+              <UIcon name="i-heroicons-plus" />
+            </template>
+            Create "{{ searchQuery }}"
+          </UButton>
+        </div>
+
+        <!-- Results list -->
+        <div v-else-if="members.length" class="space-y-1">
+          <UButton v-for="member in members" :key="member.value" color="gray" variant="ghost"
+            class="w-full justify-start" @click="handleSelect(member)">
+            <div class="flex justify-between items-center w-full">
+              <span>{{ member.label }}</span>
+              <span class="text-sm text-gray-500">{{ member.email }}</span>
+            </div>
+          </UButton>
+        </div>
+
+        <!-- Initial state -->
+        <div v-else class="p-2 text-sm text-gray-500">
+          Type to search members...
         </div>
       </div>
     </div>
-
-    <UModal v-model="showCreateModal">
-      <UCard>
-        <template #header>Create New Member</template>
-        <form @submit.prevent="handleSubmit">
-          <div class="space-y-4">
-            <UFormGroup label="First Name" required>
-              <UInput v-model="newMember.firstName" />
-            </UFormGroup>
-            <UFormGroup label="Last Name" required>
-              <UInput v-model="newMember.lastName" />
-            </UFormGroup>
-            <UFormGroup label="Email" required>
-              <UInput v-model="newMember.email" type="email" />
-            </UFormGroup>
-          </div>
-          <div class="mt-4 flex justify-end gap-2">
-            <UButton color="gray" @click="showCreateModal = false">Cancel</UButton>
-            <UButton type="submit" color="primary" :loading="isCreating">Create</UButton>
-          </div>
-        </form>
-      </UCard>
-    </UModal>
   </div>
 </template>
 
-<script setup>
-const search = ref('')
-const isLoading = ref(false)
-const residents = ref([])
-const showCreateModal = ref(false)
-const isCreating = ref(false)
-const emit = defineEmits(['select'])
+<script setup lang="ts">
+import { ref } from 'vue'
+import { onClickOutside, useDebounceFn } from '@vueuse/core'
+import type { Member } from '~/types/member'
 
-const newMember = ref({
-  firstName: '',
-  lastName: '',
-  email: ''
+const props = defineProps<{
+  residencyId: string
+}>()
+
+const emit = defineEmits<{
+  select: [member: Member]
+  close: []
+  create: [query: string]
+}>()
+
+const containerRef = ref<HTMLElement | null>(null)
+const searchQuery = ref('')
+const isOpen = ref(false)
+const isLoading = ref(false)
+const members = ref([])
+
+onClickOutside(containerRef, () => {
+  isOpen.value = false
 })
 
-const selectResident = (resident) => {
-  emit('select', resident)
-  search.value = ''
-  residents.value = []
-}
-
-const handleCreate = (input) => {
-  showCreateModal.value = true
-  const [firstName, lastName] = input.split(' ')
-  newMember.value = {
-    firstName: firstName || '',
-    lastName: lastName || '',
-    email: ''
-  }
-}
-
-const handleSubmit = async () => {
-  if (!newMember.value.firstName || !newMember.value.lastName || !newMember.value.email) return
-
-  isCreating.value = true
-  try {
-    const member = await $fetch('/api/members', {
-      method: 'POST',
-      body: newMember.value
-    })
-
-    const newOption = {
-      value: member._id,
-      label: `${member.firstName} ${member.lastName}`,
-      email: member.email
-    }
-
-    selectResident(newOption)
-    showCreateModal.value = false
-    newMember.value = { firstName: '', lastName: '', email: '' }
-  } catch (e) {
-    console.error(e)
-  } finally {
-    isCreating.value = false
-  }
-}
-
-watch(search, useDebounceFn(async (query) => {
-  if (!query || query.length < 2) {
-    residents.value = []
+const handleSearch = async (query: string) => {
+  if (query.length < 2) {
+    members.value = []
     return
   }
 
   isLoading.value = true
   try {
-    residents.value = await $fetch(`/api/members/search?q=${query}`)
+    console.log('Searching for:', query)
+    const { data } = await useFetch('/api/members/search', {
+      query: { q: query },
+      server: false
+    })
+
+    console.log('Search response:', data.value)
+
+    if (!data.value || !Array.isArray(data.value)) {
+      console.warn('Invalid response format')
+      members.value = []
+      return
+    }
+
+    // The API is already returning formatted data
+    members.value = data.value
+    console.log('Set members:', members.value)
   } catch (e) {
-    console.error(e)
+    console.error('Search failed:', e)
+    members.value = []
   } finally {
     isLoading.value = false
   }
-}, 300))
+}
+
+const debouncedSearch = useDebounceFn((event: Event) => {
+  const value = (event.target as HTMLInputElement).value
+  if (!isOpen.value) isOpen.value = true
+  handleSearch(value)
+}, 300)
+
+const handleFocus = () => {
+  isOpen.value = true
+  if (searchQuery.value.length >= 2) {
+    handleSearch(searchQuery.value)
+  }
+}
+
+const createNewMember = () => {
+  // Emit event to parent to handle new member creation
+  emit('create', searchQuery.value)
+  clearSearch()
+}
+
+const clearSearch = () => {
+  searchQuery.value = ''
+  members.value = []
+  isOpen.value = false
+  emit('close')
+}
+
+const handleSelect = (member) => {
+  emit('select', member)
+  clearSearch()
+}
+
+defineExpose({
+  focus: () => {
+    isOpen.value = true
+  }
+})
 </script>
+
+<style scoped>
+.v-popper__popper {
+  width: 100%;
+}
+</style>
