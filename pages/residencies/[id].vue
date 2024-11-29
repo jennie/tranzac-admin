@@ -61,7 +61,13 @@
                       {{ member.firstName }} {{ member.lastName }}
                       <span class="text-stone-500">({{ member.email }})</span>
                     </div>
-                    <UButton color="red" variant="ghost" icon="i-heroicons-x-mark" size="xs"
+                    <UTooltip v-if="members.length <= 1" text="A residency must have at least one member">
+                      <UButton color="red" variant="ghost" icon="i-heroicons-x-mark" size="xs" disabled
+                        @click="handleRemoveMember(member)">
+                        Remove
+                      </UButton>
+                    </UTooltip>
+                    <UButton v-else color="red" variant="ghost" icon="i-heroicons-x-mark" size="xs"
                       @click="handleRemoveMember(member)">
                       Remove
                     </UButton>
@@ -90,20 +96,100 @@
                 </UButton>
               </div>
 
-
-              <div class="space-y-4">
-                <div v-if="residency.description" class="prose max-w-none">
+              <div class="space-y-6">
+                <!-- Description Section -->
+                <div>
                   <div class="font-semibold mb-2">Description</div>
-                  <div class="text-stone-600" v-html="residency.description"></div>
+                  <div v-if="residency.description" class="prose max-w-none text-stone-600"
+                    v-html="residency.description">
+                  </div>
+                  <div v-else class="p-4 bg-stone-50 rounded border border-stone-200 text-stone-500">
+                    <div class="flex items-center gap-2">
+                      <UIcon name="i-heroicons-information-circle" />
+                      <span>No description provided</span>
+                    </div>
+                  </div>
                 </div>
 
-                <div v-if="residency.photo" class="mt-4">
+                <!-- Photo Section -->
+                <div>
                   <div class="font-semibold mb-2">Photo</div>
-                  <img :src="residency.photo.url" alt="Residency Photo"
-                    class="w-full max-w-md object-cover rounded-lg" />
+                  <div v-if="residency.photo" class="mt-2">
+                    <img :src="residency.photo.url" alt="Residency Photo"
+                      class="w-full max-w-md object-cover rounded-lg" />
+                  </div>
+                  <div v-else class="p-4 bg-stone-50 rounded border border-stone-200 text-stone-500">
+                    <div class="flex items-center gap-2">
+                      <UIcon name="i-heroicons-photo" />
+                      <span>No photo uploaded</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Social Media Assets Section -->
+                <div>
+                  <div class="font-semibold mb-2">Social Media Assets</div>
+                  <div v-if="residency.socialMediaAssets && residency.socialMediaAssets.length > 0" class="space-y-4">
+                    <!-- Grid of thumbnails -->
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                      <div v-for="(asset, index) in residency.socialMediaAssets" :key="index"
+                        class="relative group cursor-pointer" @click="openLightbox(index)">
+                        <img :src="asset.url" :alt="asset.title || 'Social media asset'"
+                          class="w-full h-32 object-cover rounded-lg transition-transform duration-200 group-hover:scale-105" />
+
+                        <!-- Hover overlay with asset type icon -->
+                        <div
+                          class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-opacity duration-200 rounded-lg flex items-center justify-center">
+                          <UIcon :name="getAssetTypeIcon(asset.type)"
+                            class="text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                            size="lg" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Lightbox Modal -->
+                    <UModal v-model="showLightbox" size="xl">
+                      <UCard>
+                        <template #header>
+                          <div class="flex justify-between items-center">
+                            <span class="text-lg font-semibold">
+                              {{ currentAsset?.title || 'Social Media Asset' }}
+                            </span>
+                            <UButton color="gray" variant="ghost" icon="i-heroicons-x-mark" @click="closeLightbox" />
+                          </div>
+                        </template>
+
+                        <div class="relative">
+                          <img v-if="currentAsset" :src="currentAsset.url"
+                            :alt="currentAsset.title || 'Social media asset'" class="w-full rounded-lg" />
+
+                          <!-- Navigation buttons -->
+                          <UButton v-if="currentAssetIndex > 0" class="absolute left-2 top-1/2 -translate-y-1/2"
+                            color="white" variant="solid" icon="i-heroicons-chevron-left" @click="previousAsset" />
+
+                          <UButton v-if="currentAssetIndex < residency.socialMediaAssets.length - 1"
+                            class="absolute right-2 top-1/2 -translate-y-1/2" color="white" variant="solid"
+                            icon="i-heroicons-chevron-right" @click="nextAsset" />
+                        </div>
+
+                        <template #footer>
+                          <div class="text-sm text-stone-500">
+                            {{ currentAssetIndex + 1 }} of {{ residency.socialMediaAssets.length }}
+                          </div>
+                        </template>
+                      </UCard>
+                    </UModal>
+                  </div>
+                  <div v-else class="p-4 bg-stone-50 rounded border border-stone-200 text-stone-500">
+                    <div class="flex items-center gap-2">
+                      <UIcon name="i-heroicons-photo" />
+                      <span>No social media assets provided</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </UDashboardSection>
+
           </div>
         </div>
       </template>
@@ -149,6 +235,12 @@ const showApprovePublishModal = ref(false);
 
 const baseDatoUrl = 'https://tranzac.admin.datocms.com';
 const itemTypeId = 'QjDbKyD5S0awBx6jliPMOA'; // Replace with your actual item type ID
+
+const showLightbox = ref(false)
+const currentAssetIndex = ref(0)
+const currentAsset = computed(() =>
+  residency.value?.socialMediaAssets?.[currentAssetIndex.value] || null
+)
 
 const datoEditLink = computed(() => {
   return `${baseDatoUrl}/editor/item_types/${itemTypeId}/items/${residency.value?.id}/edit`;
@@ -250,14 +342,24 @@ const handleMemberSelection = async (member) => {
   }
 };
 
-// Update handleRemoveMember in [id].vue
 const handleRemoveMember = async (member: Member) => {
   try {
-    console.log("Member object:", member); // Add this log
-    console.log("Removing member with ID:", member._id); // Change to _id
-    const response = await removeMember(member._id); // Change to _id
-    console.log("Remove member response:", response); // Add this log
+    // Check if this is the last member
+    if (members.value.length <= 1) {
+      toast.add({
+        title: 'Cannot Remove Member',
+        description: 'A residency must have at least one member',
+        color: 'red'
+      });
+      return;
+    }
+
+    console.log("Member object:", member);
+    console.log("Removing member with ID:", member._id);
+    const response = await removeMember(member._id);
+    console.log("Remove member response:", response);
     await fetchMemberData();
+
     toast.add({
       title: 'Success',
       description: 'Member removed successfully',
@@ -461,6 +563,9 @@ const fetchResidencyData = async () => {
         slug
         activeStatus
         generateEvents
+        socialMediaAssets {
+          url
+        }
       }
     }
   `
@@ -518,4 +623,36 @@ watch(() => route.params.id, async () => {
 definePageMeta({
   middleware: 'auth'
 })
+
+// Helper function to determine icon based on asset type
+const getAssetTypeIcon = (type: string) => {
+  const icons = {
+    image: 'i-heroicons-photo',
+    video: 'i-heroicons-video-camera',
+    // Add more asset types as needed
+  }
+  return icons[type] || icons.image
+}
+
+// Lightbox controls
+const openLightbox = (index: number) => {
+  currentAssetIndex.value = index
+  showLightbox.value = true
+}
+
+const closeLightbox = () => {
+  showLightbox.value = false
+}
+
+const previousAsset = () => {
+  if (currentAssetIndex.value > 0) {
+    currentAssetIndex.value--
+  }
+}
+
+const nextAsset = () => {
+  if (currentAssetIndex.value < (residency.value?.socialMediaAssets?.length || 0) - 1) {
+    currentAssetIndex.value++
+  }
+}
 </script>
