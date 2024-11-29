@@ -15,29 +15,34 @@
           Searching...
         </div>
 
-        <!-- No results -->
-        <div v-else-if="searchQuery && !members.length" class="p-2">
-          <div class="text-sm text-gray-500 mb-2">
-            No members found
-          </div>
-          <UButton color="primary" variant="soft" class="w-full justify-start" @click="createNewMember">
-            <template #leading>
-              <UIcon name="i-heroicons-plus" />
-            </template>
-            Create "{{ searchQuery }}"
-          </UButton>
-        </div>
-
-        <!-- Results list -->
-        <div v-else-if="members.length" class="space-y-1">
-          <UButton v-for="member in members" :key="member.value" color="gray" variant="ghost"
-            class="w-full justify-start" @click="handleSelect(member)">
-            <div class="flex justify-between items-center w-full">
-              <span>{{ member.label }}</span>
-              <span class="text-sm text-gray-500">{{ member.email }}</span>
+        <template v-else-if="searchQuery">
+          <!-- Results list -->
+          <div v-if="members.length" class="space-y-1 mb-2">
+            <div class="text-xs text-stone-500 font-medium px-2 mb-1">
+              Existing Members
             </div>
-          </UButton>
-        </div>
+            <UButton v-for="member in members" :key="member.value" color="gray" variant="ghost"
+              class="w-full justify-start" @click="handleSelect(member)">
+              <div class="flex justify-between items-center w-full">
+                <span>{{ member.label }}</span>
+                <span class="text-sm text-stone-500">{{ member.email }}</span>
+              </div>
+            </UButton>
+          </div>
+
+          <!-- Create New Member Option -->
+          <div class="pt-2">
+            <div class="text-xs text-stone-500 font-medium px-2 mb-1">
+              Create New
+            </div>
+            <UButton color="primary" variant="soft" class="w-full justify-start" @click="createNewMember">
+              <template #leading>
+                <UIcon name="i-heroicons-plus" />
+              </template>
+              Create "{{ searchQuery }}"
+            </UButton>
+          </div>
+        </template>
 
         <!-- Initial state -->
         <div v-else class="p-2 text-sm text-gray-500">

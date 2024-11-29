@@ -185,6 +185,9 @@
 
         <ResidenciesApprovePublishModal v-model="showApprovePublishModal" :residency-id="residency?.id"
           :initial-generate-events="residency?.generateEvents" @confirm="handleApproveAndPublish" />
+
+        <ResidenciesAddMemberModal v-model="showAddMemberModal" :initial-name="newMemberName"
+          @submit="handleAddMember" />
       </template>
     </UDashboardPanelContent>
   </UDashboardPanel>
@@ -648,6 +651,38 @@ const newMemberName = ref('')
 
 const handleCreateMember = (name: string) => {
   newMemberName.value = name
-  createNewMemberModal.value = true
+  showAddMemberModal.value = true // Changed from createNewMemberModal to showAddMemberModal
+}
+
+const showAddMemberModal = ref(false)
+
+const handleAddMember = async ({ firstName, lastName, email }) => {
+  try {
+    const { data } = await useFetch('/api/members', {
+      method: 'POST',
+      body: {
+        firstName,
+        lastName,
+        email,
+      }
+    })
+
+    if (data.value?._id) {
+      // Associate the new member with the residency
+      await handleMemberAssociation({ value: data.value._id })
+    }
+
+    toast.add({
+      title: 'Success',
+      description: 'Member added successfully',
+      color: 'green'
+    })
+  } catch (e) {
+    toast.add({
+      title: 'Error',
+      description: e instanceof Error ? e.message : 'Failed to add member',
+      color: 'red'
+    })
+  }
 }
 </script>
