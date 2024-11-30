@@ -1,4 +1,3 @@
-<!-- pages/residencies/[id].vue -->
 <template>
   <UDashboardPanel grow>
     <UDashboardPanelContent class="pb-24">
@@ -36,17 +35,45 @@
           </template>
 
           <template #description>
-            <div class="space-y-4">
-              <div class="text-stone-500">
-                {{ formatDate(residency.startDate) }} - {{ formatDate(residency.endDate) }}
-              </div>
-              <div class="w-[500px]">
-                <ResidenciesResidentSelect :residency-id="route.params.id" @select="handleMemberSelection"
-                  @create="handleCreateMember" @close="handleResidentSelectClose" />
-              </div>
+            <div class="text-stone-500">
+              {{ formatDate(residency.startDate) }} - {{ formatDate(residency.endDate) }}
             </div>
           </template>
         </UPageHeader>
+
+        <UDivider class="mb-4" />
+
+        <UDashboardSection title="Resident Information" description="Manage members associated with this residency.">
+          <UFormGroup label="Members" class="grid grid-cols-[300px_1fr] gap-4 items-start" :ui="{ container: '' }">
+            <div>
+              <ResidenciesResidentSelect :residency-id="route.params.id" @select="handleMemberSelection"
+                @create="handleCreateMember" @close="handleResidentSelectClose" />
+
+              <div v-if="members.length > 0" class="space-y-2 mt-4">
+                <div v-for="member in members" :key="member._id"
+                  class="flex justify-between items-center p-2 bg-stone-50 rounded">
+                  <div>
+                    {{ member.firstName }} {{ member.lastName }}
+                    <span class="text-stone-500">({{ member.email }})</span>
+                  </div>
+                  <UTooltip v-if="members.length <= 1" text="A residency must have at least one member">
+                    <UButton color="red" variant="ghost" icon="i-heroicons-x-mark" size="xs" disabled
+                      @click="handleRemoveMember(member)">
+                      Remove
+                    </UButton>
+                  </UTooltip>
+                  <UButton v-else color="red" variant="ghost" icon="i-heroicons-x-mark" size="xs"
+                    @click="handleRemoveMember(member)">
+                    Remove
+                  </UButton>
+                </div>
+              </div>
+              <div v-else class="text-stone-500 mt-4">
+                No members associated with this residency
+              </div>
+            </div>
+          </UFormGroup>
+        </UDashboardSection>
 
         <UDivider class="mb-4" />
 
@@ -143,33 +170,6 @@
         </UDashboardSection>
 
         <UDivider class="mb-4" />
-
-        <UDashboardSection title="Resident Information" description="Manage members associated with this residency.">
-          <UFormGroup label="Members" class="grid grid-cols-[300px_1fr] gap-4 items-start" :ui="{ container: '' }">
-            <div v-if="members.length > 0" class="space-y-2 mt-4">
-              <div v-for="member in members" :key="member._id"
-                class="flex justify-between items-center p-2 bg-stone-50 rounded">
-                <div>
-                  {{ member.firstName }} {{ member.lastName }}
-                  <span class="text-stone-500">({{ member.email }})</span>
-                </div>
-                <UTooltip v-if="members.length <= 1" text="A residency must have at least one member">
-                  <UButton color="red" variant="ghost" icon="i-heroicons-x-mark" size="xs" disabled
-                    @click="handleRemoveMember(member)">
-                    Remove
-                  </UButton>
-                </UTooltip>
-                <UButton v-else color="red" variant="ghost" icon="i-heroicons-x-mark" size="xs"
-                  @click="handleRemoveMember(member)">
-                  Remove
-                </UButton>
-              </div>
-            </div>
-            <div v-else class="text-stone-500">
-              No members associated with this residency
-            </div>
-          </UFormGroup>
-        </UDashboardSection>
 
         <UModal v-model="showRequestChangesModal">
           <UCard>
