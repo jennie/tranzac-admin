@@ -7,7 +7,9 @@
         <UPopover :popper="{ placement: 'bottom-start' }">
           <UButton icon="i-heroicons-calendar-days-20-solid" :label="newDate ? formatDate(newDate) : 'Select a date'" />
           <template #panel="{ close }">
-            <DatePicker v-model="newDate" is-required @close="close" />
+            <ClientOnly>
+              <DatePicker v-model="newDate" is-required @close="close" />
+            </ClientOnly>
           </template>
         </UPopover>
         <UButton @click="triggerAddDate" :disabled="!newDate">Add Date</UButton>
