@@ -1,61 +1,50 @@
 <template>
-  <UDashboardPanelContent class="pb-24">
-    <UDashboardSection>
+  <UDashboardPanel grow>
+    <UDashboardSection orientation="vertical" class="px-4 mt-12">
       <template #title>
-        <div class="flex items-center justify-between">
-          <div class="flex-1 text-2xl">{{ residency?.title }}</div>
-          <div class="flex gap-2">
-            <UButton v-if="residency?.activeStatus === 'pending_review'" color="primary"
-              @click="showApprovePublishModal = true" :loading="isLoading">
-              Approve and Publish
-            </UButton>
-          </div>
+        <div class="flex items-center gap-4">
+          <span class="text-2xl">{{ residency?.title }}</span>
+          <UBadge v-if="residency?.activeStatus" :label="prettyStatus(residency.activeStatus)"
+            :color="getStatusColor(residency.activeStatus)" variant="subtle" class="capitalize" />
         </div>
       </template>
-
       <template #description>
-        <div class="space-y-4">
-          <!-- Status Row -->
-          <div class="flex items-center gap-4">
-            <UBadge v-if="residency?.activeStatus" :label="prettyStatus(residency.activeStatus)"
-              :color="getStatusColor(residency.activeStatus)" variant="subtle" class="capitalize" />
-            <div v-if="residency?.activeStatus === 'approved'" class="flex items-center space-x-2"
-              :class="[residency._status === 'published' ? 'text-green-600' : 'text-stone-500']">
-              <UIcon
-                :name="residency._status === 'published' ? 'i-heroicons-check-circle' : 'i-heroicons-exclamation-triangle'" />
-              <span v-if="residency._status === 'published'">Published</span>
-              <UButton v-else variant="link" class="text-stone-500 text-primary-500 p-0 underline"
-                @click="handlePublish" :loading="isLoading">
-                Not published
-              </UButton>
-            </div>
+        <div class="flex items-center gap-6 text-sm text-gray-500">
+          <div class="flex items-center gap-1">
+            <UIcon name="i-heroicons-calendar" class="w-4 h-4" />
+            <span>
+              {{ formatDate(residency?.startDate) }}
+              <template v-if="residency?.endDate">
+                - {{ formatDate(residency.endDate) }}
+              </template>
+              <span v-else class="text-stone-400 font-medium">
+                (Ongoing)
+              </span>
+            </span>
           </div>
-
-          <!-- Dates Row -->
-          <div class="flex items-center gap-6 text-sm text-gray-500">
-            <div class="flex items-center gap-1">
-              <UIcon name="i-heroicons-calendar" class="w-4 h-4" />
-              <span>{{ formatDate(residency?.startDate) }} - {{ formatDate(residency?.endDate) }}</span>
-            </div>
-            <div class="flex items-center gap-1">
-              <UIcon name="i-heroicons-clock" class="w-4 h-4" />
-              <span>Created {{ formatDate(residency?._createdAt) }}</span>
-            </div>
-            <div v-if="residency?._updatedAt" class="flex items-center gap-1">
-              <UIcon name="i-heroicons-arrow-path" class="w-4 h-4" />
-              <span>Updated {{ formatDate(residency._updatedAt) }}</span>
-            </div>
+          <div class="flex items-center gap-1">
+            <UIcon name="i-heroicons-clock" class="w-4 h-4" />
+            <span>Created {{ formatDate(residency?._createdAt) }}</span>
+          </div>
+          <div v-if="residency?._updatedAt" class="flex items-center gap-1">
+            <UIcon name="i-heroicons-arrow-path" class="w-4 h-4" />
+            <span>Updated {{ formatDate(residency._updatedAt) }}</span>
           </div>
         </div>
       </template>
     </UDashboardSection>
 
-    <!-- Navigation -->
-    <div class="border-b border-gray-200 dark:border-gray-800">
-      <UHorizontalNavigation :links="navigationLinks" />
+    <!-- Navigation bars -->
+    <div class="border-y border-gray-200 dark:border-gray-800 px-2">
+      <UHorizontalNavigation :links="pageLinks" />
     </div>
 
-    <div class="mt-6">
+    <!-- Only show action buttons on details page -->
+    <div v-if="route.name === 'residencies-id'" class="border-b border-gray-200 dark:border-gray-800 px-2">
+      <UHorizontalNavigation :links="actionLinks" />
+    </div>
+
+    <div>
       <NuxtPage />
     </div>
 
@@ -84,28 +73,54 @@
 
     <ResidenciesApprovePublishModal v-model="showApprovePublishModal" :residency-id="residency?.id"
       :initial-generate-events="residency?.generateEvents" @confirm="handleApproveAndPublish" />
-  </UDashboardPanelContent>
+  </UDashboardPanel>
 </template>
 
 <script setup lang="ts">
 import { useResidencyData } from '~/composables/useResidencyData'
-import { format } from 'date-fns'
+import { useWorkflowDate } from '~/composables/useWorkflowDate'
 
 const route = useRoute()
 const { residency, error, isLoading } = useResidencyData(route.params.id as string)
+const { formatDate, formatDateHeader } = useWorkflowDate()
 
-// Navigation links
-const navigationLinks = computed(() => [
+// Update to use separate pageLinks for main navigation
+const pageLinks = computed(() => [[
   {
     label: 'Details',
     icon: 'i-heroicons-document-text',
     to: `/residencies/${route.params.id}`,
+    exact: true
   },
   {
     label: 'Events',
     icon: 'i-heroicons-calendar',
     to: `/residencies/${route.params.id}/events`,
   }
+]])
+
+// Update actionLinks structure with two groups
+const actionLinks = computed(() => [
+  [
+    ...(residency.value?.activeStatus === 'pending_review' ? [{
+      label: 'Request Changes',
+      icon: 'i-heroicons-chat-bubble-left-ellipsis',
+      click: () => showRequestChangesModal.value = true
+    }] : []),
+    ...(residency.value?.activeStatus === 'pending_review' ? [{
+      label: 'Approve and Publish',
+      icon: 'i-heroicons-check',
+      click: () => showApprovePublishModal.value = true,
+      color: 'primary'
+    }] : [])
+  ],
+  [{
+    label: 'Edit in DatoCMS',
+    icon: 'i-mdi-pencil',
+    to: datoEditLink.value,
+    target: '_blank',
+    color: 'gray'
+  }]
 ])
 
 // Status helpers
@@ -124,12 +139,6 @@ const prettyStatus = (status) => {
   return status?.split('_').map(word =>
     word.charAt(0).toUpperCase() + word.slice(1)
   ).join(' ') || '—'
-}
-
-// Format date helper
-const formatDate = (date: string) => {
-  if (!date) return '—'
-  return format(new Date(date), 'MMM d, yyyy')
 }
 
 const showPublishModal = ref(false)
@@ -181,4 +190,11 @@ const handleApproveAndPublish = async () => {
     isPublishing.value = false
   }
 }
+
+const baseDatoUrl = 'https://tranzac.admin.datocms.com'
+const itemTypeId = 'QjDbKyD5S0awBx6jliPMOA'
+
+const datoEditLink = computed(() => {
+  return `${baseDatoUrl}/editor/item_types/${itemTypeId}/items/${residency.value?.id}/edit`
+})
 </script>

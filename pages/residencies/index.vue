@@ -140,7 +140,8 @@
 <script setup lang="ts">
 // script setup section for pages/residencies/index.vue
 import { ref, computed, watch } from 'vue'
-import { startOfToday, isBefore, parseISO, isValid, format } from 'date-fns'
+import { startOfToday, isBefore, parseISO, isValid } from 'date-fns'
+import { useWorkflowDate } from '~/composables/useWorkflowDate'
 import type { Residency } from '~/types/residency'
 import { useResidenciesData } from '~/composables/useResidenciesData'
 
@@ -212,20 +213,8 @@ const safeParseDate = (dateString: string | null | undefined) => {
   }
 }
 
-// Format dates for display
-const formatDate = (date: string | null | undefined) => {
-  if (!date) return '—'
-  try {
-    const parsedDate = parseISO(date)
-    if (!isValid(parsedDate)) {
-      return '—'
-    }
-    return format(parsedDate, 'MMM d, yyyy')
-  } catch (e) {
-    console.error(`Error formatting date: ${date}`, e)
-    return '—'
-  }
-}
+// Format dates for display with timezone
+const { formatDate, formatDateHeader } = useWorkflowDate()
 
 // Filter residencies
 const filteredResidencies = computed(() => {

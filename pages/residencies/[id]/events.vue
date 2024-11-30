@@ -64,10 +64,6 @@ const isGeneratingEvents = ref(false);
 const residencyEvents = ref([]);
 const isLoading = ref(false);
 
-// Constants
-const baseDatoUrl = 'https://tranzac.admin.datocms.com';
-const itemTypeId = 'QjDbKyD5S0awBx6jliPMOA';
-
 // Add debug logging
 const debug = (message: string, data?: any) => {
   console.log(`[Events Page] ${message}`, data || '');
@@ -167,24 +163,6 @@ const navigationLinks = computed(() => [
     to: `/residencies/${route.params.id}/events`,
   }
 ]);
-
-const pageHeaderLinks = computed(() => {
-  const links = [
-    {
-      label: 'Edit in DatoCMS',
-      to: datoEditLink.value,
-      target: '_blank',
-      icon: 'i-mdi-pencil',
-      color: 'gray',
-      size: 'sm',
-    }
-  ];
-  return links;
-});
-
-const datoEditLink = computed(() => {
-  return `${baseDatoUrl}/editor/item_types/${itemTypeId}/items/${residency.value?.id}/edit`;
-});
 
 // Table configuration
 const eventColumns = [

@@ -35,8 +35,11 @@
                   </UButton>
                 </div>
               </div>
+
               <div v-else class="text-stone-500 mt-4">
-                No members associated with this residency
+                <UAlert icon="i-heroicons-exclamation-circle" description="No members associated with this residency"
+                  variant="subtle" color="yellow" />
+
               </div>
             </div>
           </UFormGroup>
@@ -194,16 +197,7 @@ const datoEditLink = computed(() => {
 });
 
 const pageHeaderLinks = computed(() => {
-  const links = [
-    {
-      label: 'Edit in DatoCMS',
-      to: datoEditLink.value,
-      target: '_blank',
-      icon: 'i-mdi-pencil',
-      color: 'gray',
-      size: 'sm',
-    },
-  ];
+  const links = [];
 
   if (residency.value?.activeStatus === 'new' && members.value.length > 0) {
     links.push({
