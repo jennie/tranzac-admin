@@ -43,6 +43,15 @@
 
         <UDivider class="mb-4" />
 
+        <!-- Navigation needs to be wrapped in a container with padding -->
+        <div class="px-4">
+          <UHorizontalNavigation :links="navigationLinks" class="border-b border-gray-200 dark:border-gray-800" />
+        </div>
+
+        <!-- Remove divider after navigation since we have border-b -->
+        <!-- <UDivider class="mb-4" /> -->
+
+        <!-- Replace existing sections with conditional rendering based on activeSection -->
         <UDashboardSection title="Resident Information" description="Manage members associated with this residency.">
           <UFormGroup label="Members" class="grid grid-cols-[300px_1fr] gap-4 items-start" :ui="{ container: '' }">
             <div>
@@ -547,6 +556,7 @@ const fetchResidencyData = async () => {
         generateEvents
         socialMediaAssets {
           url
+          title
         }
       }
     }
@@ -604,13 +614,8 @@ definePageMeta({
 })
 
 // Helper function to determine icon based on asset type
-const getAssetTypeIcon = (type: string) => {
-  const icons = {
-    image: 'i-heroicons-photo',
-    video: 'i-heroicons-video-camera',
-    // Add more asset types as needed
-  }
-  return icons[type] || icons.image
+const getAssetTypeIcon = () => {
+  return 'i-heroicons-photo'
 }
 
 // Lightbox controls
@@ -685,4 +690,34 @@ const handleAddMember = async ({ firstName, lastName, email }) => {
     })
   }
 }
+
+// Events Management
+const isLoadingEvents = ref(false)
+const isGeneratingEvents = ref(false)
+const residencyEvents = ref([])
+
+// Update navigationLinks to link to separate pages
+const navigationLinks = computed(() => [
+  {
+    label: 'Details',
+    icon: 'i-heroicons-document-text',
+    to: `/residencies/${route.params.id}`, // Link to details page
+    badge: null
+  },
+  {
+    label: 'Events',
+    icon: 'i-heroicons-calendar',
+    to: `/residencies/${route.params.id}/events`, // Link to events page
+    badge: {
+      label: residencyEvents.value.length.toString(),
+      color: 'gray'
+    }
+  }
+])
+
+// Remove activeSection and handleNavigationClick as navigation is now handled by links
+// ...existing code related to activeSection...
+
+// Remove events-related watchers and methods
+// ...existing code...
 </script>
