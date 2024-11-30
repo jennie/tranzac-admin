@@ -3,12 +3,8 @@
     <UDashboardSection>
       <template #title>
         <div class="flex items-center justify-between">
-          <div class="flex-1">{{ residency?.title }}</div>
+          <div class="flex-1 text-2xl">{{ residency?.title }}</div>
           <div class="flex gap-2">
-            <UButton v-if="residency?.activeStatus === 'approved' && residency._status !== 'published'" color="primary"
-              @click="handlePublish" :loading="isLoading">
-              Publish Residency
-            </UButton>
             <UButton v-if="residency?.activeStatus === 'pending_review'" color="primary"
               @click="showApprovePublishModal = true" :loading="isLoading">
               Approve and Publish
@@ -23,10 +19,15 @@
           <div class="flex items-center gap-4">
             <UBadge v-if="residency?.activeStatus" :label="prettyStatus(residency.activeStatus)"
               :color="getStatusColor(residency.activeStatus)" variant="subtle" class="capitalize" />
-            <div v-if="residency?.activeStatus === 'approved'" class="flex items-center gap-1"
-              :class="[residency._status === 'published' ? 'text-green-600' : 'text-gray-500']">
-              <UIcon :name="residency._status === 'published' ? 'i-heroicons-check-circle' : 'i-heroicons-clock'" />
-              <span>{{ residency._status === 'published' ? 'Published' : 'Not published' }}</span>
+            <div v-if="residency?.activeStatus === 'approved'" class="flex items-center space-x-2"
+              :class="[residency._status === 'published' ? 'text-green-600' : 'text-stone-500']">
+              <UIcon
+                :name="residency._status === 'published' ? 'i-heroicons-check-circle' : 'i-heroicons-exclamation-triangle'" />
+              <span v-if="residency._status === 'published'">Published</span>
+              <UButton v-else variant="link" class="text-stone-500 text-primary-500 p-0 underline"
+                @click="handlePublish" :loading="isLoading">
+                Not published
+              </UButton>
             </div>
           </div>
 
@@ -57,6 +58,32 @@
     <div class="mt-6">
       <NuxtPage />
     </div>
+
+    <UModal v-model="showPublishModal">
+      <UCard>
+        <template #header>
+          <div class="text-lg font-semibold">
+            Publish Residency
+          </div>
+        </template>
+        <div class="p-4">
+          <p>Are you sure you want to publish this residency?</p>
+        </div>
+        <template #footer>
+          <div class="flex justify-end gap-2">
+            <UButton color="gray" variant="ghost" @click="showPublishModal = false">
+              Cancel
+            </UButton>
+            <UButton color="primary" :loading="isPublishing" @click="confirmPublish">
+              Publish
+            </UButton>
+          </div>
+        </template>
+      </UCard>
+    </UModal>
+
+    <ResidenciesApprovePublishModal v-model="showApprovePublishModal" :residency-id="residency?.id"
+      :initial-generate-events="residency?.generateEvents" @confirm="handleApproveAndPublish" />
   </UDashboardPanelContent>
 </template>
 
@@ -103,5 +130,55 @@ const prettyStatus = (status) => {
 const formatDate = (date: string) => {
   if (!date) return '—'
   return format(new Date(date), 'MMM d, yyyy')
+}
+
+const showPublishModal = ref(false)
+const isPublishing = ref(false)
+const showApprovePublishModal = ref(false)
+
+const handlePublish = () => {
+  showPublishModal.value = true
+}
+
+const confirmPublish = async () => {
+  isPublishing.value = true
+  try {
+    await $fetch(`/api/residencies/${residency.value?.id}/publish`, { method: 'PUT' })
+    showPublishModal.value = false
+    await refresh()
+    toast.add({
+      title: 'Success',
+      description: 'Residency published successfully',
+      color: 'green'
+    })
+  } catch (e) {
+    toast.add({
+      title: 'Error',
+      description: 'Failed to publish residency',
+      color: 'red'
+    })
+  } finally {
+    isPublishing.value = false
+  }
+}
+
+const handleApproveAndPublish = async () => {
+  isPublishing.value = true
+  try {
+    await approveAndPublish()
+    toast.add({
+      title: 'Success',
+      description: 'Residency approved and published successfully',
+      color: 'green'
+    })
+  } catch (e) {
+    toast.add({
+      title: 'Error',
+      description: e.message,
+      color: 'red'
+    })
+  } finally {
+    isPublishing.value = false
+  }
 }
 </script>
