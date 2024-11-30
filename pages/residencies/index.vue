@@ -6,9 +6,6 @@
         <UPageHeader title="Residencies" icon="i-heroicons-microphone" />
         <!-- Table Section -->
         <section class="table-section">
-          <!-- Header with search -->
-
-
           <UCard :ui="{ header: { padding: 'p-4 sm:px-6' }, body: { padding: '' } }" class="min-w-0">
             <!-- Loading State -->
             <div v-if="isLoading" class="py-8">
@@ -22,7 +19,8 @@
 
             <template v-else>
               <div>
-                <div class="flex justify-between px-3 py-3.5 border-b border-gray-200 dark:border-gray-700">
+                <!-- Filters and search -->
+                <div class="flex justify-between px-3 py-3.5 border-b border-gray-200">
                   <div class="flex justify-start mb-4 items-center">
                     <USelect v-model="viewMode" :options="[
                       { label: 'Current Residencies', value: 'current' },
@@ -42,7 +40,7 @@
                           aria-hidden="true" />
                         <span class="truncate">{{ prettyStatus(selectedStatusOption.label) }} ({{
                           selectedStatusOption.count
-                        }})</span>
+                          }})</span>
                       </template>
 
                       <template #option="{ option: status }">

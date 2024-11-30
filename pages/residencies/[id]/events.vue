@@ -1,67 +1,50 @@
 <template>
   <UDashboardPanel grow>
     <UDashboardPanelContent class="pb-24">
-      <!-- Navigation -->
-      <div class="px-4">
-        <UHorizontalNavigation :links="navigationLinks" class="border-b border-gray-200 dark:border-gray-800" />
-      </div>
-
-      <!-- Page Header -->
       <div v-if="isLoading" class="p-4 text-center">
         <UIcon name="i-heroicons-arrow-path" class="animate-spin h-8 w-8 text-gray-400" />
         <p class="mt-2 text-sm text-gray-500">Loading...</p>
       </div>
 
       <template v-else>
-        <UPageHeader :title="pageTitle">
-          <template #description>
-            <div class="text-stone-500">
-              Manage events for this residency
-            </div>
-          </template>
-        </UPageHeader>
-
-        <UDivider class="mb-4" />
-
-        <!-- Events Section -->
-        <UDashboardSection>
-          <div v-if="isLoadingEvents" class="p-4 text-center">
-            <UIcon name="i-heroicons-arrow-path" class="animate-spin h-8 w-8 text-gray-400" />
-            <p class="mt-2 text-sm text-gray-500">Loading events...</p>
-          </div>
-
-          <div v-else>
-            <!-- Generate Events Button -->
-            <div class="flex justify-end mb-4">
-              <UButton v-if="residency?.activeStatus === 'approved'" color="primary" @click="handleGenerateEvents"
-                :loading="isGeneratingEvents">
+        <div>
+          <UDashboardSection title="Events" description="Manage events for this residency">
+            <template #links v-if="residency?.activeStatus === 'approved'">
+              <UButton color="primary" @click="handleGenerateEvents" :loading="isGeneratingEvents">
                 {{ residencyEvents.length ? 'Regenerate Events' : 'Generate Events' }}
               </UButton>
+            </template>
+
+            <div v-if="isLoadingEvents" class="p-4 text-center">
+              <UIcon name="i-heroicons-arrow-path" class="animate-spin h-8 w-8 text-gray-400" />
+              <p class="mt-2 text-sm text-gray-500">Loading events...</p>
             </div>
 
-            <!-- Events Table -->
-            <div v-if="residencyEvents.length > 0">
-              <UTable :rows="residencyEvents" :columns="eventColumns">
-                <template #actions-data="{ row }">
-                  <UDropdown :items="getEventActions(row)">
-                    <UButton color="gray" variant="ghost" icon="i-heroicons-ellipsis-vertical" />
-                  </UDropdown>
-                </template>
-              </UTable>
-            </div>
+            <div v-else>
+              <!-- Events Table -->
+              <div v-if="residencyEvents.length > 0">
+                <UTable :rows="residencyEvents" :columns="eventColumns">
+                  <template #actions-data="{ row }">
+                    <UDropdown :items="getEventActions(row)">
+                      <UButton color="gray" variant="ghost" icon="i-heroicons-ellipsis-vertical" />
+                    </UDropdown>
+                  </template>
+                </UTable>
+              </div>
 
-            <!-- No Events State -->
-            <div v-else class="text-center py-12">
-              <UIcon name="i-heroicons-calendar" class="mx-auto h-12 w-12 text-gray-400" />
-              <h3 class="mt-2 text-sm font-semibold text-gray-900">No events</h3>
-              <p class="mt-1 text-sm text-gray-500">
-                {{ residency?.activeStatus === 'approved'
-                  ? 'Get started by generating events for this residency.'
-                  : 'Events can be generated once the residency is approved.' }}
-              </p>
+              <!-- No Events State -->
+              <div v-else class="text-center py-12">
+                <UIcon name="i-heroicons-calendar" class="mx-auto h-12 w-12 text-gray-400" />
+                <h3 class="mt-2 text-sm font-semibold text-gray-900">No events</h3>
+                <p class="mt-1 text-sm text-gray-500">
+                  {{ residency?.activeStatus === 'approved'
+                    ? 'Get started by generating events for this residency.'
+                    : 'Events can be generated once the residency is approved.' }}
+                </p>
+              </div>
             </div>
-          </div>
-        </UDashboardSection>
+          </UDashboardSection>
+        </div>
       </template>
     </UDashboardPanelContent>
   </UDashboardPanel>

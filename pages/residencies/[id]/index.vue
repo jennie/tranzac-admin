@@ -1,3 +1,4 @@
+<!-- // /pages/residencies/_id/index.vue -->
 <template>
   <UDashboardPanel grow>
     <UDashboardPanelContent class="pb-24">
@@ -8,50 +9,7 @@
         <p>Error: {{ error }}</p>
       </div>
       <template v-else-if="residency">
-        <UPageHeader :title="residency.title" :links="pageHeaderLinks">
-          <!-- Left slot for the title -->
-          <template #title>
-            <span class="font-bold text-3xl">{{ residency.title }}</span>
-          </template>
-
-          <!-- Center slot for status badges -->
-          <template #headline>
-            <div class="flex gap-4">
-              <div class="flex items-center">
-                <UBadge :label="prettyStatus(residency.activeStatus)" :color="getStatusColor(residency.activeStatus)"
-                  variant="subtle" class="capitalize" />
-              </div>
-              <template v-if="residency.activeStatus === 'approved'">
-                <div v-if="residency._status === 'published'" class="flex items-center gap-1 text-green-600">
-                  <UIcon name="i-heroicons-check-circle" />
-                  <span>Published</span>
-                </div>
-                <div v-else class="flex items-center gap-1 text-gray-500">
-                  <UIcon name="i-heroicons-clock" />
-                  <span>Not published</span>
-                </div>
-              </template>
-            </div>
-          </template>
-
-          <template #description>
-            <div class="text-stone-500">
-              {{ formatDate(residency.startDate) }} - {{ formatDate(residency.endDate) }}
-            </div>
-          </template>
-        </UPageHeader>
-
-        <UDivider class="mb-4" />
-
-        <!-- Navigation needs to be wrapped in a container with padding -->
-        <div class="px-4">
-          <UHorizontalNavigation :links="navigationLinks" class="border-b border-gray-200 dark:border-gray-800" />
-        </div>
-
-        <!-- Remove divider after navigation since we have border-b -->
-        <!-- <UDivider class="mb-4" /> -->
-
-        <!-- Replace existing sections with conditional rendering based on activeSection -->
+        <!-- Details Section -->
         <UDashboardSection title="Resident Information" description="Manage members associated with this residency.">
           <UFormGroup label="Members" class="grid grid-cols-[300px_1fr] gap-4 items-start" :ui="{ container: '' }">
             <div>
