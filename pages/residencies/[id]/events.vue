@@ -22,12 +22,36 @@
 
             <div v-else>
               <!-- Events Table -->
-              <div v-if="residencyEvents.length > 0">
-                <UTable :rows="residencyEvents" :columns="eventColumns">
+              <div v-if="sortedEvents.length > 0">
+                <UTable :rows="sortedEvents" :columns="eventColumns">
+                  <template #title-data="{ row }">
+                    <div v-if="row._status === 'published'" class="items-center flex flex-row">
+                      <div class="mr-1">{{ row.title }}</div>
+                      <UIcon v-if="row._status === 'published'" name="ic-round-circle" class="w-3 h-3 text-green-500" />
+                    </div>
+                    <div v-else class="items-center flex flex-row">
+                      <div class="mr-1">{{ row.title }}</div>
+                      <UIcon name="i-heroicons-clock" class="inline w-3 h-3" />
+                    </div>
+
+                  </template>
+                  <template #dates-data="{ row }">
+                    {{ formatDateRange(row.startDate, row.endDate) }}<br>
+                    {{ formatTime(row.startDate) }} - {{ formatTime(row.endDate) }}
+                  </template>
+                  <template #workflowStatus-data="{ row }">
+                    <UBadge v-if="row.workflowStatus?.toLowerCase() !== 'draft'"
+                      :color="getStatusColor(row.workflowStatus)" size="sm">
+                      {{ prettyStatus(row.workflowStatus || 'none') }}
+                    </UBadge>
+                    <span v-else>&nbsp;</span>
+                  </template>
+
                   <template #actions-data="{ row }">
-                    <UDropdown :items="getEventActions(row)">
-                      <UButton color="gray" variant="ghost" icon="i-heroicons-ellipsis-vertical" />
-                    </UDropdown>
+                    <UButton :to="row._editingUrl" color="gray" size="xs" target="_blank" icon="i-mdi-pencil"
+                      variant="soft">
+                      Edit in DatoCMS
+                    </UButton>
                   </template>
                 </UTable>
               </div>
@@ -53,8 +77,11 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { useRoute, onBeforeRouteLeave } from 'vue-router'
-import { format, parseISO } from 'date-fns'
+import { format, parseISO, compareAsc } from 'date-fns'
 import type { Residency } from '~/types/residency'
+import { useWorkflowDate } from '~/composables/useWorkflowDate'
+
+const { formatDateRange, formatTime } = useWorkflowDate();
 
 const toast = useToast();
 const route = useRoute();
@@ -92,6 +119,8 @@ const fetchResidencyData = async () => {
           endDate
           _status
           cancelled
+          workflowStatus
+          _editingUrl
         }
       }
     }
@@ -108,6 +137,7 @@ const fetchResidencyData = async () => {
       residency.value = data.value.residency;
       // Set events directly from the residency data
       residencyEvents.value = data.value.residency._allReferencingEvents || [];
+      debug('Fetched residency events:', residencyEvents.value);
     }
 
     if (gqlError.value) {
@@ -166,26 +196,10 @@ const navigationLinks = computed(() => [
 
 // Table configuration
 const eventColumns = [
-  { key: 'title', label: 'Title' },
-  {
-    key: 'startDate',
-    label: 'Start Time',
-    render: (value) => formatDateTime(value)
-  },
-  {
-    key: 'endDate',
-    label: 'End Time',
-    render: (value) => formatDateTime(value)
-  },
-  {
-    key: '_status',
-    label: 'Status',
-    render: (value, row) => {
-      if (row.cancelled) return 'Cancelled';
-      return prettyStatus(value);
-    }
-  },
-  { key: 'actions', label: 'Actions' }
+  { key: 'title', label: 'Title', slot: 'title-data' },
+  { key: 'dates', label: 'Dates', slot: 'dates-data' },
+  { key: 'workflowStatus', label: 'Workflow Status', slot: 'workflowStatus-data' },
+  { key: 'actions', label: 'Actions', slot: 'actions-data' }
 ];
 
 // Utility functions
@@ -198,10 +212,28 @@ const prettyStatus = (status: string) => {
   return status?.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') || '—';
 };
 
+const getStatusColor = (status: string) => {
+  const colors = {
+    new: 'blue',
+    resident_action_required: 'yellow',
+    pending_review: 'orange',
+    approved: 'green',
+    published: 'primary'
+  }
+  return colors[status as keyof typeof colors] || 'stone'
+}
+
 // Computed properties
 const pageTitle = computed(() =>
   residency.value ? `Events - ${residency.value.title}` : 'Events'
 )
+
+// Computed property to sort events by start date
+const sortedEvents = computed(() => {
+  const sorted = residencyEvents.value.slice().sort((a, b) => compareAsc(parseISO(a.startDate), parseISO(b.startDate)));
+  debug('Sorted events:', sorted);
+  return sorted;
+});
 
 // Event action handlers
 const getEventActions = (event) => {

@@ -35,41 +35,47 @@ export const useWorkflowDate = () => {
     }
   };
 
+  const formatDateRange = (startDate: string, endDate: string) => {
+    try {
+      const start = parseISO(startDate);
+      const end = parseISO(endDate);
+      const zonedStart = toZonedTime(start, "America/Toronto");
+      const zonedEnd = toZonedTime(end, "America/Toronto");
+
+      // If same day, only show one date
+      if (format(zonedStart, "yyyy-MM-dd") === format(zonedEnd, "yyyy-MM-dd")) {
+        return format(zonedStart, "MMM d, yyyy");
+      }
+
+      // If same year, don't repeat year
+      if (format(zonedStart, "yyyy") === format(zonedEnd, "yyyy")) {
+        return `${format(zonedStart, "MMM d")} - ${format(
+          zonedEnd,
+          "MMM d, yyyy"
+        )}`;
+      }
+
+      // Different years, show full dates
+      return `${format(zonedStart, "MMM d, yyyy")} - ${format(
+        zonedEnd,
+        "MMM d, yyyy"
+      )}`;
+    } catch (e) {
+      console.error("Error formatting date range:", e);
+      return "Invalid Date Range";
+    }
+  };
+  const formatTime = (dateString) => {
+    try {
+      return format(parseISO(dateString), "h:mm a");
+    } catch (error) {
+      return "Invalid Time";
+    }
+  };
   return {
     formatDateHeader,
     formatDate,
+    formatDateRange,
+    formatTime,
   };
 };
-
-export default defineEventHandler(async (event) => {
-  try {
-    // ...existing authentication code...
-
-    const today = new Date().toISOString();
-    const response = await useServerGraphqlQuery({
-      query,
-      variables: {
-        ids: datoRecordIds,
-        today,
-      },
-      includeDrafts: true,
-    });
-
-    console.log(
-      "Events from GraphQL:",
-      response?.allResidencies?.map((r) => ({
-        id: r.id,
-        eventCount: r._allReferencingEvents?.length,
-        events: r._allReferencingEvents,
-      }))
-    );
-
-    // ...existing response handling code...
-  } catch (error) {
-    console.error("Error fetching residencies:", error);
-    throw createError({
-      statusCode: error.statusCode || 500,
-      statusMessage: error.message || "Failed to fetch residencies",
-    });
-  }
-});
