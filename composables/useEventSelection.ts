@@ -2,7 +2,7 @@
 
 interface Event {
   id: string;
-  activeStatus: string;
+  workflowStatus: string;
   _status: "draft" | "published";
 }
 
@@ -27,7 +27,7 @@ export const useEventSelection = () => {
       selectedIds.value.length > 0 &&
       selectedIds.value.every(
         (id) =>
-          events.find((e) => e.id === id)?.activeStatus === "pending_review"
+          events.find((e) => e.id === id)?.workflowStatus === "pending_review"
       )
     );
   };

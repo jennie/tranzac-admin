@@ -49,7 +49,7 @@
 
         <UDashboardSection title="Details" description="Residency information and media assets.">
           <template #links>
-            <UButton v-if="residency.activeStatus === 'pending_review'" color="gray"
+            <UButton v-if="residency.workflowStatus === 'pending_review'" color="gray"
               @click="showRequestChangesModal = true" :loading="isLoading">
               Request Changes
             </UButton>
@@ -199,7 +199,7 @@ const datoEditLink = computed(() => {
 const pageHeaderLinks = computed(() => {
   const links = [];
 
-  if (residency.value?.activeStatus === 'new' && members.value.length > 0) {
+  if (residency.value?.workflowStatus === 'new' && members.value.length > 0) {
     links.push({
       label: 'Notify Members & Progress Status',
       click: handleNotifyAndProgress,
@@ -209,7 +209,7 @@ const pageHeaderLinks = computed(() => {
     });
   }
 
-  if (residency.value?.activeStatus === 'pending_review') {
+  if (residency.value?.workflowStatus === 'pending_review') {
     links.push({
       label: 'Approve and Publish',
       click: () => showApprovePublishModal.value = true,
@@ -219,7 +219,7 @@ const pageHeaderLinks = computed(() => {
     });
   }
 
-  if (residency.value?.activeStatus === 'approved' && residency.value._status === 'draft') {
+  if (residency.value?.workflowStatus === 'approved' && residency.value._status === 'draft') {
     links.push({
       label: 'Publish Residency',
       click: handlePublish,
@@ -419,7 +419,7 @@ const handleRequestChangesSubmit = async ({ note, recipientEmails, commsManagerN
       commsManagerName,
       status: 'resident_action_required'
     })
-    residency.value.activeStatus = 'resident_action_required';
+    residency.value.workflowStatus = 'resident_action_required';
     showRequestChangesModal.value = false
     toast.add({
       title: 'Success',
@@ -504,7 +504,7 @@ const fetchResidencyData = async () => {
         startDate
         endDate
         slug
-        activeStatus
+        workflowStatus
         generateEvents
         socialMediaAssets {
           url

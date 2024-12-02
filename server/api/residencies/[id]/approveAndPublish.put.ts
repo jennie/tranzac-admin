@@ -14,7 +14,7 @@ export default defineEventHandler(async (event) => {
 
   try {
     await client.items.update(id, {
-      active_status: "approved",
+      workflow_status: "approved",
     });
 
     await client.items.publish(id);
@@ -29,7 +29,7 @@ export default defineEventHandler(async (event) => {
     if (error.message?.includes("publish")) {
       try {
         await client.items.update(id, {
-          active_status: "pending_review",
+          workflow_status: "pending_review",
         });
       } catch (revertError) {
         console.error("Failed to revert status:", revertError);

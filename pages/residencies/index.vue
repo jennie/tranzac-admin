@@ -40,7 +40,7 @@
                           aria-hidden="true" />
                         <span class="truncate">{{ prettyStatus(selectedStatusOption.label) }} ({{
                           selectedStatusOption.count
-                          }})</span>
+                        }})</span>
                       </template>
 
                       <template #option="{ option: status }">
@@ -67,8 +67,8 @@
                 <UTable :rows="paginatedResidencies" :columns="columns" :sort="sort" @update:sort="handleSortUpdate">
 
                   <!-- Status Column -->
-                  <template #activeStatus-data="{ row }">
-                    <UBadge :label="prettyStatus(row.activeStatus)" :color="getStatusColor(row.activeStatus)"
+                  <template #workflowStatus-data="{ row }">
+                    <UBadge :label="prettyStatus(row.workflowStatus)" :color="getStatusColor(row.workflowStatus)"
                       variant="subtle" class="capitalize" />
                   </template>
 
@@ -168,7 +168,7 @@ const sort = ref({
 // Table configuration
 const columns = [
   {
-    key: 'activeStatus',
+    key: 'workflowStatus',
     label: 'Status',
     sortable: true
   },
@@ -242,11 +242,11 @@ const filteredResidencies = computed(() => {
 
   // Apply status filter
   if (selectedStatus.value === 'approved') {
-    filtered = filtered.filter(r => r.activeStatus === 'approved' && r._status !== 'published')
+    filtered = filtered.filter(r => r.workflowStatus === 'approved' && r._status !== 'published')
   } else if (selectedStatus.value === 'published') {
     filtered = filtered.filter(r => r._status === 'published')
   } else if (selectedStatus.value) {
-    filtered = filtered.filter(r => r.activeStatus === selectedStatus.value)
+    filtered = filtered.filter(r => r.workflowStatus === selectedStatus.value)
   }
 
   // Apply search filter
@@ -320,10 +320,10 @@ const residenciesForMetrics = computed(() => {
 
 // Compute metrics based on residenciesForMetrics
 const metrics = computed(() => ({
-  new: residenciesForMetrics.value.filter(r => r.activeStatus === 'new').length,
-  pending_review: residenciesForMetrics.value.filter(r => r.activeStatus === 'pending_review').length,
-  resident_action_required: residenciesForMetrics.value.filter(r => r.activeStatus === 'resident_action_required').length,
-  approved: residenciesForMetrics.value.filter(r => r.activeStatus === 'approved' && r._status !== 'published').length,
+  new: residenciesForMetrics.value.filter(r => r.workflowStatus === 'new').length,
+  pending_review: residenciesForMetrics.value.filter(r => r.workflowStatus === 'pending_review').length,
+  resident_action_required: residenciesForMetrics.value.filter(r => r.workflowStatus === 'resident_action_required').length,
+  approved: residenciesForMetrics.value.filter(r => r.workflowStatus === 'approved' && r._status !== 'published').length,
   published: residenciesForMetrics.value.filter(r => r._status === 'published').length,
 }))
 
@@ -485,8 +485,8 @@ const handleRequestChangesSubmit = async ({ note, recipientEmails, commsManagerN
     console.log("Request changes response:", response); // Log the response
 
     if (response.success) {
-      selectedResidency.value.activeStatus = 'resident_action_required';
-      console.log("Updated selectedResidency status to:", selectedResidency.value.activeStatus); // Log the updated status
+      selectedResidency.value.workflowStatus = 'resident_action_required';
+      console.log("Updated selectedResidency status to:", selectedResidency.value.workflowStatus); // Log the updated status
       showRequestChangesModal.value = false
       await refresh()
       toast.add({

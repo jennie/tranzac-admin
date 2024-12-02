@@ -23,7 +23,7 @@ import { useResidenciesData } from '@/composables/useResidenciesData';
 const { residencies, metrics } = useResidenciesData();
 
 const columns = [
-  { key: 'activeStatus', label: 'Status', sortable: true },
+  { key: 'workflowStatus', label: 'Status', sortable: true },
   { key: 'title', label: 'Title', sortable: true },
   { key: 'startDate', label: 'Start Date', sortable: true },
   { key: 'endDate', label: 'End Date', sortable: true },

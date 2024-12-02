@@ -33,7 +33,7 @@ export const useResidenciesData = () => {
               description
               startDate
               endDate
-              activeStatus
+              workflowStatus
               _status
               _createdAt
             }

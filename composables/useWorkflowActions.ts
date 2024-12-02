@@ -24,7 +24,7 @@ export const useWorkflowActions = (
   const actions = computed(() => {
     if (!residency.value) return [];
 
-    switch (residency.value.activeStatus) {
+    switch (residency.value.workflowStatus) {
       case "new":
         return ["associate_member"];
       case "resident_action_required":
@@ -43,7 +43,7 @@ export const useWorkflowActions = (
       .join(" ");
   };
 
-  const associateMember = (member) =>
+  const associateMember = (member: Ref<string>) =>
     wrapAction(async () => {
       const response = await $fetch(
         `/api/residencies/${residency.value.id}/members`,
@@ -130,7 +130,7 @@ export const useWorkflowActions = (
       }
       residency.value = {
         ...residency.value,
-        activeStatus: "approved",
+        workflowStatus: "approved",
         _status: "published",
       };
       return response;
@@ -149,7 +149,7 @@ export const useWorkflowActions = (
     }
     residency.value = {
       ...residency.value,
-      activeStatus: newStatus,
+      workflowStatus: newStatus,
     };
     return response;
   };
@@ -165,5 +165,55 @@ export const useWorkflowActions = (
     removeMember,
     publish,
     approveAndPublish,
+    wrapAction,
+  };
+};
+
+export const useEventWorkflowActions = (
+  event: Ref<Event>,
+  refreshData: () => Promise<void>
+) => {
+  const { wrapAction } = useWorkflowActions(ref({}), refreshData); // Add wrapAction from parent composable
+
+  const actions = computed(() => {
+    if (!event.value) return [];
+
+    switch (event.value.workflowStatus) {
+      case "approved":
+        return ["publish"];
+      case "pending_review":
+        return ["approve", "request_changes"];
+      default:
+        return [];
+    }
+  });
+
+  const publishEvent = () =>
+    wrapAction(async () => {
+      const response = await $fetch(`/api/events/${event.value.id}/publish`, {
+        method: "PUT",
+      });
+      if (!response.success) {
+        throw new Error(response.message || "Failed to publish event");
+      }
+      return response;
+    });
+
+  const submitEventChanges = (changes: any) =>
+    wrapAction(async () => {
+      const response = await $fetch(`/api/events/${event.value.id}`, {
+        method: "PUT",
+        body: {
+          ...changes,
+          workflowStatus: "pending_review",
+        },
+      });
+      return response;
+    });
+
+  return {
+    actions,
+    publishEvent,
+    submitEventChanges,
   };
 };

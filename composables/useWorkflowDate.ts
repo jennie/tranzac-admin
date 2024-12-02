@@ -40,3 +40,36 @@ export const useWorkflowDate = () => {
     formatDate,
   };
 };
+
+export default defineEventHandler(async (event) => {
+  try {
+    // ...existing authentication code...
+
+    const today = new Date().toISOString();
+    const response = await useServerGraphqlQuery({
+      query,
+      variables: {
+        ids: datoRecordIds,
+        today,
+      },
+      includeDrafts: true,
+    });
+
+    console.log(
+      "Events from GraphQL:",
+      response?.allResidencies?.map((r) => ({
+        id: r.id,
+        eventCount: r._allReferencingEvents?.length,
+        events: r._allReferencingEvents,
+      }))
+    );
+
+    // ...existing response handling code...
+  } catch (error) {
+    console.error("Error fetching residencies:", error);
+    throw createError({
+      statusCode: error.statusCode || 500,
+      statusMessage: error.message || "Failed to fetch residencies",
+    });
+  }
+});

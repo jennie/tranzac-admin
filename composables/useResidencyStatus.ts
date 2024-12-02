@@ -8,14 +8,14 @@ export const useResidencyStatus = (residency: Ref<Residency>) => {
 
   const canApprove = computed(() => {
     return (
-      residency.value?.activeStatus === "pending_review" &&
+      residency.value?.workflowStatus === "pending_review" &&
       user.value?.role === "comms_manager"
     );
   });
 
   const canPublish = computed(() => {
     return (
-      residency.value?.activeStatus === "approved" &&
+      residency.value?.workflowStatus === "approved" &&
       residency.value?._status === "draft" &&
       user.value?.role === "comms_manager"
     );
@@ -23,20 +23,21 @@ export const useResidencyStatus = (residency: Ref<Residency>) => {
 
   const canRequestChanges = computed(() => {
     return (
-      ["pending_review", "approved"].includes(residency.value?.activeStatus) &&
-      user.value?.role === "comms_manager"
+      ["pending_review", "approved"].includes(
+        residency.value?.workflowStatus
+      ) && user.value?.role === "comms_manager"
     );
   });
 
   const shouldShowRequestChangesForm = computed(() => {
-    return canRequestChanges.value && residency.value?.activeStatus !== "new";
+    return canRequestChanges.value && residency.value?.workflowStatus !== "new";
   });
 
   const canEdit = computed(() => {
     if (user.value?.role === "comms_manager") return true;
     if (user.value?.role === "resident") {
       return ["resident_action_required", "resident_action_required"].includes(
-        residency.value?.activeStatus
+        residency.value?.workflowStatus
       );
     }
     return false;
@@ -73,7 +74,7 @@ export const useResidencyStatus = (residency: Ref<Residency>) => {
       // Update local residency state
       residency.value = {
         ...residency.value,
-        activeStatus: newStatus,
+        workflowStatus: newStatus,
       };
 
       return response;

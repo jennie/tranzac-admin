@@ -31,35 +31,35 @@ export const useResidencyDashboard = () => {
         first: $first
         skip: $skip
         filter: {
-          activeStatus: { in: $status }
+          workflowStatus: { in: $status }
           title: { matches: { pattern: $search } }
         }
         orderBy: _updatedAt_DESC
       ) {
         id
         title
-        activeStatus
+        workflowStatus
         _createdAt
         _updatedAt
         startDate
         endDate
       }
-      newCount: _allResidenciesMeta(filter: { activeStatus: { eq: "new" } }) {
+      newCount: _allResidenciesMeta(filter: { workflowStatus: { eq: "new" } }) {
         count
       }
-      pendingInputCount: _allResidenciesMeta(filter: { activeStatus: { eq: "resident_action_required" } }) {
+      pendingInputCount: _allResidenciesMeta(filter: { workflowStatus: { eq: "resident_action_required" } }) {
         count
       }
-      pendingReviewCount: _allResidenciesMeta(filter: { activeStatus: { eq: "pending_review" } }) {
+      pendingReviewCount: _allResidenciesMeta(filter: { workflowStatus: { eq: "pending_review" } }) {
         count
       }
-      changesRequestedCount: _allResidenciesMeta(filter: { activeStatus: { eq: "resident_action_required" } }) {
+      changesRequestedCount: _allResidenciesMeta(filter: { workflowStatus: { eq: "resident_action_required" } }) {
         count
       }
-      approvedCount: _allResidenciesMeta(filter: { activeStatus: { eq: "approved" } }) {
+      approvedCount: _allResidenciesMeta(filter: { workflowStatus: { eq: "approved" } }) {
         count
       }
-      publishedCount: _allResidenciesMeta(filter: { activeStatus: { eq: "published" } }) {
+      publishedCount: _allResidenciesMeta(filter: { workflowStatus: { eq: "published" } }) {
         count
       }
     }

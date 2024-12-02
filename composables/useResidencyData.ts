@@ -22,7 +22,7 @@ export const useResidencyData = (id: string) => {
           startDate
           endDate
           slug
-          activeStatus
+          workflowStatus
           generateEvents
           socialMediaAssets {
             url

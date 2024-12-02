@@ -13,7 +13,7 @@ export interface Residency {
   startDate: string;
   endDate: string;
   slug: string;
-  activeStatus:
+  workflowStatus:
     | "new"
     | "resident_action_required"
     | "pending_review"

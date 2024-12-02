@@ -30,8 +30,8 @@
       </template>
 
       <!-- Status Column -->
-      <template #activeStatus-data="{ row }">
-        <UBadge :label="formatStatus(row.activeStatus)" :color="getStatusColor(row.activeStatus)" variant="subtle"
+      <template #workflowStatus-data="{ row }">
+        <UBadge :label="formatStatus(row.workflowStatus)" :color="getStatusColor(row.workflowStatus)" variant="subtle"
           class="capitalize" />
       </template>
 
@@ -96,7 +96,7 @@ const selectedStatus = useVModel(props, 'selectedStatus', emit);
 
 const columns = [
   { key: 'checkbox', label: '', sortable: false },
-  { key: 'activeStatus', label: 'Status', sortable: true },
+  { key: 'workflowStatus', label: 'Status', sortable: true },
   { key: 'title', label: 'Title', sortable: true },
   { key: 'startDate', label: 'Start Date', sortable: true },
   { key: 'endDate', label: 'End Date', sortable: true },
@@ -130,21 +130,21 @@ const getStatusColor = (status: string) => {
 };
 
 const canSelectRow = (row: Residency) => {
-  return ['pending_review', 'approved'].includes(row.activeStatus);
+  return ['pending_review', 'approved'].includes(row.workflowStatus);
 };
 
 const canApprove = (row: Residency) => {
-  return row.activeStatus === 'pending_review';
+  return row.workflowStatus === 'pending_review';
 };
 
 const canRequestChanges = (row: Residency) => {
-  return ['pending_review', 'approved'].includes(row.activeStatus);
+  return ['pending_review', 'approved'].includes(row.workflowStatus);
 };
 
 const bulkActionText = computed(() => {
   const firstRow = props.residencies.find(r => r.id === selectedIds.value[0]);
   if (!firstRow) return 'Bulk Action';
-  return firstRow.activeStatus === 'approved' ? 'Bulk Publish' : 'Bulk Approve';
+  return firstRow.workflowStatus === 'approved' ? 'Bulk Publish' : 'Bulk Approve';
 });
 
 // Clear selection when page changes

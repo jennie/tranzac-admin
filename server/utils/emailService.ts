@@ -77,7 +77,7 @@ export const sendNotificationEmail = async (
     case "status_update":
       subject = `Status Update: ${residency.title}`;
       emailContent = `
-        <p>The status of your residency "${residency.title}" has been updated to: ${residency.activeStatus}</p>
+        <p>The status of your residency "${residency.title}" has been updated to: ${residency.workflowStatus}</p>
         <p>Please log in to your dashboard for more details.</p>
       `;
       break;

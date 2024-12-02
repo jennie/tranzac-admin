@@ -14,7 +14,7 @@ export default defineEventHandler(async (event) => {
   try {
     // Update status in DatoCMS
     await updateDatoRecord("residency", id, {
-      active_status: status,
+      workflow_status: status,
     });
 
     return {

@@ -8,8 +8,8 @@
           <template #title>
             <div class="flex items-center gap-4">
               <span class="text-2xl">{{ residency?.title }}</span>
-              <UBadge v-if="residency?.activeStatus" :label="prettyStatus(residency.activeStatus)"
-                :color="getStatusColor(residency.activeStatus)" variant="subtle" class="capitalize" />
+              <UBadge v-if="residency?.workflowStatus" :label="prettyStatus(residency.workflowStatus)"
+                :color="getStatusColor(residency.workflowStatus)" variant="subtle" class="capitalize" />
             </div>
           </template>
           <template #description>
@@ -108,12 +108,12 @@ const pageLinks = computed(() => [[
 // Update actionLinks structure with two groups
 const actionLinks = computed(() => [
   [
-    ...(residency.value?.activeStatus === 'pending_review' ? [{
+    ...(residency.value?.workflowStatus === 'pending_review' ? [{
       label: 'Request Changes',
       icon: 'i-heroicons-chat-bubble-left-ellipsis',
       click: () => showRequestChangesModal.value = true
     }] : []),
-    ...(residency.value?.activeStatus === 'pending_review' ? [{
+    ...(residency.value?.workflowStatus === 'pending_review' ? [{
       label: 'Approve and Publish',
       icon: 'i-heroicons-check',
       click: () => showApprovePublishModal.value = true,
