@@ -120,29 +120,28 @@ const yearMonthOptions = ref([
 ]);
 
 const state = ref({
-  frequency: frequencyOptions.value[0].key,
+  frequency: null, // No initial value
   frequencies: {
-    daily: { interval: 1 },
+    daily: { interval: null },
     weekly: {
-      interval: 1,
-      weekdays: weekdayOptions.value[0], // Default to first option
+      interval: null,
+      weekdays: null,
     },
     monthly: {
-      interval: 1,
-      day: monthDayOptions.value[0], // Default to first option
-      weekdays: weekdayOptions.value[0], // Default to first option
+      interval: null,
+      day: null,
+      weekdays: null,
     },
     yearly: {
-      interval: 1,
-      day: monthDayOptions.value[0], // Default to first option
-      weekdays: weekdayOptions.value[0], // Default to first option
-      month: yearMonthOptions.value[0], // Default to first option
+      interval: null,
+      day: null,
+      weekdays: null,
+      month: null,
     },
   },
 });
 
 function emitState() {
-  // console.log("Emitting state:", JSON.stringify(state.value, null, 2));
   emit("state-changed", state.value);
 }
 
@@ -152,13 +151,15 @@ async function updateOccurrences() {
 
   try {
     const rule = generateRecurrenceRule(state.value);
-    schedule.rrules = [rule];
+    if (rule) {
+      schedule.rrules = [rule];
 
-    for (const occurrence of rule.occurrences({
-      start: startDate.value,
-      take: 5,
-    })) {
-      occurrences.value.push(occurrence.date);
+      for (const occurrence of rule.occurrences({
+        start: startDate.value,
+        take: 5,
+      })) {
+        occurrences.value.push(occurrence.date);
+      }
     }
   } catch (error) {
     console.error("Failed to update occurrences:", error);
@@ -182,6 +183,8 @@ watch(
   { deep: true },
 );
 function generateRecurrenceRule(state) {
+  if (!state.frequency) return null;
+
   let rule;
   let byDayOfWeek;
   switch (state.frequency) {
@@ -197,18 +200,18 @@ function generateRecurrenceRule(state) {
       rule = new Rule({
         frequency: "WEEKLY",
         interval: state.frequencies?.weekly.interval,
-        byDayOfWeek: [state.frequencies?.weekly.weekdays.key],
+        byDayOfWeek: [state.frequencies?.weekly.weekdays?.key],
         start: startDate.value,
         end: endDate.value,
       });
       break;
     case "MONTHLY":
       byDayOfWeek =
-        state.frequencies.monthly.weekdays.key !== "day"
+        state.frequencies.monthly.weekdays?.key !== "day"
           ? [
             [
-              state.frequencies.monthly.weekdays.key,
-              state.frequencies.monthly.day.key,
+              state.frequencies.monthly.weekdays?.key,
+              state.frequencies.monthly.day?.key,
             ],
           ]
           : undefined;
@@ -222,21 +225,21 @@ function generateRecurrenceRule(state) {
 
       break;
     case "YEARLY":
-      if (state.frequencies.yearly.weekdays.key !== "day") {
+      if (state.frequencies.yearly.weekdays?.key !== "day") {
         byDayOfWeek = [
           [
-            state.frequencies.yearly.weekdays.key,
-            parseInt(state.frequencies.yearly.day.key),
+            state.frequencies.yearly.weekdays?.key,
+            parseInt(state.frequencies.yearly.day?.key),
           ],
         ];
       }
       const byDayOfMonth =
-        state.frequencies.yearly.weekdays.key === "day"
-          ? [parseInt(state.frequencies.yearly.day.key)]
+        state.frequencies.yearly.weekdays?.key === "day"
+          ? [parseInt(state.frequencies.yearly.day?.key)]
           : undefined;
       rule = new Rule({
         frequency: "YEARLY",
-        byMonthOfYear: [state.frequencies.yearly.month.key],
+        byMonthOfYear: [state.frequencies.yearly.month?.key],
         ...(byDayOfWeek && { byDayOfWeek }),
         ...(byDayOfMonth && { byDayOfMonth }),
         start: startDate.value,
@@ -254,8 +257,8 @@ function createFrequencyWatcher(frequency) {
       let isweekdayDisabled = false;
 
       weekdayOptions.value.forEach((option) => {
-        option.disabled = newDay.key > 4;
-        if (option.key === state.value.frequencies[frequency].weekdays.key) {
+        option.disabled = newDay?.key > 4;
+        if (option.key === state.value.frequencies[frequency].weekdays?.key) {
           isweekdayDisabled = option.disabled;
         }
       });
@@ -275,10 +278,11 @@ createFrequencyWatcher("yearly");
 </script>
 
 <template>
-  <UFormGroup name="frequency" label="Frequency" description="How often will you collect data?" required
+  <UFormGroup name="frequency" label="Recurrence" description="How often will the residency occur?"
     class="grid grid-cols-2 gap-2" :ui="{ container: '' }">
-    <USelectMenu v-model="state.frequency" :options="frequencyOptions" label="Frequency" class="w-full lg:w-48"
-      placeholder="Select frequency" value-attribute="key" option-attribute="label" />
+    <USelectMenu v-model="state.frequency" :options="[{ key: null, label: 'No recurrence' }, ...frequencyOptions]"
+      label="Frequency" class="w-full lg:w-48" placeholder="Select frequency" value-attribute="key"
+      option-attribute="label" />
     <!-- Daily -->
     <div v-if="state.frequency === 'DAILY'" class="flex flex-wrap space-y-4">
       <div class="flex items-center mt-4">
@@ -365,10 +369,6 @@ createFrequencyWatcher("yearly");
           <span v-else>Next:
             {{ occurrences.map((date) => formatDate(date)).join("; ") }}</span>
         </span>
-      </div>
-      <div class="flex items-center my-4">
-        <span class="text-gray-500 dark:text-gray-400 text-xs mr-2">Start Date: {{ formattedStartDate }}</span>
-        <span class="text-gray-500 dark:text-gray-400 text-xs mr-2">End Date: {{ formattedEndDate }}</span>
       </div>
     </div>
   </UFormGroup>

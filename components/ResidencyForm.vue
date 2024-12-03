@@ -1,7 +1,7 @@
 <template>
-  <form @submit.prevent="handleSubmit">
-    <UFormGroup name="dateRange" label="Data Collection Date Range" description="When will you collect data?" required
-      class="grid grid-cols-2 gap-2 items-center" :ui="{ container: '' }">
+  <UForm :state="formData" class="space-y-4" @submit.prevent="handleSubmit">
+    <UFormGroup name="dateRange" label="Residency Date Range" required class="grid grid-cols-2 gap-2 items-start"
+      :ui="{ container: '' }">
       <UPopover :popper="{ placement: 'top-start' }">
         <UButton icon="i-heroicons-calendar-days-20-solid">
           {{ formatDate(formData.start_date) }} -
@@ -25,46 +25,68 @@
       </UPopover>
     </UFormGroup>
 
-    <IndicatorsFrequencyFields v-if="formData.start_date && formData.end_date" :startDate="formData.start_date"
-      :endDate="formData.end_date" @state-changed="updateState" />
-    <UInput v-model="formData.title" label="Title" required />
-    <UInput v-model="formData.description" label="Description" type="textarea" />
+    <UFormGroup name="title" label="Title" required class="grid grid-cols-2 gap-2 items-start">
+      <UInput v-model="formData.title" label="Title" required />
+    </UFormGroup>
+    <UFormGroup name="description" label="Description" class="grid grid-cols-2 gap-2 items-start">
+      <UTextarea v-model="formData.description" label="Description" />
+    </UFormGroup>
     <FrequencyFields v-if="formData.start_date && formData.end_date" :startDate="formData.start_date"
       :endDate="formData.end_date" @state-changed="updateRecurrence" />
-    <UInput v-model="formData.external_url" label="External URL" />
-    <UInput v-model="formData.recurrence" label="Recurring Event Dates" type="textarea" />
-    <UInput v-model="formData.custom_dates" label="Custom Event Dates" type="textarea" />
-    <UCheckbox v-model="formData.generate_events" label="Generate Events" />
-    <USelect v-model="formData.rooms" :options="roomsOptions" label="Rooms" multiple />
-    <UFileUpload v-model="formData.photo" label="Photo" />
-    <UGallery v-model="formData.social_media_assets" label="Social Media Assets" />
-    <UInput v-model="formData.slug" label="Slug" />
-    <USelect v-model="formData.workflow_status" :options="workflowStatusOptions" label="Workflow Status" />
-    <USelect v-model="formData.artists" :options="artistsOptions" label="Artists" multiple />
+    <UFormGroup name="custom_dates" label="Custom Event Dates" class="grid grid-cols-2 gap-2 items-start">
+      <div v-for="(date, index) in formData.custom_dates" :key="index" class="flex items-center gap-2">
+        <UPopover :popper="{ placement: 'bottom-start' }">
+          <UButton icon="i-heroicons-calendar-days-20-solid" :label="formatDate(date)" />
+          <template #panel="{ close }">
+            <DatePicker v-model="formData.custom_dates[index]" is-required @close="close" />
+          </template>
+        </UPopover>
+        <UButton icon="i-heroicons-trash-20-solid" size="xs" variant="soft" @click="removeCustomDate(index)" />
+      </div>
+      <UPopover :popper="{ placement: 'bottom-start' }">
+        <UButton icon="i-heroicons-plus-20-solid" @click="addCustomDate">
+          {{ formData.custom_dates.length > 0 ? 'Add Another' : 'Add Date' }}
+        </UButton>
+        <template #panel="{ close }">
+          <DatePicker v-model="newDate" is-required @close="close" @update:modelValue="handleNewDate" />
+        </template>
+      </UPopover>
+    </UFormGroup>
+    <UFormGroup name="rooms" label="Rooms" class="grid grid-cols-2 gap-2 items-start"
+      description="This field does not check availability.">
+      <USelectMenu v-model="formData.rooms" :options="roomsOptions" label="Room(s)" multiple>
+        <template #option="{ option }">
+          <span class="flex items-center">
+            <span>{{ option.label }}</span>
+            <span v-if="!option.isAvailable" class="ml-2 text-red-500">
+              <i class="i-heroicons-exclamation-circle-20-solid"></i>
+            </span>
+          </span>
+        </template>
+      </USelectMenu>
+    </UFormGroup>
+    <UFormGroup name="workflow_status" label="Workflow Status" class="grid grid-cols-2 gap-2 items-start">
+      <USelect v-model="formData.workflow_status" :options="workflowStatusOptions" label="Workflow Status" />
+    </UFormGroup>
     <UButton type="submit">Create</UButton>
-  </form>
+  </UForm>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch, onMounted } from 'vue';
 import { format, add, isSameDay, sub, type Duration } from 'date-fns';
 import FrequencyFields from '~/components/residencies/FrequencyFields.vue';
+import { useRooms } from '~/composables/useRooms';
 
 const formData = ref({
   title: '',
   description: '',
   start_date: new Date(),
   end_date: add(new Date(), { months: 12 }),
-  external_url: '',
-  recurrence: '',
-  custom_dates: '',
-  generate_events: false,
+  custom_dates: [], // No initial value
   rooms: [],
-  photo: null,
-  social_media_assets: [],
-  slug: '',
   workflow_status: 'new',
-  artists: [],
+  recurrence: null, // No initial value
 });
 
 const ranges = [
@@ -78,6 +100,8 @@ const selected = ref({
   start: new Date(),
   end: add(new Date(), { months: 12 }),
 });
+
+const newDate = ref(null);
 
 function selectRange(duration: Duration, isFuture = true) {
   const compareFn = isFuture ? add : sub;
@@ -105,19 +129,25 @@ const formatDate = (date) => {
   return date ? format(date, "d MMM, yyyy") : '';
 };
 
-const roomsOptions = [
-  // Populate with room options
-];
+const { rooms, isLoading, error, fetchRooms } = useRooms();
+
+const roomsOptions = ref([]);
+
+const fetchRoomsOptions = async () => {
+  await fetchRooms();
+  roomsOptions.value = rooms.value.map((room) => ({
+    label: room.name,
+    value: room.id,
+  }));
+};
+
+onMounted(fetchRoomsOptions);
 
 const workflowStatusOptions = [
   { label: 'New', value: 'new' },
   { label: 'Resident Action Required', value: 'resident_action_required' },
   { label: 'Pending Review', value: 'pending_review' },
   { label: 'Approved', value: 'approved' },
-];
-
-const artistsOptions = [
-  // Populate with artist options
 ];
 
 const handleSubmit = () => {
@@ -134,7 +164,22 @@ const updateState = (state) => {
 
 const updateDates = () => {
   if (formData.value.start_date && formData.value.end_date) {
-    // Trigger any necessary updates when dates change
+    fetchRoomsOptions(); // Re-fetch room availability when dates change
   }
+};
+
+const addCustomDate = () => {
+  newDate.value = new Date();
+};
+
+const handleNewDate = (date) => {
+  if (date) {
+    formData.value.custom_dates.push(date);
+    newDate.value = null;
+  }
+};
+
+const removeCustomDate = (index) => {
+  formData.value.custom_dates.splice(index, 1);
 };
 </script>
