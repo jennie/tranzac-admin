@@ -15,12 +15,20 @@ const props = defineProps({
     type: Date,
     default: () => new Date(),
   },
+  hideLabel: {
+    type: Boolean,
+    default: false,
+  },
+  index: {
+    type: Number,
+    required: true,
+  },
 });
 
 const formatDate = (date: Date) =>
   useDateFormat(ref(date), "D MMM, YYYY").value;
 const occurrences = ref([]);
-const emit = defineEmits(["state-changed"]);
+const emit = defineEmits(["state-changed", "remove"]);
 
 const schedule = new Schedule({
   rrules: [],
@@ -278,8 +286,13 @@ createFrequencyWatcher("yearly");
 </script>
 
 <template>
-  <UFormGroup name="frequency" label="Recurrence" description="How often will the residency occur?"
-    class="grid grid-cols-2 gap-2" :ui="{ container: '' }">
+  <UFormGroup name="frequency" :label="!props.hideLabel ? 'Recurrence' : ''"
+    :description="!props.hideLabel ? 'How often will the residency occur?' : ''" class="grid grid-cols-2 gap-2"
+    :ui="{ container: '' }">
+    <div class="col-span-2 flex items-center justify-between mb-2">
+      <span class="text-xs uppercase text-primary font-bold">Rule {{ props.index + 1 }}</span>
+      <UButton size="xs" variant="soft" @click="$emit('remove')">x clear</UButton>
+    </div>
     <USelectMenu v-model="state.frequency" :options="[{ key: null, label: 'No recurrence' }, ...frequencyOptions]"
       label="Frequency" class="w-full lg:w-48" placeholder="Select frequency" value-attribute="key"
       option-attribute="label" />

@@ -31,8 +31,11 @@
     <UFormGroup name="description" label="Description" class="grid grid-cols-2 gap-2 items-start">
       <UTextarea v-model="formData.description" label="Description" />
     </UFormGroup>
-    <FrequencyFields v-if="formData.start_date && formData.end_date" :startDate="formData.start_date"
-      :endDate="formData.end_date" @state-changed="updateRecurrence" />
+    <div v-for="(recurrence, index) in formData.recurrences" :key="index" class="relative">
+      <FrequencyFields v-if="formData.start_date && formData.end_date" :startDate="formData.start_date"
+        :endDate="formData.end_date" @state-changed="updateRecurrence(index)" :hide-label="index > 0" :index="index" @remove="removeRecurrence(index)" />
+    </div>
+    <UButton @click="addRecurrence">Add Recurrence</UButton>
     <UFormGroup name="custom_dates" label="Custom Event Dates" class="grid grid-cols-2 gap-2 items-start">
       <div v-for="(date, index) in formData.custom_dates" :key="index" class="flex items-center gap-2">
         <UPopover :popper="{ placement: 'bottom-start' }">
@@ -86,7 +89,7 @@ const formData = ref({
   custom_dates: [], // No initial value
   rooms: [],
   workflow_status: 'new',
-  recurrence: null, // No initial value
+  recurrences: [null], // Initial value with one recurrence
 });
 
 const ranges = [
@@ -154,12 +157,20 @@ const handleSubmit = () => {
   emit('submit', formData.value);
 };
 
-const updateRecurrence = (recurrence) => {
-  formData.value.recurrence = recurrence;
+const updateRecurrence = (index) => (recurrence) => {
+  formData.value.recurrences[index] = recurrence;
+};
+
+const addRecurrence = () => {
+  formData.value.recurrences.push(null);
+};
+
+const removeRecurrence = (index) => {
+  formData.value.recurrences.splice(index, 1);
 };
 
 const updateState = (state) => {
-  formData.value.recurrence = state;
+  formData.value.recurrences = state;
 };
 
 const updateDates = () => {
