@@ -149,6 +149,21 @@ const state = ref({
   },
 });
 
+const isRecurrenceComplete = computed(() => {
+  switch (state.value.frequency) {
+    case 'DAILY':
+      return state.value.frequencies.daily.interval !== null;
+    case 'WEEKLY':
+      return state.value.frequencies.weekly.interval !== null && state.value.frequencies.weekly.weekdays !== null;
+    case 'MONTHLY':
+      return state.value.frequencies.monthly.interval !== null && state.value.frequencies.monthly.day !== null && state.value.frequencies.monthly.weekdays !== null;
+    case 'YEARLY':
+      return state.value.frequencies.yearly.interval !== null && state.value.frequencies.yearly.day !== null && state.value.frequencies.yearly.weekdays !== null && state.value.frequencies.yearly.month !== null;
+    default:
+      return false;
+  }
+});
+
 function emitState() {
   emit("state-changed", state.value);
 }
@@ -291,16 +306,16 @@ createFrequencyWatcher("yearly");
     :ui="{ container: '' }">
     <div class="col-span-2 flex items-center justify-between mb-2">
       <span class="text-xs uppercase text-primary font-bold">Rule {{ props.index + 1 }}</span>
-      <UButton size="xs" variant="soft" @click="$emit('remove')">x clear</UButton>
+      <UButton v-if="props.index > 0" size="xs" variant="soft" @click="$emit('remove')">x clear</UButton>
     </div>
     <USelectMenu v-model="state.frequency" :options="[{ key: null, label: 'No recurrence' }, ...frequencyOptions]"
-      label="Frequency" class="w-full lg:w-48" placeholder="Select frequency" value-attribute="key"
-      option-attribute="label" />
+      label="Frequency" class="w-full" placeholder="Select frequency" value-attribute="key" option-attribute="label" />
     <!-- Daily -->
     <div v-if="state.frequency === 'DAILY'" class="flex flex-wrap space-y-4">
-      <div class="flex items-center mt-4">
-        <span class="text-gray-500 dark:text-gray-400 text-xs mr-2">Every</span>
-        <UInput type="number" v-model="state.frequencies.daily.interval" class="w-40" name="daily-interval">
+      <div class="flex flex-col mt-4 w-full">
+        <span class="text-gray-500 dark:text-gray-400 text-xs mb-1">Every</span>
+        <UInput type="number" v-model="state.frequencies.daily.interval" class="w-full" name="daily-interval"
+          placeholder="Enter interval">
           <template #trailing>
             <span class="text-gray-500 dark:text-gray-400 text-xs">days</span>
           </template>
@@ -309,73 +324,76 @@ createFrequencyWatcher("yearly");
     </div>
     <!-- Weekly -->
     <div v-if="state.frequency === 'WEEKLY'">
-      <div class="flex items-center my-4">
-        <span class="text-gray-500 dark:text-gray-400 text-xs mr-2">Every</span>
-        <UInput type="number" v-model="state.frequencies.weekly.interval" class="w-40" name="weekly-interval">
+      <div class="flex flex-col my-4 w-full">
+        <span class="text-gray-500 dark:text-gray-400 text-xs mb-1">Every</span>
+        <UInput type="number" v-model="state.frequencies.weekly.interval" class="w-full" name="weekly-interval"
+          placeholder="Enter interval">
           <template #trailing>
             <span class="text-gray-500 dark:text-gray-400 text-xs">weeks</span>
           </template>
         </UInput>
       </div>
-      <div class="flex items-center">
-        <span class="text-gray-500 dark:text-gray-400 text-xs mr-2">On</span>
-        <USelectMenu v-model="state.frequencies.weekly.weekdays" :options="weekdayOptions" label="On"
-          class="w-40 lg:w-48" placeholder="Select day" option-attribute="label" />
+      <div class="flex flex-col w-full">
+        <span class="text-gray-500 dark:text-gray-400 text-xs mb-1">On</span>
+        <USelectMenu v-model="state.frequencies.weekly.weekdays" :options="weekdayOptions" label="On" class="w-full"
+          placeholder="Select day" option-attribute="label" />
       </div>
     </div>
 
     <!-- Monthly -->
     <div v-if="state.frequency === 'MONTHLY'">
-      <div class="flex items-center my-4">
-        <span class="text-gray-500 dark:text-gray-400 text-xs mr-2">Every</span>
-        <UInput type="number" v-model="state.frequencies.monthly.interval" class="w-40" name="monthly-interval">
+      <div class="flex flex-col my-4 w-full">
+        <span class="text-gray-500 dark:text-gray-400 text-xs mb-1">Every</span>
+        <UInput type="number" v-model="state.frequencies.monthly.interval" class="w-full" name="monthly-interval"
+          placeholder="Enter interval">
           <template #trailing>
             <span class="text-gray-500 dark:text-gray-400 text-xs">months</span>
           </template>
         </UInput>
       </div>
-      <div class="flex items-center">
-        <span class="text-gray-500 dark:text-gray-400 text-xs mr-2">On the</span>
-        <USelectMenu type="number" v-model="state.frequencies.monthly.day" class="w-40 mr-2"
-          :options="currentMonthDayOptions">
+      <div class="flex flex-col w-full">
+        <span class="text-gray-500 dark:text-gray-400 text-xs mb-1">On the</span>
+        <USelectMenu type="number" v-model="state.frequencies.monthly.day" class="w-full mb-2"
+          :options="currentMonthDayOptions" placeholder="Select day">
         </USelectMenu>
 
         <USelectMenu v-model="state.frequencies.monthly.weekdays"
-          :options="[{ key: 'day', label: 'Day' }, ...weekdayOptions]" label="On" class="w-40 lg:w-48"
+          :options="[{ key: 'day', label: 'Day' }, ...weekdayOptions]" label="On" class="w-full"
           placeholder="Select day" option-attribute="label" />
       </div>
     </div>
 
     <!-- Yearly -->
     <div v-if="state.frequency === 'YEARLY'">
-      <div class="flex items-center my-4">
-        <span class="text-gray-500 dark:text-gray-400 text-xs mr-2">Every</span>
-        <UInput type="number" v-model="state.frequencies.yearly.interval" class="w-40" name="yearly-interval">
+      <div class="flex flex-col my-4 w-full">
+        <span class="text-gray-500 dark:text-gray-400 text-xs mb-1">Every</span>
+        <UInput type="number" v-model="state.frequencies.yearly.interval" class="w-full" name="yearly-interval"
+          placeholder="Enter interval">
           <template #trailing>
             <span class="text-gray-500 dark:text-gray-400 text-xs">years</span>
           </template>
         </UInput>
       </div>
-      <div class="flex items-center my-4">
-        <span class="text-gray-500 dark:text-gray-400 text-xs mr-2">On the</span>
-        <USelectMenu type="number" v-model="state.frequencies.yearly.day" class="w-40 mr-2"
-          :options="currentMonthDayOptions" option-attribute="label">
+      <div class="flex flex-col my-4 w-full">
+        <span class="text-gray-500 dark:text-gray-400 text-xs mb-1">On the</span>
+        <USelectMenu type="number" v-model="state.frequencies.yearly.day" class="w-full mb-2"
+          :options="currentMonthDayOptions" option-attribute="label" placeholder="Select day">
         </USelectMenu>
 
         <USelectMenu v-model="state.frequencies.yearly.weekdays"
-          :options="[{ key: 'day', label: 'Day' }, ...weekdayOptions]" label="On" class="w-40 lg:w-48"
+          :options="[{ key: 'day', label: 'Day' }, ...weekdayOptions]" label="On" class="w-full"
           placeholder="Select day" option-attribute="label" />
       </div>
 
-      <div class="flex items-center mt-4">
-        <span class="text-gray-500 dark:text-gray-400 text-xs mr-2">Of</span>
-        <USelectMenu type="number" v-model="state.frequencies.yearly.month" class="w-40 mr-2" option-value="key"
-          :options="yearMonthOptions">
+      <div class="flex flex-col mt-4 w-full">
+        <span class="text-gray-500 dark:text-gray-400 text-xs mb-1">Of</span>
+        <USelectMenu type="number" v-model="state.frequencies.yearly.month" class="w-full" option-value="key"
+          :options="yearMonthOptions" placeholder="Select month">
         </USelectMenu>
       </div>
     </div>
 
-    <div class="items-center">
+    <div v-if="isRecurrenceComplete" class="items-center">
       <div class="flex items-center my-4">
         <span class="text-gray-500 dark:text-gray-400 text-xs mr-2 italic">
           <span v-if="occurrences.length === 0 && state.frequency !== null">No upcoming dates found</span>

@@ -33,9 +33,13 @@
     </UFormGroup>
     <div v-for="(recurrence, index) in formData.recurrences" :key="index" class="relative">
       <FrequencyFields v-if="formData.start_date && formData.end_date" :startDate="formData.start_date"
-        :endDate="formData.end_date" @state-changed="updateRecurrence(index)" :hide-label="index > 0" :index="index" @remove="removeRecurrence(index)" />
+        :endDate="formData.end_date" @state-changed="updateRecurrence(index)" :hide-label="index > 0" :index="index"
+        @remove="removeRecurrence(index)" />
     </div>
-    <UButton @click="addRecurrence">Add Recurrence</UButton>
+    <div class="grid grid-cols-2 gap-2">
+      <div></div>
+      <UButton icon="i-heroicons-plus-20-solid" @click="addRecurrence" class="w-auto">Add Recurrence</UButton>
+    </div>
     <UFormGroup name="custom_dates" label="Custom Event Dates" class="grid grid-cols-2 gap-2 items-start">
       <div v-for="(date, index) in formData.custom_dates" :key="index" class="flex items-center gap-2">
         <UPopover :popper="{ placement: 'bottom-start' }">
