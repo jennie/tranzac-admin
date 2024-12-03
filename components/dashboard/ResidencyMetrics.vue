@@ -10,8 +10,8 @@
           <div class="text-3xl font-bold">{{ metrics.new }}</div>
           <p class="text-sm text-gray-500 mt-2">New residencies needing review</p>
           <div v-if="metrics.new > 0" class="mt-4">
-            <UButton size="sm" color="primary" @click.stop="$emit('review-new')">
-              Review New
+            <UButton size="sm" color="primary" @click.stop="$emit('reviewNew')">
+              Review Now
             </UButton>
           </div>
         </template>
@@ -23,8 +23,8 @@
           <div class="text-3xl font-bold">{{ metrics.pending_review }}</div>
           <p class="text-sm text-gray-500 mt-2">Applications awaiting your review</p>
           <div v-if="metrics.pending_review > 0" class="mt-4">
-            <UButton size="sm" color="primary" @click.stop="$emit('bulk-approve')">
-              Bulk Approve
+            <UButton size="sm" color="primary" @click.stop="$emit('reviewPending')">
+              Review Pending
             </UButton>
           </div>
         </template>
@@ -53,8 +53,8 @@
           <div class="text-3xl font-bold">{{ metrics.approved }}</div>
           <p class="text-sm text-gray-500 mt-2">Ready for publishing</p>
           <div v-if="metrics.approved > 0" class="mt-4">
-            <UButton size="sm" color="primary" @click.stop="$emit('bulk-publish')">
-              Bulk Publish
+            <UButton size="sm" color="primary" @click.stop="$emit('bulkPublish')">
+              Publish All
             </UButton>
           </div>
         </template>
@@ -86,8 +86,8 @@ defineProps<{
 
 defineEmits<{
   (e: 'filter', status: string): void;
-  (e: 'review-new'): void;
-  (e: 'bulk-approve'): void;
-  (e: 'bulk-publish'): void;
+  (e: 'reviewNew'): void;
+  (e: 'reviewPending'): void;
+  (e: 'bulkPublish'): void;
 }>();
 </script>

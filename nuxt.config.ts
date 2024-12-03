@@ -1,7 +1,12 @@
 export default defineNuxtConfig({
   extends: ["@nuxt/ui-pro"],
   build: {
-    transpile: ["@tranzac/pricing-lib"],
+    transpile: [
+      "@tranzac/pricing-lib",
+      "@rschedule/core",
+      "@rschedule/standard-date-adapter",
+      "@rschedule/core/generators",
+    ],
   },
   ssr: true,
   modules: [
@@ -18,7 +23,6 @@ export default defineNuxtConfig({
       port: 3001, // Replace with your desired port
     },
   },
-
   runtimeConfig: {
     public: {
       datoCmsToken: process.env.DATO_API_TOKEN,

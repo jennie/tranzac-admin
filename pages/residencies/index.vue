@@ -59,7 +59,7 @@
                         <UKbd value="/" />
                       </template>
                     </UInput>
-
+                    <UButton @click="showCreateResidencyModal = true">Create Residency</UButton>
 
                   </div>
                 </div>
@@ -132,6 +132,16 @@
           </UCard>
         </UModal>
 
+        <!-- Create Residency Modal -->
+        <UModal v-model="showCreateResidencyModal">
+          <UCard>
+            <template #header>
+              <div class="text-lg font-semibold">Create Residency</div>
+            </template>
+            <ResidencyForm @submit="handleCreateResidencySubmit" />
+          </UCard>
+        </UModal>
+
       </UDashboardPanelContent>
     </UDashboardPanel>
   </UDashboardPage>
@@ -164,6 +174,7 @@ const sort = ref({
   column: '_createdAt',
   direction: 'desc' as const
 })
+const showCreateResidencyModal = ref(false);
 
 // Table configuration
 const columns = [
@@ -506,6 +517,33 @@ const handleRequestChangesSubmit = async ({ note, recipientEmails, commsManagerN
     })
   }
 }
+
+const handleCreateResidencySubmit = async (formData) => {
+  try {
+    const response = await $fetch('/api/residencies/create', {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (response.success) {
+      showCreateResidencyModal.value = false;
+      await refresh();
+      toast.add({
+        title: 'Success',
+        description: 'Residency created successfully',
+        color: 'green',
+      });
+    } else {
+      throw new Error(response.message || 'Failed to create residency');
+    }
+  } catch (e) {
+    toast.add({
+      title: 'Error',
+      description: 'Failed to create residency',
+      color: 'red',
+    });
+  }
+};
 
 // Reset pagination when filters change
 watch([searchQuery, selectedStatus, viewMode], () => {

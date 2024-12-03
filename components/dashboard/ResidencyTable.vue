@@ -1,4 +1,4 @@
-// components/dashboard/ResidencyTable.vue
+<!-- // components/dashboard/ResidencyTable.vue -->
 <template>
   <UCard :ui="{ header: { padding: 'p-4 sm:px-6' }, body: { padding: '' } }" class="min-w-0">
     <UDashboardToolbar>
@@ -49,8 +49,11 @@
           <UButton v-if="canApprove(row)" color="primary" size="sm" @click="$emit('approve', row.id)">
             Approve
           </UButton>
-          <UButton v-if="canRequestChanges(row)" color="gray" size="sm" @click="$emit('request-changes', row.id)">
+          <UButton v-if="canRequestChanges(row)" color="warning" size="sm" @click="$emit('requestChanges', row.id)">
             Request Changes
+          </UButton>
+          <UButton v-if="canPublish(row)" color="success" size="sm" @click="$emit('publish', row.id)">
+            Publish
           </UButton>
         </div>
       </template>
@@ -88,6 +91,7 @@ const emit = defineEmits<{
   (e: 'bulk-action', ids: string[]): void;
   (e: 'approve', id: string): void;
   (e: 'request-changes', id: string): void;
+  (e: 'publish', id: string): void;
 }>();
 
 const selectedIds = ref<string[]>([]);
@@ -139,6 +143,10 @@ const canApprove = (row: Residency) => {
 
 const canRequestChanges = (row: Residency) => {
   return ['pending_review', 'approved'].includes(row.workflowStatus);
+};
+
+const canPublish = (row: Residency) => {
+  return row.workflowStatus === 'approved';
 };
 
 const bulkActionText = computed(() => {
