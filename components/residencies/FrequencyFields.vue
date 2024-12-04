@@ -192,6 +192,7 @@ async function updateOccurrences() {
 const formattedStartDate = computed(() => startDate.value ? formatDate(startDate.value.date) : '');
 const formattedEndDate = computed(() => endDate.value ? formatDate(endDate.value.date) : '');
 
+
 onMounted(async () => {
   console.log("Start Date:", startDate.value);
   console.log("End Date:", endDate.value);
@@ -216,7 +217,8 @@ function generateRecurrenceRule(state) {
     const intervalObj = state.frequencies.monthly.interval;
     interval = intervalObj ? parseInt(intervalObj.key, 10) : NaN;
   } else {
-    interval = parseInt(state.frequencies[state.frequency.toLowerCase()].interval, 10);
+    const intervalStr = state.frequencies[state.frequency.toLowerCase()].interval;
+    interval = intervalStr ? parseInt(intervalStr, 10) : NaN;
   }
 
   console.log(`Generating rule for frequency: ${state.frequency}`);
@@ -224,7 +226,7 @@ function generateRecurrenceRule(state) {
   console.log(`State:`, state);
 
   if (isNaN(interval)) {
-    console.error("Interval is not a number");
+    console.warn("Interval is not a number or not provided yet");
     return null;
   }
 
@@ -241,7 +243,7 @@ function generateRecurrenceRule(state) {
       rule = new Rule({
         frequency: "WEEKLY",
         interval,
-        byDayOfWeek: [state.frequencies?.weekly.weekdays?.key],
+        byDayOfWeek: state.frequencies.weekly.weekdays ? [state.frequencies.weekly.weekdays.key] : undefined,
         start: startDate.value,
         end: endDate.value,
       });
@@ -252,10 +254,13 @@ function generateRecurrenceRule(state) {
           ? [
             [
               state.frequencies.monthly.weekdays?.key,
-              state.frequencies.monthly.day?.key,
+              parseInt(state.frequencies.monthly.day?.key, 10),
             ],
           ]
           : undefined;
+      if (byDayOfWeek && byDayOfWeek[0][0] === undefined) {
+        byDayOfWeek = undefined;
+      }
       rule = new Rule({
         frequency: "MONTHLY",
         interval,
@@ -269,18 +274,18 @@ function generateRecurrenceRule(state) {
         byDayOfWeek = [
           [
             state.frequencies.yearly.weekdays?.key,
-            parseInt(state.frequencies.yearly.day?.key),
+            parseInt(state.frequencies.yearly.day?.key, 10),
           ],
         ];
       }
       const byDayOfMonth =
         state.frequencies.yearly.weekdays?.key === "day"
-          ? [parseInt(state.frequencies.yearly.day?.key)]
+          ? [parseInt(state.frequencies.yearly.day?.key, 10)]
           : undefined;
       rule = new Rule({
         frequency: "YEARLY",
         interval,
-        byMonthOfYear: [state.frequencies.yearly.month?.key],
+        byMonthOfYear: [parseInt(state.frequencies.yearly.month?.key, 10)],
         ...(byDayOfWeek && { byDayOfWeek }),
         ...(byDayOfMonth && { byDayOfMonth }),
         start: startDate.value,
@@ -425,6 +430,7 @@ createFrequencyWatcher("yearly");
             {{ occurrences.map((date) => formatDate(date)).join("; ") }}</span>
         </span>
       </div>
+
     </div>
   </UFormGroup>
 </template>

@@ -2,123 +2,128 @@
 <template>
   <UDashboardPage>
     <UDashboardPanel grow>
-      <UDashboardPanelContent class="pb-24">
-        <UPageHeader title="Residencies" icon="i-heroicons-microphone" />
+      <UDashboardPanel>
+        <UDashboardNavbar title="Residencies" badge="5">
+          <template #right>
+            <UButton label="New Residency" trailing-icon="i-heroicons-plus" color="gray"
+              @click="showCreateResidencyModal = true" />
+          </template>
+        </UDashboardNavbar>
+      </UDashboardPanel>
+      <UDashboardPanel class="pb-24">
+
+
         <!-- Table Section -->
-        <section class="table-section">
-          <UCard :ui="{ header: { padding: 'p-4 sm:px-6' }, body: { padding: '' } }" class="min-w-0">
-            <!-- Loading State -->
-            <div v-if="isLoading" class="py-8">
-              <div class="flex items-center justify-center">
-                <div class="text-center">
-                  <UIcon name="i-heroicons-arrow-path" class="animate-spin h-8 w-8 text-gray-400" />
-                  <p class="mt-2 text-sm text-gray-500">Loading residencies...</p>
-                </div>
+
+        <!-- Loading State -->
+        <div v-if="isLoading" class="py-8">
+          <div class="flex items-center justify-center">
+            <div class="text-center">
+              <UIcon name="i-heroicons-arrow-path" class="animate-spin h-8 w-8 text-gray-400" />
+              <p class="mt-2 text-sm text-gray-500">Loading residencies...</p>
+            </div>
+          </div>
+        </div>
+
+        <template v-else>
+          <div>
+            <!-- Filters and search -->
+            <div class="flex justify-between px-3 py-3.5 border-b border-gray-200">
+              <div class="flex justify-start mb-4 items-center">
+                <USelect v-model="viewMode" :options="[
+                  { label: 'Current Residencies', value: 'current' },
+                  { label: 'Past Residencies', value: 'past' },
+                  { label: 'All Residencies', value: 'all' }
+                ]" class="w-48 pr-2" />
+                <!-- Hide the count badge -->
+                <!-- <UBadge :label="filteredResidencies.length" class="h-6" /> -->
+
+              </div>
+              <div v-if="viewMode === 'current'" class="flex justify-center mb-4 items-center">
+                <USelectMenu v-model="selectedStatusOption" :options="statusOptions" option-attribute="label"
+                  class="min-w-48">
+                  <template #label>
+                    <span
+                      :class="[getStatusColorClass(selectedStatusOption.value), 'inline-block h-2 w-2 flex-shrink-0 rounded-full']"
+                      aria-hidden="true" />
+                    <span class="truncate">{{ prettyStatus(selectedStatusOption.label) }} ({{
+                      selectedStatusOption.count
+                      }})</span>
+                  </template>
+
+                  <template #option="{ option: status }">
+                    <span
+                      :class="[getStatusColorClass(status.value), 'inline-block h-2 w-2 flex-shrink-0 rounded-full']"
+                      aria-hidden="true" />
+                    <span class="truncate">{{ prettyStatus(status.label) }} ({{ status.count }})</span>
+                  </template>
+                </USelectMenu>
+              </div>
+              <div class="flex justify-end mb-4">
+
+                <UInput v-model="searchQuery" icon="i-heroicons-magnifying-glass" autocomplete="off"
+                  placeholder="Search residencies..." class="hidden lg:block" @keydown.esc="$event.target.blur()">
+                  <template #trailing>
+                    <UKbd value="/" />
+                  </template>
+                </UInput>
+
+              </div>
+            </div>
+            <!-- Table -->
+            <UTable :rows="paginatedResidencies" :columns="columns" :sort="sort" @update:sort="handleSortUpdate">
+
+              <!-- Status Column -->
+              <template #workflowStatus-data="{ row }">
+                <UBadge :label="prettyStatus(row.workflowStatus)" :color="getStatusColor(row.workflowStatus)"
+                  variant="subtle" class="capitalize" />
+              </template>
+
+              <!-- Published Column -->
+              <template #published-data="{ row }">
+                <span v-if="row._status === 'published'" class="text-green-500 flex items-center">
+                  <UIcon name="i-heroicons-check" class="mr-1" />
+                </span>
+              </template>
+
+              <!-- Title Column -->
+              <template #title-data="{ row }">
+                <span class="flex flex-row">
+                  <NuxtLink :to="`/residencies/${row.id}`" class="underline hover:text-primary-600">
+                    {{ row.title }}
+                  </NuxtLink>
+                </span>
+              </template>
+
+              <!-- Date Columns -->
+              <template #startDate-data="{ row }">
+                <span :title="row.startDate">{{ formatDate(row.startDate) }}</span>
+              </template>
+              <template #endDate-data="{ row }">
+                <span :title="row.endDate">{{ formatDate(row.endDate) }}</span>
+              </template>
+
+            </UTable>
+
+            <!-- Empty State -->
+            <div v-if="filteredResidencies.length === 0" class="py-12">
+              <div class="text-center">
+                <UIcon name="i-heroicons-inbox" class="mx-auto h-12 w-12 text-gray-400" />
+                <h3 class="mt-2 text-sm font-semibold text-gray-900">No residencies found</h3>
+                <p class="mt-1 text-sm text-gray-500">No residencies match your current filters.</p>
               </div>
             </div>
 
-            <template v-else>
-              <div>
-                <!-- Filters and search -->
-                <div class="flex justify-between px-3 py-3.5 border-b border-gray-200">
-                  <div class="flex justify-start mb-4 items-center">
-                    <USelect v-model="viewMode" :options="[
-                      { label: 'Current Residencies', value: 'current' },
-                      { label: 'Past Residencies', value: 'past' },
-                      { label: 'All Residencies', value: 'all' }
-                    ]" class="w-48 pr-2" />
-                    <!-- Hide the count badge -->
-                    <!-- <UBadge :label="filteredResidencies.length" class="h-6" /> -->
-
-                  </div>
-                  <div v-if="viewMode === 'current'" class="flex justify-center mb-4 items-center">
-                    <USelectMenu v-model="selectedStatusOption" :options="statusOptions" option-attribute="label"
-                      class="min-w-48">
-                      <template #label>
-                        <span
-                          :class="[getStatusColorClass(selectedStatusOption.value), 'inline-block h-2 w-2 flex-shrink-0 rounded-full']"
-                          aria-hidden="true" />
-                        <span class="truncate">{{ prettyStatus(selectedStatusOption.label) }} ({{
-                          selectedStatusOption.count
-                        }})</span>
-                      </template>
-
-                      <template #option="{ option: status }">
-                        <span
-                          :class="[getStatusColorClass(status.value), 'inline-block h-2 w-2 flex-shrink-0 rounded-full']"
-                          aria-hidden="true" />
-                        <span class="truncate">{{ prettyStatus(status.label) }} ({{ status.count }})</span>
-                      </template>
-                    </USelectMenu>
-                  </div>
-                  <div class="flex justify-end mb-4">
-
-                    <UInput v-model="searchQuery" icon="i-heroicons-magnifying-glass" autocomplete="off"
-                      placeholder="Search residencies..." class="hidden lg:block" @keydown.esc="$event.target.blur()">
-                      <template #trailing>
-                        <UKbd value="/" />
-                      </template>
-                    </UInput>
-                    <UButton @click="showCreateResidencyModal = true">Create Residency</UButton>
-
-                  </div>
-                </div>
-                <!-- Table -->
-                <UTable :rows="paginatedResidencies" :columns="columns" :sort="sort" @update:sort="handleSortUpdate">
-
-                  <!-- Status Column -->
-                  <template #workflowStatus-data="{ row }">
-                    <UBadge :label="prettyStatus(row.workflowStatus)" :color="getStatusColor(row.workflowStatus)"
-                      variant="subtle" class="capitalize" />
-                  </template>
-
-                  <!-- Published Column -->
-                  <template #published-data="{ row }">
-                    <span v-if="row._status === 'published'" class="text-green-500 flex items-center">
-                      <UIcon name="i-heroicons-check" class="mr-1" />
-                    </span>
-                  </template>
-
-                  <!-- Title Column -->
-                  <template #title-data="{ row }">
-                    <span class="flex flex-row">
-                      <NuxtLink :to="`/residencies/${row.id}`" class="underline hover:text-primary-600">
-                        {{ row.title }}
-                      </NuxtLink>
-                    </span>
-                  </template>
-
-                  <!-- Date Columns -->
-                  <template #startDate-data="{ row }">
-                    <span :title="row.startDate">{{ formatDate(row.startDate) }}</span>
-                  </template>
-                  <template #endDate-data="{ row }">
-                    <span :title="row.endDate">{{ formatDate(row.endDate) }}</span>
-                  </template>
-
-                </UTable>
-
-                <!-- Empty State -->
-                <div v-if="filteredResidencies.length === 0" class="py-12">
-                  <div class="text-center">
-                    <UIcon name="i-heroicons-inbox" class="mx-auto h-12 w-12 text-gray-400" />
-                    <h3 class="mt-2 text-sm font-semibold text-gray-900">No residencies found</h3>
-                    <p class="mt-1 text-sm text-gray-500">No residencies match your current filters.</p>
-                  </div>
-                </div>
-
-                <!-- Pagination -->
-                <div v-if="filteredResidencies.length > 0"
-                  class="flex justify-between items-center px-4 py-3 border-t border-gray-200 dark:border-gray-700">
-                  <p class="text-sm text-gray-500">
-                    Showing {{ paginationStart }} to {{ paginationEnd }} of {{ totalResidencies }} residencies
-                  </p>
-                  <UPagination v-model="currentPage" :total="totalResidencies" :per-page="perPage" />
-                </div>
-              </div>
-            </template>
-          </UCard>
-        </section>
+            <!-- Pagination -->
+            <div v-if="filteredResidencies.length > 0"
+              class="flex justify-between items-center px-4 py-3 border-t border-gray-200 dark:border-gray-700">
+              <p class="text-sm text-gray-500">
+                Showing {{ paginationStart }} to {{ paginationEnd }} of {{ totalResidencies }} residencies
+              </p>
+              <UPagination v-model="currentPage" :total="totalResidencies" :per-page="perPage" />
+            </div>
+          </div>
+        </template>
 
         <!-- Request Changes Modal -->
         <UModal v-model="showRequestChangesModal">
@@ -134,15 +139,11 @@
 
         <!-- Create Residency Modal -->
         <UModal v-model="showCreateResidencyModal">
-          <UCard>
-            <template #header>
-              <div class="text-lg font-semibold">Create Residency</div>
-            </template>
-            <ResidencyForm @submit="handleCreateResidencySubmit" />
-          </UCard>
+
+          <ResidencyForm @submit="handleCreateResidencySubmit" />
         </UModal>
 
-      </UDashboardPanelContent>
+      </UDashboardPanel>
     </UDashboardPanel>
   </UDashboardPage>
 </template>
@@ -174,7 +175,6 @@ const sort = ref({
   column: '_createdAt',
   direction: 'desc' as const
 })
-const showCreateResidencyModal = ref(false);
 
 // Table configuration
 const columns = [
@@ -433,12 +433,14 @@ const handleApprove = async (id: string) => {
     })
     await refresh()
     toast.add({
+      icon: 'i-heroicons-check-badge',
       title: 'Success',
       description: 'Residency approved successfully',
       color: 'green'
     })
   } catch (e) {
     toast.add({
+      icon: 'i-heroicons-x-circle',
       title: 'Error',
       description: 'Failed to approve residency',
       color: 'red'
@@ -453,12 +455,14 @@ const handleApproveAndPublish = async (id: string) => {
     })
     await refresh()
     toast.add({
+      icon: 'i-heroicons-check-badge',
       title: 'Success',
       description: 'Residency approved and published successfully',
       color: 'green'
     })
   } catch (e) {
     toast.add({
+      icon: 'i-heroicons-x-circle',
       title: 'Error',
       description: 'Failed to approve and publish residency',
       color: 'red'
@@ -501,6 +505,7 @@ const handleRequestChangesSubmit = async ({ note, recipientEmails, commsManagerN
       showRequestChangesModal.value = false
       await refresh()
       toast.add({
+        icon: 'i-heroicons-check-badge',
         title: 'Success',
         description: 'Changes requested successfully',
         color: 'green'
@@ -511,6 +516,7 @@ const handleRequestChangesSubmit = async ({ note, recipientEmails, commsManagerN
   } catch (e) {
     console.error("Error in handleRequestChangesSubmit:", e); // Log the error
     toast.add({
+      icon: 'i-heroicons-x-circle',
       title: 'Error',
       description: 'Failed to request changes',
       color: 'red'
@@ -526,9 +532,9 @@ const handleCreateResidencySubmit = async (formData) => {
     });
 
     if (response.success) {
-      showCreateResidencyModal.value = false;
       await refresh();
       toast.add({
+        icon: 'i-heroicons-check-badge',
         title: 'Success',
         description: 'Residency created successfully',
         color: 'green',
@@ -538,6 +544,7 @@ const handleCreateResidencySubmit = async (formData) => {
     }
   } catch (e) {
     toast.add({
+      icon: 'i-heroicons-x-circle',
       title: 'Error',
       description: 'Failed to create residency',
       color: 'red',
@@ -599,4 +606,7 @@ watch(viewMode, () => {
   selectedStatus.value = ''
   selectedStatusOption.value = statusOptions.value[0]
 })
+
+const showCreateResidencyModal = ref(false);
+
 </script>
