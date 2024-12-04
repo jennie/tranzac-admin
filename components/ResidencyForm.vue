@@ -37,27 +37,35 @@
         @remove="removeRecurrence(index)" />
     </div>
     <div class="grid grid-cols-2 gap-2">
-      <div></div>
-      <UButton icon="i-heroicons-plus-20-solid" @click="addRecurrence" class="w-auto">Add Recurrence</UButton>
+
+      <div class="col-start-2">
+        <UButton icon="i-heroicons-plus-20-solid" variant="soft" @click="addRecurrence" class="">Add Recurrence
+        </UButton>
+      </div>
     </div>
     <UFormGroup name="custom_dates" label="Custom Event Dates" class="grid grid-cols-2 gap-2 items-start">
       <div v-for="(date, index) in formData.custom_dates" :key="index" class="flex items-center gap-2">
+        <div class="flex flex-row justify-between w-full items-center">
+          <UPopover :popper="{ placement: 'bottom-start' }">
+            <UButton icon="i-heroicons-calendar-days-20-solid" :label="formatDate(date)" />
+            <template #panel="{ close }">
+              <DatePicker v-model="formData.custom_dates[index]" is-required @close="close" />
+            </template>
+          </UPopover>
+          <UButton size="xs" icon="i-heroicons-x-mark-solid" variant="soft" @click="removeCustomDate(index)" />
+        </div>
+
+      </div>
+      <div :class="formData.custom_dates.length > 0 ? 'mt-4' : 'mt-0'">
         <UPopover :popper="{ placement: 'bottom-start' }">
-          <UButton icon="i-heroicons-calendar-days-20-solid" :label="formatDate(date)" />
+          <UButton icon="i-heroicons-plus-20-solid" variant="soft" @click="addCustomDate">
+            {{ formData.custom_dates.length > 0 ? 'Add Another' : 'Add Date' }}
+          </UButton>
           <template #panel="{ close }">
-            <DatePicker v-model="formData.custom_dates[index]" is-required @close="close" />
+            <DatePicker v-model="newDate" is-required @close="close" @update:modelValue="handleNewDate" />
           </template>
         </UPopover>
-        <UButton icon="i-heroicons-trash-20-solid" size="xs" variant="soft" @click="removeCustomDate(index)" />
       </div>
-      <UPopover :popper="{ placement: 'bottom-start' }">
-        <UButton icon="i-heroicons-plus-20-solid" @click="addCustomDate">
-          {{ formData.custom_dates.length > 0 ? 'Add Another' : 'Add Date' }}
-        </UButton>
-        <template #panel="{ close }">
-          <DatePicker v-model="newDate" is-required @close="close" @update:modelValue="handleNewDate" />
-        </template>
-      </UPopover>
     </UFormGroup>
     <UFormGroup name="rooms" label="Rooms" class="grid grid-cols-2 gap-2 items-start"
       description="This field does not check availability.">
@@ -65,9 +73,7 @@
         <template #option="{ option }">
           <span class="flex items-center">
             <span>{{ option.label }}</span>
-            <span v-if="!option.isAvailable" class="ml-2 text-red-500">
-              <i class="i-heroicons-exclamation-circle-20-solid"></i>
-            </span>
+
           </span>
         </template>
       </USelectMenu>

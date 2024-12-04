@@ -210,11 +210,29 @@ function generateRecurrenceRule(state) {
 
   let rule;
   let byDayOfWeek;
+  let interval;
+
+  if (state.frequency === 'MONTHLY') {
+    const intervalObj = state.frequencies.monthly.interval;
+    interval = intervalObj ? parseInt(intervalObj.key, 10) : NaN;
+  } else {
+    interval = parseInt(state.frequencies[state.frequency.toLowerCase()].interval, 10);
+  }
+
+  console.log(`Generating rule for frequency: ${state.frequency}`);
+  console.log(`Interval: ${interval}`);
+  console.log(`State:`, state);
+
+  if (isNaN(interval)) {
+    console.error("Interval is not a number");
+    return null;
+  }
+
   switch (state.frequency) {
     case "DAILY":
       rule = new Rule({
         frequency: "DAILY",
-        interval: state.frequencies?.daily.interval,
+        interval,
         start: startDate.value,
         end: endDate.value,
       });
@@ -222,7 +240,7 @@ function generateRecurrenceRule(state) {
     case "WEEKLY":
       rule = new Rule({
         frequency: "WEEKLY",
-        interval: state.frequencies?.weekly.interval,
+        interval,
         byDayOfWeek: [state.frequencies?.weekly.weekdays?.key],
         start: startDate.value,
         end: endDate.value,
@@ -240,12 +258,11 @@ function generateRecurrenceRule(state) {
           : undefined;
       rule = new Rule({
         frequency: "MONTHLY",
-        interval: state.frequencies?.monthly.interval,
+        interval,
         byDayOfWeek,
         start: startDate.value,
         end: endDate.value,
       });
-
       break;
     case "YEARLY":
       if (state.frequencies.yearly.weekdays?.key !== "day") {
@@ -262,6 +279,7 @@ function generateRecurrenceRule(state) {
           : undefined;
       rule = new Rule({
         frequency: "YEARLY",
+        interval,
         byMonthOfYear: [state.frequencies.yearly.month?.key],
         ...(byDayOfWeek && { byDayOfWeek }),
         ...(byDayOfMonth && { byDayOfMonth }),
@@ -270,6 +288,8 @@ function generateRecurrenceRule(state) {
       });
       break;
   }
+
+  console.log(`Generated rule:`, rule);
   return rule;
 }
 
@@ -306,18 +326,20 @@ createFrequencyWatcher("yearly");
     :ui="{ container: '' }">
     <div class="col-span-2 flex items-center justify-between mb-2">
       <span class="text-xs uppercase text-primary font-bold">Rule {{ props.index + 1 }}</span>
-      <UButton v-if="props.index > 0" size="xs" variant="soft" @click="$emit('remove')">x clear</UButton>
+      <UButton v-if="props.index > 0" size="xs" icon="i-heroicons-x-mark-solid" variant="soft"
+        @click="$emit('remove')" />
+
     </div>
     <USelectMenu v-model="state.frequency" :options="[{ key: null, label: 'No recurrence' }, ...frequencyOptions]"
       label="Frequency" class="w-full" placeholder="Select frequency" value-attribute="key" option-attribute="label" />
     <!-- Daily -->
     <div v-if="state.frequency === 'DAILY'" class="flex flex-wrap space-y-4">
       <div class="flex flex-col mt-4 w-full">
-        <span class="text-gray-500 dark:text-gray-400 text-xs mb-1">Every</span>
+        <span class="text-stone-500 dark:text-stone-400 text-xs mb-1">Every</span>
         <UInput type="number" v-model="state.frequencies.daily.interval" class="w-full" name="daily-interval"
           placeholder="Enter interval">
           <template #trailing>
-            <span class="text-gray-500 dark:text-gray-400 text-xs">days</span>
+            <span class="text-stone-500 dark:text-stone-400 text-xs">days</span>
           </template>
         </UInput>
       </div>
@@ -325,57 +347,59 @@ createFrequencyWatcher("yearly");
     <!-- Weekly -->
     <div v-if="state.frequency === 'WEEKLY'">
       <div class="flex flex-col my-4 w-full">
-        <span class="text-gray-500 dark:text-gray-400 text-xs mb-1">Every</span>
+        <span class="text-stone-500 dark:text-stone-400 text-xs mb-1">Every</span>
         <UInput type="number" v-model="state.frequencies.weekly.interval" class="w-full" name="weekly-interval"
           placeholder="Enter interval">
           <template #trailing>
-            <span class="text-gray-500 dark:text-gray-400 text-xs">weeks</span>
+            <span class="text-stone-500 dark:text-stone-400 text-xs">weeks</span>
           </template>
         </UInput>
       </div>
       <div class="flex flex-col w-full">
-        <span class="text-gray-500 dark:text-gray-400 text-xs mb-1">On</span>
+        <span class="text-stone-500 dark:text-stone-400 text-xs mb-1">On</span>
         <USelectMenu v-model="state.frequencies.weekly.weekdays" :options="weekdayOptions" label="On" class="w-full"
           placeholder="Select day" option-attribute="label" />
       </div>
     </div>
 
     <!-- Monthly -->
-    <div v-if="state.frequency === 'MONTHLY'">
-      <div class="flex flex-col my-4 w-full">
-        <span class="text-gray-500 dark:text-gray-400 text-xs mb-1">Every</span>
-        <UInput type="number" v-model="state.frequencies.monthly.interval" class="w-full" name="monthly-interval"
-          placeholder="Enter interval">
-          <template #trailing>
-            <span class="text-gray-500 dark:text-gray-400 text-xs">months</span>
-          </template>
-        </UInput>
-      </div>
-      <div class="flex flex-col w-full">
-        <span class="text-gray-500 dark:text-gray-400 text-xs mb-1">On the</span>
-        <USelectMenu type="number" v-model="state.frequencies.monthly.day" class="w-full mb-2"
-          :options="currentMonthDayOptions" placeholder="Select day">
+    <div v-if="state.frequency === 'MONTHLY'" class="">
+      <div class="w-full mt-4  text-stone-500 dark:text-stone-400 text-xs mb-1">Every</div>
+      <div class="flex flex-row mb-4 items-center">
+
+        <USelectMenu v-model="state.frequencies.monthly.interval"
+          :options="[...Array(11).keys()].map(i => ({ key: i + 1, label: (i + 1).toString() }))" class="w-full mr-2"
+          placeholder="Select interval">
         </USelectMenu>
 
-        <USelectMenu v-model="state.frequencies.monthly.weekdays"
-          :options="[{ key: 'day', label: 'Day' }, ...weekdayOptions]" label="On" class="w-full"
-          placeholder="Select day" option-attribute="label" />
+        <span class="text-stone-500 dark:text-stone-400 text-xs">months</span>
+      </div>
+      <div class="flex flex-col w-full">
+        <span class="text-stone-500 dark:text-stone-400 text-xs mb-1">On the</span>
+        <div class="flex space-x-2 w-full">
+          <USelectMenu type="number" v-model="state.frequencies.monthly.day" class="w-1/2 mb-2"
+            :options="currentMonthDayOptions" placeholder="Select day">
+          </USelectMenu>
+          <USelectMenu v-model="state.frequencies.monthly.weekdays"
+            :options="[{ key: 'day', label: 'Day' }, ...weekdayOptions]" label="On" class="w-1/2"
+            placeholder="Select day" option-attribute="label" />
+        </div>
       </div>
     </div>
 
     <!-- Yearly -->
     <div v-if="state.frequency === 'YEARLY'">
       <div class="flex flex-col my-4 w-full">
-        <span class="text-gray-500 dark:text-gray-400 text-xs mb-1">Every</span>
+        <span class="text-stone-500 dark:text-stone-400 text-xs mb-1">Every</span>
         <UInput type="number" v-model="state.frequencies.yearly.interval" class="w-full" name="yearly-interval"
           placeholder="Enter interval">
           <template #trailing>
-            <span class="text-gray-500 dark:text-gray-400 text-xs">years</span>
+            <span class="text-stone-500 dark:text-stone-400 text-xs">years</span>
           </template>
         </UInput>
       </div>
       <div class="flex flex-col my-4 w-full">
-        <span class="text-gray-500 dark:text-gray-400 text-xs mb-1">On the</span>
+        <span class="text-stone-500 dark:text-stone-400 text-xs mb-1">On the</span>
         <USelectMenu type="number" v-model="state.frequencies.yearly.day" class="w-full mb-2"
           :options="currentMonthDayOptions" option-attribute="label" placeholder="Select day">
         </USelectMenu>
@@ -386,7 +410,7 @@ createFrequencyWatcher("yearly");
       </div>
 
       <div class="flex flex-col mt-4 w-full">
-        <span class="text-gray-500 dark:text-gray-400 text-xs mb-1">Of</span>
+        <span class="text-stone-500 dark:text-stone-400 text-xs mb-1">Of</span>
         <USelectMenu type="number" v-model="state.frequencies.yearly.month" class="w-full" option-value="key"
           :options="yearMonthOptions" placeholder="Select month">
         </USelectMenu>
@@ -395,7 +419,7 @@ createFrequencyWatcher("yearly");
 
     <div v-if="isRecurrenceComplete" class="items-center">
       <div class="flex items-center my-4">
-        <span class="text-gray-500 dark:text-gray-400 text-xs mr-2 italic">
+        <span class="text-stone-500 dark:text-stone-400 text-xs mr-2 italic">
           <span v-if="occurrences.length === 0 && state.frequency !== null">No upcoming dates found</span>
           <span v-else>Next:
             {{ occurrences.map((date) => formatDate(date)).join("; ") }}</span>
@@ -407,5 +431,9 @@ createFrequencyWatcher("yearly");
 <style scoped>
 .frequencySection {
   @apply space-y-4;
+}
+
+.no-shrink {
+  flex-shrink: 0;
 }
 </style>
