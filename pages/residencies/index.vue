@@ -48,7 +48,7 @@
                       aria-hidden="true" />
                     <span class="truncate">{{ prettyStatus(selectedStatusOption.label) }} ({{
                       selectedStatusOption.count
-                      }})</span>
+                    }})</span>
                   </template>
 
                   <template #option="{ option: status }">

@@ -1,3 +1,5 @@
+// /server/api/residencies/create.post.ts
+import { buildClient, buildBlockRecord } from "@datocms/cma-client-node";
 import { getDatoClient } from "~/server/utils/datoCmsClient";
 
 export default defineEventHandler(async (event) => {
@@ -5,60 +7,51 @@ export default defineEventHandler(async (event) => {
   console.log("Received body:", JSON.stringify(body, null, 2));
   const client = getDatoClient();
 
-  // Remove the recurrences attribute from the body
-  const { recurrences, rooms, custom_dates, ...filteredBody } = body;
+  const { rooms, custom_dates, recurrence, ...filteredBody } = body;
 
-  // Transform rooms to be an array of strings containing only the value properties
-  const transformedRooms = rooms.map((room) => room.value);
+  // Validate rooms
+  const transformedRooms = Array.isArray(rooms) ? rooms.filter(Boolean) : [];
+  if (!transformedRooms.length) {
+    throw createError({
+      statusCode: 400,
+      message: "At least one valid room must be selected",
+    });
+  }
 
-  // Ensure custom_dates are correctly formatted as block records objects
-  const transformedCustomDates = custom_dates.map((date) => {
-    if (
-      !date.start_datetime ||
-      isNaN(new Date(date.start_datetime).getTime())
-    ) {
-      throw new Error(`Invalid start date value: ${date.start_datetime}`);
+  // Transform custom dates
+  const transformedCustomDates = (custom_dates || []).map((date) => {
+    if (!date.date || isNaN(new Date(date.date).getTime())) {
+      throw new Error(`Invalid date value: ${date.date}`);
     }
-    if (!date.end_datetime || isNaN(new Date(date.end_datetime).getTime())) {
-      throw new Error(`Invalid end date value: ${date.end_datetime}`);
-    }
-    return {
-      type: "item",
-      attributes: {
-        start_datetime: new Date(date.start_datetime).toISOString(),
-        end_datetime: new Date(date.end_datetime).toISOString(),
-      },
-      relationships: {
-        item_type: {
-          data: {
-            type: "item_type",
-            id: "TiqBomdjSXabcXlo6MFsOg",
-          },
-        },
-      },
-    };
+    return buildBlockRecord({
+      item_type: { type: "item_type", id: "TiqBomdjSXabcXlo6MFsOg" },
+      start_datetime: new Date(date.date).toISOString(),
+      end_datetime: new Date(date.date).toISOString(),
+    });
   });
 
-  // Ensure recurrences are correctly formatted
-  const transformedRecurrences = recurrences
-    .filter((r) => r !== null)
-    .map((recurrence) => ({
-      item_type: { type: "item_type", id: "ItuPaIW2SU2WmTCIJ2i0lA" },
-      ...recurrence,
-    }));
-
+  // Transform recurrence rules
+  const transformedRecurrence = (recurrence || [])
+    .filter(
+      (rule) => rule && rule.attributes && rule.attributes.recurrence_frequency
+    )
+    .map((rule) => {
+      return buildBlockRecord({
+        item_type: { type: "item_type", id: "ItuPaIW2SU2WmTCIJ2i0lA" },
+        ...rule.attributes,
+        start_time: buildBlockRecord({
+          item_type: { type: "item_type", id: "MEHFH3_URbGFbkE-sRyJsA" },
+          time: "00:00",
+        }),
+        end_time: buildBlockRecord({
+          item_type: { type: "item_type", id: "MEHFH3_URbGFbkE-sRyJsA" },
+          time: "23:59",
+        }),
+      });
+    });
   console.log(
-    "Filtered body (without recurrences):",
-    JSON.stringify(filteredBody, null, 2)
-  );
-  console.log("Transformed rooms:", JSON.stringify(transformedRooms, null, 2));
-  console.log(
-    "Transformed custom dates:",
-    JSON.stringify(transformedCustomDates, null, 2)
-  );
-  console.log(
-    "Transformed recurrences:",
-    JSON.stringify(transformedRecurrences, null, 2)
+    "Transformed recurrence:",
+    JSON.stringify(transformedRecurrence, null, 2)
   );
 
   try {
@@ -67,12 +60,9 @@ export default defineEventHandler(async (event) => {
       ...filteredBody,
       rooms: transformedRooms,
       custom_dates: transformedCustomDates,
-      recurrence: transformedRecurrences,
+      recurrence: transformedRecurrence,
+      generate_events: true, // Enable event generation
     });
-    console.log(
-      "New residency created:",
-      JSON.stringify(newResidency, null, 2)
-    );
 
     return {
       success: true,
@@ -81,7 +71,6 @@ export default defineEventHandler(async (event) => {
     };
   } catch (error) {
     console.error("Error in createResidency:", error);
-
     throw createError({
       statusCode: 500,
       message: error.message || "Failed to create residency",

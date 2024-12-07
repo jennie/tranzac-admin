@@ -1,3 +1,5 @@
+<!-- // /components/ResidencyForm.vue -->
+
 <template>
   <div>
     <UCard :ui="{ ring: '', divide: 'divide-y divide-gray-100 dark:divide-gray-800' }">
@@ -43,10 +45,11 @@
         <!-- <UFormGroup name="description" label="Description" class="grid grid-cols-2 gap-2 items-start">
           <UTextarea v-model="formData.description" label="Description" />
         </UFormGroup> -->
-        <div v-for="(recurrence, index) in formData.recurrences" :key="index" class="relative">
+        <div v-for="(recurrence, index) in formData.recurrence" :key="index" class="relative">
           <FrequencyFields v-if="formData.start_date && formData.end_date" :startDate="formData.start_date"
-            :endDate="formData.end_date" @state-changed="updateRecurrence(index)" :hide-label="index > 0" :index="index"
-            @remove="removeRecurrence(index)" />
+            :endDate="formData.end_date" @state-changed="(recurrence) => updateRecurrence(index, recurrence)"
+            :hide-label="index > 0" :index="index" @remove="removeRecurrence(index)" />
+
         </div>
         <div class="grid grid-cols-2 gap-2">
           <div class="col-start-2">
@@ -58,9 +61,9 @@
           <div v-for="(date, index) in formData.custom_dates" :key="index" class="flex items-center gap-2">
             <div class="flex flex-row justify-between w-full items-center">
               <UPopover :popper="{ placement: 'bottom-start' }">
-                <UButton icon="i-heroicons-calendar-days-20-solid" :label="formatDate(date)" />
+                <UButton icon="i-heroicons-calendar-days-20-solid" :label="formatDate(date.date)" />
                 <template #panel="{ close }">
-                  <DatePicker v-model="formData.custom_dates[index]" is-required @close="close" />
+                  <DatePicker v-model="formData.custom_dates[index].date" is-required @close="close" />
                 </template>
               </UPopover>
               <UButton size="xs" icon="i-heroicons-x-mark-solid" variant="soft" @click="removeCustomDate(index)" />
@@ -112,10 +115,10 @@ const formData = ref({
   description: '',
   start_date: new Date(),
   end_date: add(new Date(), { months: 12 }),
-  custom_dates: [], // No initial value
+  custom_dates: [],
   rooms: [],
   workflow_status: 'new',
-  recurrences: [null], // Initial value with one recurrence
+  recurrence: [], // Initialize as empty array
 });
 
 const ranges = [
@@ -155,7 +158,12 @@ watch(
 );
 
 const formatDate = (date) => {
-  return date ? format(new Date(date), "d MMM, yyyy") : '';
+  try {
+    return date ? format(new Date(date), "d MMM, yyyy") : '';
+  } catch (error) {
+    console.error("Invalid date value:", date, error);
+    return '';
+  }
 };
 
 const { rooms, isLoading, error, fetchRooms } = useRooms();
@@ -179,38 +187,60 @@ const workflowStatusOptions = [
   { label: 'Approved', value: 'approved' },
 ];
 
+const updateRecurrence = (index, recurrence) => {
+  console.log(`Updating recurrence at index ${index}:`, recurrence);
+
+  if (recurrence && recurrence.type === 'recurrence' && recurrence.attributes) {
+    formData.value.recurrence.splice(index, 1, recurrence);
+    console.log('Updated form recurrence data:', JSON.stringify(formData.value.recurrence, null, 2));
+  } else {
+    console.warn(`Invalid recurrence data received for index ${index}:`, recurrence);
+  }
+};
+
+
+
+const addRecurrence = () => {
+  console.log("Adding new recurrence");
+  const emptyRecurrence = {
+    type: 'recurrence',
+    attributes: {
+      recurrence_frequency: null,
+      recurrence_interval: null,
+      days_of_week: null,
+      day_of_month: null,
+      month_of_year: null
+    }
+  };
+  formData.value.recurrence.push(emptyRecurrence);
+  console.log('Added new recurrence entry:', JSON.stringify(emptyRecurrence, null, 2));
+};
+
 const handleSubmit = async () => {
-  console.log('Form data before submission:', JSON.stringify(formData.value, null, 2));
   try {
-    // Ensure the rooms field is correctly formatted as an array of strings containing only the value properties
-    formData.value.rooms = formData.value.rooms.map(room => room.value);
-
-    // Ensure the custom_dates field is correctly formatted as block records objects
-    formData.value.custom_dates = formData.value.custom_dates.map(date => ({
-      item_type: { type: "item_type", id: "custom_date_item_type_id" }, // Replace with actual item type ID
-      date: new Date(date).toISOString(),
-    }));
-
-    // Ensure the recurrences field is correctly formatted
-    const transformedRecurrences = formData.value.recurrences.filter(r => r !== null).map(recurrence => ({
-      item_type: { type: "item_type", id: "ItuPaIW2SU2WmTCIJ2i0lA" },
-      ...recurrence,
-    }));
+    console.log("Form Data before processing:", JSON.stringify(formData.value, null, 2));
 
     const filteredFormData = {
       ...formData.value,
-      recurrences: transformedRecurrences,
+      rooms: formData.value.rooms.map(room => room.value).filter(Boolean),
+      custom_dates: formData.value.custom_dates.map(date => ({
+        date: new Date(date.date).toISOString()
+      })),
+      recurrence: formData.value.recurrence.filter(r =>
+        r?.attributes?.recurrence_frequency &&
+        r?.attributes?.recurrence_interval
+      )
     };
+
+    console.log("Request Data to be sent:", JSON.stringify(filteredFormData, null, 2));
 
     const response = await fetch('/api/residencies/create', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(filteredFormData),
     });
+
     const result = await response.json();
-    console.log('Response from server:', result);
     if (result.success) {
       console.log('Residency created successfully:', result.data);
     } else {
@@ -221,24 +251,19 @@ const handleSubmit = async () => {
   }
 };
 
-const updateRecurrence = (index) => (recurrence) => {
-  console.log(`Updating recurrence at index ${index}:`, recurrence);
-  formData.value.recurrences[index] = recurrence;
-};
 
-const addRecurrence = () => {
-  console.log("Adding new recurrence");
-  formData.value.recurrences.push(null);
-};
+
+
 
 const removeRecurrence = (index) => {
   console.log(`Removing recurrence at index ${index}`);
-  formData.value.recurrences.splice(index, 1);
+  formData.value.recurrence.splice(index, 1);
+  console.log(`Form Data after removing recurrence:`, JSON.stringify(formData.value.recurrence, null, 2));
 };
 
 const updateState = (state) => {
   console.log("Updating state:", state);
-  formData.value.recurrences = state;
+  formData.value.recurrence = state;  // Changed from recurrences to recurrence
 };
 
 const updateDates = () => {
@@ -256,7 +281,7 @@ const addCustomDate = () => {
 const handleNewDate = (date) => {
   if (date) {
     console.log("Handling new date:", date);
-    formData.value.custom_dates.push(date);
+    formData.value.custom_dates.push({ date });
     newDate.value = null;
   }
 };
@@ -268,7 +293,7 @@ const removeCustomDate = (index) => {
 
 const totalEvents = computed(() => {
   let count = formData.value.custom_dates.length;
-  formData.value.recurrences.forEach(recurrence => {
+  formData.value.recurrence.forEach(recurrence => {
     if (recurrence && recurrence.dates) {
       count += recurrence.dates.length;
     }

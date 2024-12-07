@@ -1,9 +1,10 @@
-<script lang="ts" setup>
+<!-- // components/residencies/FrequencyFields.vue -->
+
+<script setup lang="ts">
 import moment from "moment-timezone";
 import { Schedule, Rule } from "@rschedule/core/generators";
 import { MomentTZDateAdapter } from "@rschedule/moment-tz-date-adapter";
 import "@rschedule/moment-tz-date-adapter/setup";
-
 import { useDateFormat } from "@vueuse/core";
 
 const props = defineProps({
@@ -25,33 +26,12 @@ const props = defineProps({
   },
 });
 
-const formatDate = (date: Date) =>
-  useDateFormat(ref(date), "D MMM, YYYY").value;
+const emit = defineEmits(['state-changed', 'remove']);
 const occurrences = ref([]);
-const emit = defineEmits(["state-changed", "remove"]);
-
-const schedule = new Schedule({
-  rrules: [],
-});
 
 const TIMEZONE = "America/Toronto";
 
-const startDate = computed(() => {
-  const date = moment(props.startDate ?? new Date());
-  if (!date.isValid()) {
-    throw new Error("Invalid start date");
-  }
-  return new MomentTZDateAdapter(date.tz(TIMEZONE));
-});
-
-const endDate = computed(() => {
-  const date = moment(props.endDate ?? new Date());
-  if (!date.isValid()) {
-    throw new Error("Invalid end date");
-  }
-  return new MomentTZDateAdapter(date.tz(TIMEZONE));
-});
-
+// Options definitions
 const frequencyOptions = ref([
   { key: "DAILY", label: "Daily" },
   { key: "WEEKLY", label: "Weekly" },
@@ -67,7 +47,7 @@ const weekdayOptions = ref([
   { key: "TH", label: "Thursday", disabled: false },
   { key: "FR", label: "Friday", disabled: false },
   { key: "SA", label: "Saturday", disabled: false },
-  { key: "day", label: "Day", disabled: false }, // Ensure this option is included
+  { key: "day", label: "Day", disabled: false },
 ]);
 
 const monthDayOptions = ref([
@@ -104,14 +84,6 @@ const monthDayOptions = ref([
   { key: 31, label: "31st" },
 ]);
 
-const currentMonthDayOptions = ref([...monthDayOptions.value]);
-const selectedDay = computed({
-  get: () => state.value.frequencies.monthly.day,
-  set: (value) => {
-    state.value.frequencies.monthly.day = value;
-  },
-});
-
 const yearMonthOptions = ref([
   { key: 1, label: "January" },
   { key: 2, label: "February" },
@@ -127,85 +99,163 @@ const yearMonthOptions = ref([
   { key: 12, label: "December" },
 ]);
 
+// Initial state setup
 const state = ref({
-  frequency: null, // No initial value
+  frequency: null,
   frequencies: {
-    daily: { interval: null },
+    daily: {
+      interval: null
+    },
     weekly: {
       interval: null,
-      weekdays: null,
+      weekdays: null
     },
     monthly: {
       interval: null,
       day: null,
-      weekdays: null,
+      weekdays: null
     },
     yearly: {
       interval: null,
       day: null,
       weekdays: null,
-      month: null,
-    },
-  },
-});
-
-const isRecurrenceComplete = computed(() => {
-  switch (state.value.frequency) {
-    case 'DAILY':
-      return state.value.frequencies.daily.interval !== null;
-    case 'WEEKLY':
-      return state.value.frequencies.weekly.interval !== null && state.value.frequencies.weekly.weekdays !== null;
-    case 'MONTHLY':
-      return state.value.frequencies.monthly.interval !== null && state.value.frequencies.monthly.day !== null && state.value.frequencies.monthly.weekdays !== null;
-    case 'YEARLY':
-      return state.value.frequencies.yearly.interval !== null && state.value.frequencies.yearly.day !== null && state.value.frequencies.yearly.weekdays !== null && state.value.frequencies.yearly.month !== null;
-    default:
-      return false;
-  }
-});
-
-function emitState() {
-  emit("state-changed", state.value);
-}
-
-async function updateOccurrences() {
-  emit("state-changed", state.value);
-  occurrences.value = [];
-
-  try {
-    const rule = generateRecurrenceRule(state.value);
-    if (rule) {
-      schedule.rrules = [rule];
-
-      for (const occurrence of rule.occurrences({
-        start: startDate.value,
-        take: 5,
-      })) {
-        occurrences.value.push(occurrence.date);
-      }
+      month: null
     }
-  } catch (error) {
-    console.error("Failed to update occurrences:", error);
   }
-}
-
-const formattedStartDate = computed(() => startDate.value ? formatDate(startDate.value.date) : '');
-const formattedEndDate = computed(() => endDate.value ? formatDate(endDate.value.date) : '');
-
-
-onMounted(async () => {
-  console.log("Start Date:", startDate.value);
-  console.log("End Date:", endDate.value);
-  await updateOccurrences();
 });
 
+const currentMonthDayOptions = ref([...monthDayOptions.value]);
+
+const startDate = computed(() => {
+  const date = moment(props.startDate ?? new Date());
+  if (!date.isValid()) {
+    throw new Error("Invalid start date");
+  }
+  return new MomentTZDateAdapter(date.tz(TIMEZONE));
+});
+
+const endDate = computed(() => {
+  const date = moment(props.endDate ?? new Date());
+  if (!date.isValid()) {
+    throw new Error("Invalid end date");
+  }
+  return new MomentTZDateAdapter(date.tz(TIMEZONE));
+});
+
+const formatDate = (date: Date) => useDateFormat(ref(date), "D MMM, YYYY").value;
+
+// Watch for frequency and interval changes
 watch(
-  [() => state, state.frequency, startDate, endDate],
-  () => {
-    updateOccurrences();
+  [
+    () => state.value.frequency,
+    () => state.value.frequencies.daily?.interval,
+    () => state.value.frequencies.weekly?.interval,
+    () => state.value.frequencies.monthly?.interval,
+    () => state.value.frequencies.yearly?.interval
+  ],
+  async ([frequency, dailyInterval, weeklyInterval, monthlyInterval, yearlyInterval]) => {
+    if (!frequency) return;
+
+    const freq = frequency.toLowerCase();
+    let interval = null;
+
+    switch (freq) {
+      case 'daily':
+        interval = dailyInterval;
+        break;
+      case 'weekly':
+        interval = weeklyInterval;
+        break;
+      case 'monthly':
+        interval = monthlyInterval;
+        break;
+      case 'yearly':
+        interval = yearlyInterval;
+        break;
+    }
+
+    if (interval) {
+      const stateToEmit = {
+        type: 'recurrence',
+        attributes: {
+          recurrence_frequency: freq,
+          recurrence_interval: parseInt(interval),
+          days_of_week: null,
+          day_of_month: null,
+          month_of_year: null
+        }
+      };
+
+      console.log('FrequencyFields emitting state:', stateToEmit);
+      emit('state-changed', stateToEmit);
+    }
   },
-  { deep: true },
+  { immediate: true }
 );
+
+// Watch for frequency-specific field changes
+watch(
+  [
+    () => state.value.frequencies.weekly?.weekdays,
+    () => state.value.frequencies.monthly?.day,
+    () => state.value.frequencies.monthly?.weekdays,
+    () => state.value.frequencies.yearly?.day,
+    () => state.value.frequencies.yearly?.month,
+  ],
+  async ([weeklyDays, monthlyDay, monthlyWeekdays, yearlyDay, yearlyMonth]) => {
+    if (!state.value.frequency) return;
+
+    const freq = state.value.frequency.toLowerCase();
+    const interval = state.value.frequencies[freq]?.interval;
+
+    if (!interval) return;
+
+    const stateToEmit = {
+      type: 'recurrence',
+      attributes: {
+        recurrence_frequency: freq,
+        recurrence_interval: parseInt(interval),
+        days_of_week: null,
+        day_of_month: null,
+        month_of_year: null
+      }
+    };
+
+    switch (freq) {
+      case 'weekly':
+        if (weeklyDays?.key) {
+          stateToEmit.attributes.days_of_week = [weeklyDays.key];
+        }
+        break;
+      case 'monthly':
+        if (monthlyDay?.key) {
+          stateToEmit.attributes.day_of_month = parseInt(monthlyDay.key);
+        }
+        if (monthlyWeekdays?.key !== 'day') {
+          stateToEmit.attributes.days_of_week = [monthlyWeekdays.key];
+        }
+        break;
+      case 'yearly':
+        if (yearlyDay?.key) {
+          stateToEmit.attributes.day_of_month = parseInt(yearlyDay.key);
+        }
+        if (yearlyMonth?.key) {
+          stateToEmit.attributes.month_of_year = yearlyMonth.key.toString();
+        }
+        break;
+    }
+
+    console.log('FrequencyFields emitting state update:', stateToEmit);
+    emit('state-changed', stateToEmit);
+  },
+  { deep: true }
+);
+
+// Schedule and rule generation
+const schedule = new Schedule({
+  rrules: [],
+});
+
 function generateRecurrenceRule(state) {
   if (!state.frequency) return null;
 
@@ -298,31 +348,32 @@ function generateRecurrenceRule(state) {
   return rule;
 }
 
-function createFrequencyWatcher(frequency) {
-  return watch(
-    () => state.value.frequencies[frequency].day,
-    (newDay) => {
-      let isweekdayDisabled = false;
+async function updateOccurrences() {
+  emit("state-changed", state.value);
+  occurrences.value = [];
 
-      weekdayOptions.value.forEach((option) => {
-        option.disabled = newDay?.key > 4;
-        if (option.key === state.value.frequencies[frequency].weekdays?.key) {
-          isweekdayDisabled = option.disabled;
-        }
-      });
+  try {
+    const rule = generateRecurrenceRule(state.value);
+    if (rule) {
+      schedule.rrules = [rule];
 
-      if (isweekdayDisabled) {
-        state.value.frequencies[frequency].weekdays = {
-          key: "day",
-          label: "Day",
-        };
+      for (const occurrence of rule.occurrences({
+        start: startDate.value,
+        take: 5,
+      })) {
+        occurrences.value.push(occurrence.date);
       }
-    },
-  );
+    }
+  } catch (error) {
+    console.error("Failed to update occurrences:", error);
+  }
 }
 
-createFrequencyWatcher("monthly");
-createFrequencyWatcher("yearly");
+onMounted(async () => {
+  console.log("Start Date:", startDate.value);
+  console.log("End Date:", endDate.value);
+  await updateOccurrences();
+});
 </script>
 
 <template>
