@@ -144,6 +144,28 @@ const endDate = computed(() => {
 
 const formatDate = (date: Date) => useDateFormat(ref(date), "D MMM, YYYY").value;
 
+// Add this computed property
+const isRecurrenceComplete = computed(() => {
+  if (!state.value.frequency) return false;
+  const freq = state.value.frequency.toLowerCase();
+  const freqSettings = state.value.frequencies[freq];
+
+  if (!freqSettings?.interval) return false;
+
+  switch (freq) {
+    case 'daily':
+      return true;
+    case 'weekly':
+      return !!freqSettings.weekdays;
+    case 'monthly':
+      return !!freqSettings.day;
+    case 'yearly':
+      return !!freqSettings.day && !!freqSettings.month;
+    default:
+      return false;
+  }
+});
+
 // Watch for frequency and interval changes
 watch(
   [
@@ -247,6 +269,25 @@ watch(
 
     console.log('FrequencyFields emitting state update:', stateToEmit);
     emit('state-changed', stateToEmit);
+  },
+  { deep: true }
+);
+
+// Update the watch handlers to call updateOccurrences when any relevant field changes
+watch(
+  [
+    () => state.value.frequency,
+    () => state.value.frequencies.daily?.interval,
+    () => state.value.frequencies.weekly?.interval,
+    () => state.value.frequencies.weekly?.weekdays,
+    () => state.value.frequencies.monthly?.interval,
+    () => state.value.frequencies.monthly?.day,
+    () => state.value.frequencies.yearly?.interval,
+    () => state.value.frequencies.yearly?.day,
+    () => state.value.frequencies.yearly?.month,
+  ],
+  async () => {
+    await updateOccurrences();
   },
   { deep: true }
 );
@@ -377,9 +418,8 @@ onMounted(async () => {
 </script>
 
 <template>
-  <UFormGroup name="frequency" :label="!props.hideLabel ? 'Recurrence' : ''"
-    :description="!props.hideLabel ? 'How often will the residency occur?' : ''" class="grid grid-cols-2 gap-2"
-    :ui="{ container: '' }">
+  <UFormGroup name="frequency" label="Recurrence" description="How often will the residency occur?"
+    class="grid grid-cols-2 gap-2" :ui="{ container: '' }">
     <div class="col-span-2 flex items-center justify-between mb-2">
       <span class="text-xs uppercase text-primary font-bold">Rule {{ props.index + 1 }}</span>
       <UButton v-if="props.index > 0" size="xs" icon="i-heroicons-x-mark-solid" variant="soft"
@@ -473,15 +513,14 @@ onMounted(async () => {
       </div>
     </div>
 
-    <div v-if="isRecurrenceComplete" class="items-center">
+    <div v-if="state.frequency" class="col-span-2">
       <div class="flex items-center my-4">
         <span class="text-stone-500 dark:text-stone-400 text-xs mr-2 italic">
-          <span v-if="occurrences.length === 0 && state.frequency !== null">No upcoming dates found</span>
+          <span v-if="occurrences.length === 0">No upcoming dates found</span>
           <span v-else>Next:
             {{ occurrences.map((date) => formatDate(date)).join("; ") }}</span>
         </span>
       </div>
-
     </div>
   </UFormGroup>
 </template>
