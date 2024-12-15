@@ -20,7 +20,7 @@
         <section class="table-section">
           <UCard :ui="{ header: { padding: 'p-4 sm:px-6' }, body: { padding: '' } }" class="min-w-0">
             <!-- Filters -->
-            <div class="flex justify-between px-3 py-3.5 border-b border-gray-200">
+            <div class="flex justify-between px-3 py-3.5 border-b border-stone-200">
               <div class="flex justify-start mb-4 items-center">
                 <USelect v-model="viewMode" :options="[
                   { label: 'Upcoming Events', value: 'current' },
@@ -36,7 +36,7 @@
                       aria-hidden="true" />
                     <span class="truncate">{{ prettyStatus(selectedStatusOption.label) }} ({{
                       selectedStatusOption.count
-                    }})</span>
+                      }})</span>
                   </template>
 
                   <template #option="{ option: status }">
@@ -52,8 +52,8 @@
             <div v-if="isLoadingEvents" class="py-8">
               <div class="flex items-center justify-center">
                 <div class="text-center">
-                  <UIcon name="i-heroicons-arrow-path" class="animate-spin h-8 w-8 text-gray-400" />
-                  <p class="mt-2 text-sm text-gray-500">Loading events...</p>
+                  <UIcon name="i-heroicons-arrow-path" class="animate-spin h-8 w-8 text-stone-400" />
+                  <p class="mt-2 text-sm text-stone-500">Loading events...</p>
                 </div>
               </div>
             </div>
@@ -95,9 +95,9 @@
                 </div>
 
                 <div v-else class="text-center py-12">
-                  <UIcon name="i-heroicons-calendar" class="mx-auto h-12 w-12 text-gray-400" />
-                  <h3 class="mt-2 text-sm font-semibold text-gray-900">No events</h3>
-                  <p class="mt-1 text-sm text-gray-500">
+                  <UIcon name="i-heroicons-calendar" class="mx-auto h-12 w-12 text-stone-400" />
+                  <h3 class="mt-2 text-sm font-semibold text-stone-900">No events</h3>
+                  <p class="mt-1 text-sm text-stone-500">
                     {{ residency?.workflowStatus === 'approved'
                       ? 'Get started by generating events for this residency.'
                       : 'Events can be generated once the residency is approved.' }}
@@ -273,14 +273,14 @@ const getStatusColor = (status: string) => {
 
 const getStatusColorClass = (status: string) => {
   const colorClasses = {
-    '': 'bg-gray-400',
+    '': 'bg-stone-400',
     new: 'bg-blue-400',
     resident_action_required: 'bg-yellow-400',
     pending_review: 'bg-orange-400',
     approved: 'bg-green-400',
     published: 'bg-primary-400'
   }
-  return colorClasses[status as keyof typeof colorClasses] || 'bg-gray-200'
+  return colorClasses[status as keyof typeof colorClasses] || 'bg-stone-200'
 }
 
 const prettyStatus = (status: string) => {

@@ -149,7 +149,7 @@ const getStatusColor = (status) => {
           <NuxtLink :to="`/members/${row._id}`" class="underline">
             <span class="flex flex-row items-center">
               <UAvatar :src="`https://unavatar.io/gravatar/${row.email}`"
-                class="bg-gray-200 dark:bg-neutral-800 mr-2" />
+                class="bg-stone-200 dark:bg-neutral-800 mr-2" />
               {{ row.name }}
             </span>
           </NuxtLink>
@@ -170,7 +170,7 @@ const getStatusColor = (status) => {
         </template>
       </UTable>
 
-      <div class="flex justify-end px-3 py-3.5 border-t border-gray-200 dark:border-gray-700">
+      <div class="flex justify-end px-3 py-3.5 border-t border-stone-200 dark:border-stone-700">
         <UPagination v-model="page" :page-count="pageCount" :total="filteredMembers.length" />
       </div>
     </UCard>

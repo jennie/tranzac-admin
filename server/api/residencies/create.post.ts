@@ -18,15 +18,20 @@ export default defineEventHandler(async (event) => {
     });
   }
 
-  // Transform custom dates
+  // Transform custom dates - now using start_datetime and end_datetime directly
   const transformedCustomDates = (custom_dates || []).map((date) => {
-    if (!date.date || isNaN(new Date(date.date).getTime())) {
-      throw new Error(`Invalid date value: ${date.date}`);
+    if (
+      !date.start_datetime ||
+      !date.end_datetime ||
+      isNaN(new Date(date.start_datetime).getTime()) ||
+      isNaN(new Date(date.end_datetime).getTime())
+    ) {
+      throw new Error(`Invalid date value: ${JSON.stringify(date)}`);
     }
     return buildBlockRecord({
       item_type: { type: "item_type", id: "TiqBomdjSXabcXlo6MFsOg" },
-      start_datetime: new Date(date.date).toISOString(),
-      end_datetime: new Date(date.date).toISOString(),
+      start_datetime: date.start_datetime,
+      end_datetime: date.end_datetime,
     });
   });
 
@@ -41,11 +46,11 @@ export default defineEventHandler(async (event) => {
         ...rule.attributes,
         start_time: buildBlockRecord({
           item_type: { type: "item_type", id: "MEHFH3_URbGFbkE-sRyJsA" },
-          time: "00:00",
+          time: rule.attributes.start_time || "12:00",
         }),
         end_time: buildBlockRecord({
           item_type: { type: "item_type", id: "MEHFH3_URbGFbkE-sRyJsA" },
-          time: "23:59",
+          time: rule.attributes.end_time || "23:59",
         }),
       });
     });
@@ -61,7 +66,7 @@ export default defineEventHandler(async (event) => {
       rooms: transformedRooms,
       custom_dates: transformedCustomDates,
       recurrence: transformedRecurrence,
-      generate_events: true, // Enable event generation
+      generate_events: false,
     });
 
     return {

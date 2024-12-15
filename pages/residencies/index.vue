@@ -2,14 +2,7 @@
 <template>
   <UDashboardPage>
     <UDashboardPanel grow>
-      <UDashboardPanel>
-        <UDashboardNavbar title="Residencies" badge="5">
-          <template #right>
-            <UButton label="New Residency" trailing-icon="i-heroicons-plus" color="gray"
-              @click="showCreateResidencyModal = true" />
-          </template>
-        </UDashboardNavbar>
-      </UDashboardPanel>
+
       <UDashboardPanel class="pb-24">
 
 
@@ -19,8 +12,8 @@
         <div v-if="isLoading" class="py-8">
           <div class="flex items-center justify-center">
             <div class="text-center">
-              <UIcon name="i-heroicons-arrow-path" class="animate-spin h-8 w-8 text-gray-400" />
-              <p class="mt-2 text-sm text-gray-500">Loading residencies...</p>
+              <UIcon name="i-heroicons-arrow-path" class="animate-spin h-8 w-8 text-stone-400" />
+              <p class="mt-2 text-sm text-stone-500">Loading residencies...</p>
             </div>
           </div>
         </div>
@@ -28,8 +21,8 @@
         <template v-else>
           <div>
             <!-- Filters and search -->
-            <div class="flex justify-between px-3 py-3.5 border-b border-gray-200">
-              <div class="flex justify-start mb-4 items-center">
+            <div class="flex justify-between px-3 py-3.5 border-b border-stone-200 items-center">
+              <div class="flex justify-start items-center">
                 <USelect v-model="viewMode" :options="[
                   { label: 'Current Residencies', value: 'current' },
                   { label: 'Past Residencies', value: 'past' },
@@ -48,7 +41,7 @@
                       aria-hidden="true" />
                     <span class="truncate">{{ prettyStatus(selectedStatusOption.label) }} ({{
                       selectedStatusOption.count
-                    }})</span>
+                      }})</span>
                   </template>
 
                   <template #option="{ option: status }">
@@ -108,16 +101,16 @@
             <!-- Empty State -->
             <div v-if="filteredResidencies.length === 0" class="py-12">
               <div class="text-center">
-                <UIcon name="i-heroicons-inbox" class="mx-auto h-12 w-12 text-gray-400" />
-                <h3 class="mt-2 text-sm font-semibold text-gray-900">No residencies found</h3>
-                <p class="mt-1 text-sm text-gray-500">No residencies match your current filters.</p>
+                <UIcon name="i-heroicons-inbox" class="mx-auto h-12 w-12 text-stone-400" />
+                <h3 class="mt-2 text-sm font-semibold text-stone-900">No residencies found</h3>
+                <p class="mt-1 text-sm text-stone-500">No residencies match your current filters.</p>
               </div>
             </div>
 
             <!-- Pagination -->
             <div v-if="filteredResidencies.length > 0"
-              class="flex justify-between items-center px-4 py-3 border-t border-gray-200 dark:border-gray-700">
-              <p class="text-sm text-gray-500">
+              class="flex justify-between items-center px-4 py-3 border-t border-stone-200 dark:border-stone-700">
+              <p class="text-sm text-stone-500">
                 Showing {{ paginationStart }} to {{ paginationEnd }} of {{ totalResidencies }} residencies
               </p>
               <UPagination v-model="currentPage" :total="totalResidencies" :per-page="perPage" />
@@ -137,11 +130,7 @@
           </UCard>
         </UModal>
 
-        <!-- Create Residency Modal -->
-        <UModal v-model="showCreateResidencyModal">
-
-          <ResidencyForm @submit="handleCreateResidencySubmit" />
-        </UModal>
+        <!-- Remove the Create Residency Modal -->
 
       </UDashboardPanel>
     </UDashboardPanel>
@@ -406,14 +395,14 @@ const getStatusColor = (status: string) => {
 
 const getStatusColorClass = (status: string) => {
   const colorClasses = {
-    '': 'bg-gray-400', // For "All Statuses"
+    '': 'bg-stone-400', // For "All Statuses"
     new: 'bg-blue-400',
     resident_action_required: 'bg-yellow-400',
     pending_review: 'bg-orange-400',
     approved: 'bg-green-400',
     published: 'bg-primary-400'
   }
-  return colorClasses[status as keyof typeof colorClasses] || 'bg-gray-200'
+  return colorClasses[status as keyof typeof colorClasses] || 'bg-stone-200'
 }
 
 const prettyStatus = (status: string) => {
@@ -606,7 +595,5 @@ watch(viewMode, () => {
   selectedStatus.value = ''
   selectedStatusOption.value = statusOptions.value[0]
 })
-
-const showCreateResidencyModal = ref(false);
 
 </script>

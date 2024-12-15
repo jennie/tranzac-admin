@@ -13,7 +13,7 @@
             </div>
           </template>
           <template #description>
-            <div class="flex items-center gap-6 text-sm text-gray-500">
+            <div class="flex items-center gap-6 text-sm text-stone-500">
               <div class="flex items-center gap-1">
                 <UIcon name="i-heroicons-calendar" class="w-4 h-4" />
                 <span>
@@ -39,12 +39,12 @@
         </UDashboardSection>
         <!-- Navigation bars -->
 
-        <div class="border-y border-gray-200 dark:border-gray-800 px-2">
+        <div class="border-y border-stone-200 dark:border-stone-800 px-2">
           <UHorizontalNavigation :links="pageLinks" />
         </div>
 
         <!-- Only show action buttons on details page -->
-        <div v-if="route.name === 'residencies-id'" class="border-b border-gray-200 dark:border-gray-800 px-2">
+        <div v-if="route.name === 'residencies-id'" class="border-b border-stone-200 dark:border-stone-800 px-2">
           <UHorizontalNavigation :links="actionLinks" />
         </div>
 

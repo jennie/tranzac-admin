@@ -107,12 +107,12 @@ defineShortcuts({
       </UDashboardModal>
 
       <UTable v-model="selected" v-model:sort="sort" :rows="users" :columns="columns" :loading="pending"
-        sort-mode="manual" class="w-full" :ui="{ divide: 'divide-gray-200 dark:divide-gray-800' }" @select="onSelect">
+        sort-mode="manual" class="w-full" :ui="{ divide: 'divide-stone-200 dark:divide-stone-800' }" @select="onSelect">
         <template #name-data="{ row }">
           <div class="flex items-center gap-3">
             <UAvatar v-bind="row.avatar" :alt="row.name" size="xs" />
 
-            <span class="text-gray-900 dark:text-white font-medium">{{ row.name }}</span>
+            <span class="text-stone-900 dark:text-white font-medium">{{ row.name }}</span>
           </div>
         </template>
 

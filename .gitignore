@@ -28,3 +28,6 @@ logs
 sendgrid.env
 *.env
 scripts/*
+
+# Local Netlify folder
+.netlify

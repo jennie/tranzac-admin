@@ -52,18 +52,22 @@ export const parseTime = (timeStr: string) => {
 
 export const generateTimeOptions = () => {
   const options = [];
-  const start = startOfDay(new Date()); // Start at 00:00
+  const start = new Date();
+  start.setHours(12, 0, 0, 0); // Start at 12:00 PM
 
-  // Generate time options for the whole day at 30-minute intervals
+  // Generate time options from 12:00 PM to 2:00 AM the next day at 30-minute intervals
   let current = start;
-  const end = addMinutes(start, 24 * 60); // End of the day (24 hours)
+  const end = new Date(start);
+  end.setDate(end.getDate() + 1);
+  end.setHours(2, 0, 0, 0); // End at 2:00 AM the next day
 
-  while (current < end) {
+  while (current <= end) {
     const formattedTime = format(current, "HH:mm");
     const displayTime = format(current, "h:mm a");
+    const isNextDay = current.getDate() !== start.getDate();
 
     options.push({
-      label: displayTime,
+      label: displayTime + (isNextDay ? " (next day)" : ""),
       value: formattedTime,
     });
 

@@ -177,14 +177,14 @@ const filteredRentalRequests = computed(() => {
         <!-- Section for Key Metrics -->
         <section class="metrics-section mb-8">
           <h2 class="text-xl font-semibold mb-4">Booking Overview</h2>
-          <p class="text-gray-600 mb-6">Monitor the status of rental requests.</p>
+          <p class="text-stone-600 mb-6">Monitor the status of rental requests.</p>
 
           <div class="dashboard-key-metrics grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <!-- New Requests Card -->
             <UDashboardCard title="New Requests" @click="filterByStatus('new')" class="cursor-pointer">
               <template #default>
                 <div class="text-3xl font-bold">{{ totalNewRequests }}</div>
-                <p class="text-sm text-gray-500 mt-2">Total new requests in the system</p>
+                <p class="text-sm text-stone-500 mt-2">Total new requests in the system</p>
               </template>
             </UDashboardCard>
 
@@ -192,7 +192,7 @@ const filteredRentalRequests = computed(() => {
             <UDashboardCard title="Estimate Sent" @click="filterByStatus('estimate_sent')" class="cursor-pointer">
               <template #default>
                 <div class="text-3xl font-bold">{{ estimateSent }}</div>
-                <p class="text-sm text-gray-500 mt-2">Requests where estimates were sent</p>
+                <p class="text-sm text-stone-500 mt-2">Requests where estimates were sent</p>
               </template>
             </UDashboardCard>
 
@@ -201,7 +201,7 @@ const filteredRentalRequests = computed(() => {
               class="cursor-pointer">
               <template #default>
                 <div class="text-3xl font-bold">{{ estimateAccepted }}</div>
-                <p class="text-sm text-gray-500 mt-2">Requests where estimates were accepted</p>
+                <p class="text-sm text-stone-500 mt-2">Requests where estimates were accepted</p>
               </template>
             </UDashboardCard>
 
@@ -209,7 +209,7 @@ const filteredRentalRequests = computed(() => {
             <UDashboardCard title="Contract Signed" @click="filterByStatus('contract_signed')" class="cursor-pointer">
               <template #default>
                 <div class="text-3xl font-bold">{{ contractSigned }}</div>
-                <p class="text-sm text-gray-500 mt-2">Contracts signed by clients</p>
+                <p class="text-sm text-stone-500 mt-2">Contracts signed by clients</p>
               </template>
             </UDashboardCard>
 
@@ -217,7 +217,7 @@ const filteredRentalRequests = computed(() => {
             <UDashboardCard title="Deposit Paid" @click="filterByStatus('deposit_paid')" class="cursor-pointer">
               <template #default>
                 <div class="text-3xl font-bold">{{ depositPaid }}</div>
-                <p class="text-sm text-gray-500 mt-2">Requests where deposit has been paid</p>
+                <p class="text-sm text-stone-500 mt-2">Requests where deposit has been paid</p>
               </template>
             </UDashboardCard>
 
@@ -225,7 +225,7 @@ const filteredRentalRequests = computed(() => {
             <UDashboardCard title="Balance Paid" @click="filterByStatus('balance_paid')" class="cursor-pointer">
               <template #default>
                 <div class="text-3xl font-bold">{{ balancePaid }}</div>
-                <p class="text-sm text-gray-500 mt-2">Requests where full balance has been paid</p>
+                <p class="text-sm text-stone-500 mt-2">Requests where full balance has been paid</p>
               </template>
             </UDashboardCard>
           </div>
@@ -282,7 +282,7 @@ const filteredRentalRequests = computed(() => {
               </template>
             </UTable>
 
-            <div class="flex justify-end px-3 py-3.5 border-t border-gray-200 dark:border-gray-700">
+            <div class="flex justify-end px-3 py-3.5 border-t border-stone-200 dark:border-stone-700">
               <UPagination v-model="page" :page-count="pageCount" :total="filteredRentalRequests.length" />
             </div>
           </UCard>
